@@ -1,5 +1,7 @@
-flattenSamples <- function(y)
+flattenSamples <- function(y) {
+  x <- NULL ## R CMD check
   if (!is.null(dim(y)) && length(dim(y)) > 2L) evalx(dim(y), matrix(y, nrow = x[1L], ncol = x[2L] * x[3L])) else y
+}
 
 cibart <- function(
   response, treatment, confounders, data, subset, weights,
@@ -66,9 +68,9 @@ cibart <- function(
   estimand <- estimand[1L]
   
   responseCall <- switch(method.rsp,
-    bart = redirectCall(matchedCall, quoteInNamespace(getBartResponseFit)),
+    bart    = redirectCall(matchedCall, quoteInNamespace(getBartResponseFit)),
     pweight = redirectCall(matchedCall, quoteInNamespace(getPWeightResponseFit)),
-    tmle = redirectCall(matchedCall, quoteInNamespace(getTMLEResponseFit)))
+    tmle    = redirectCall(matchedCall, quoteInNamespace(getTMLEResponseFit)))
 
   responseCall <- addCallDefaults(responseCall, cibart::cibart)
   
@@ -76,9 +78,12 @@ cibart <- function(
   if (is.na(propensityScoreAsCovariate)) stop("propensityScoreAsCovariate must be TRUE or FALSE")
   if (propensityScoreAsCovariate && !is.null(p.score)) {
     evalEnv <- new.env(parent = callingEnv)
-    evalEnv$p.score <- p.score
+    pScoreArgName <- "ps"
+    if (!is.null(matchedCall$data))
+      while (pScoreArgName %in% names(data)) pScoreArgName <- paste0(pScoreArgName, "ps")
+    evalEnv[[pScoreArgName]] <- p.score
     
-    responseCall$p.score <- quote(p.score)
+    responseCall$p.score <- as.symbol(pScoreArgName)
     
     if ("samples.p.score" %in% names(formals(eval(responseCall[[1L]])))) {
       evalEnv$samples.p.score <- samples.p.score

@@ -1,12 +1,12 @@
-getTreatmentEffectEstimate <- function(samples, ci.style, ci.level, subset = NULL) {
-  if (!is.null(subset)) samples <- samples[subset]
+getTreatmentEffectEstimate <- function(samples, ci.style, ci.level) {
+  x <- NULL ## R CMD check
   
   est <- mean(samples)
   sd <- sd(samples)
   probs <- evalx((1 - ci.level) / 2, c(x, 1 - x))
   
   ci <- switch(ci.style,
-               norm  = est + sd(samples) * qnorm(probs),
+               norm  = est + sd * qnorm(probs),
                quant = unname(quantile(samples, probs)),
                hpd   = getHPDInterval(samples, ci.level))
   c(estimate = est, sd = sd, ci.lower = ci[1L], ci.upper = ci[2L])
@@ -26,7 +26,7 @@ summary.cibartFit <- function(object, ci.style = c("norm", "quant", "hpd"), ci.l
   
   samples <- extract(object, "est", combineChains = TRUE)
   
-  numSamples <- if (is.null(object$group.by)) ncol(samples[[1L]]) else length(samples)
+  numSamples <- if (!is.null(object$group.by)) length(samples[[1L]]) else length(samples)
   numObservations <- dim(object$samples.indiv.diff)[1L]
   
   if (is.null(object$group.by)) {
@@ -36,7 +36,7 @@ summary.cibartFit <- function(object, ci.style = c("norm", "quant", "hpd"), ci.l
     estimates <- as.data.frame(t(sapply(seq_along(levels(object$group.by)), function(i) {
       level <- levels(object$group.by)[i]
       levelObs <- object$group.by == level
-      c(getTreatmentEffectEstimate(samples[[i]], ci.style, ci.level, levelObs), n = sum(levelObs))
+      c(getTreatmentEffectEstimate(samples[[i]], ci.style, ci.level), n = sum(levelObs))
     })))
     row.names(estimates) <- paste0(object$estimand, ".", levels(object$group.by))
   }
@@ -55,41 +55,43 @@ summary.cibartFit <- function(object, ci.style = c("norm", "quant", "hpd"), ci.l
   result
 }
 
-print.cibartFit.summary <- function(object, digits = max(3L, getOption("digits") - 3L), ...)
+print.cibartFit.summary <- function(x, ...)
 {
   dotsList <- list(...)
-  if (!is.null(object$call))
-    cat("Call: ", paste0(deparse(object$call), collapse = "\n      "), "\n\n", sep = "", ...)
+  digits <- if (!is.null(dotsList$digits)) dotsList$digits else max(3L, getOption("digits") - 3L)
+  
+  if (!is.null(x$call))
+    cat("Call: ", paste0(deparse(x$call), collapse = "\n      "), "\n\n", sep = "", ...)
   
   cat("Causal inference model fit by:\n",
-      "  model.rsp: ", object$method.rsp, "\n",
-      "  model.trt: ", object$method.trt, "\n\n", sep = "", ...)
+      "  model.rsp: ", x$method.rsp, "\n",
+      "  model.trt: ", x$method.trt, "\n\n", sep = "", ...)
   
   cat("Treatment effect:\n", ...)
   
-  print(object$estimates, digits = digits, ...)
-  if (!is.null(object$estimates[["n"]]) && any(object$estimates[["n"]] <= 10L) && object$numObservations > 10L)
+  print(x$estimates, digits = digits, ...)
+  if (!is.null(x$estimates[["n"]]) && any(x$estimates[["n"]] <= 10L) && x$numObservations > 10L)
     cat("  if (n < 10) group-size estimates may be unstable\n", ...)
   cat("\n")
   
-  cat(round(100 * object$ci.level, digits), "% credible interval calculated by: ",
-      switch(object$ci.style,
+  cat(round(100 * x$ci.level, digits), "% credible interval calculated by: ",
+      switch(x$ci.style,
              norm = "normal approximation",
              quant = "empirical quantiles",
              hpd   = "highest posterior density"),
       "\n", sep = "", ...)
-  cat("Result based on ", object$numSamples, " posterior samples", 
-      if (!is.null(object$n.chains)) paste0(" across ", object$n.chains, " chains") else "",
+  cat("Result based on ", x$numSamples, " posterior samples", 
+      if (!is.null(x$n.chains)) paste0(" across ", x$n.chains, " chains") else "",
       "\n", sep = "", ...)
   
-  invisible(object)
+  invisible(x)
 }
 
-print.cibartFit <- function(object, ...)
+print.cibartFit <- function(x, ...)
 {
   cat("cibart fit using methods:\n",
-      "  model.rsp: ", object$method.rsp, "\n",
-      "  model.trt: ", object$method.trt, "\n\n", sep = "", ...)
+      "  model.rsp: ", x$method.rsp, "\n",
+      "  model.trt: ", x$method.trt, "\n\n", sep = "", ...)
   
-  invisible(object)
+  invisible(x)
 }

@@ -1,5 +1,7 @@
 getBartEstimates <- function(treatmentRows, weights, estimand, indiv.diff)
 {
+  x <- NULL ## R CMD check
+  
   if (!is.character(estimand) || estimand[1L] %not_in% c("ate", "att", "atc"))
     stop("estimand must be one of 'ate', 'att', or 'atc'")
   estimand <- estimand[1L]
@@ -114,8 +116,11 @@ getBartResponseFit <- function(response, treatment, confounders, data, subset, w
     samples.est <- getBartEstimates(treatmentRows, weights, estimand, samples.indiv.diff)
   } else {
     samples.est <- lapply(levels(group.by), function(level) {
-      getBartEstimates(z, weights, estimand,
-                       if (length(dim(bartFit$yhat.train)) > 2L) samples.indiv.diff[group.by == level,,] else samples.indiv.diff[group.by == level,])
+      levelRows <- group.by == level
+      if (!is.null(weights)) weights <- weights[levelRows]
+      
+      getBartEstimates(treatmentRows[levelRows], weights, estimand,
+                       if (length(dim(bartFit$yhat.train)) > 2L) samples.indiv.diff[levelRows,,] else samples.indiv.diff[levelRows,])
     })
     names(samples.est) <- levels(group.by)
   }
@@ -219,13 +224,14 @@ getPWeightResponseFit <-
       yhat.0 <- if (length(dim(yhat.0) > 2L)) yhat.0[levelRows,,] else yhat.0[levelRows,]
       yhat.1 <- if (length(dim(yhat.0) > 2L)) yhat.1[levelRows,,] else yhat.1[levelRows,]
       
-      if (is.null(dim(p.score))) {
-        p.score <- p.score[levelRows]
+      p.score <- if (is.null(dim(p.score))) {
+        p.score[levelRows]
       } else {
-        p.score <- if (length(dim(p.score)) > 2L) p.score[levelRows,,] else p.score[levelRows,]
+        if (length(dim(p.score)) > 2L) p.score[levelRows,,] else p.score[levelRows,]
       }
+      if (!is.null(weights)) weights <- weights[levelRows]
       
-      getPWeightEstimates(bartFit$y, trt, weights, estimand, yhat.0, yhat.1, p.score, yBounds, p.scoreBounds)
+      getPWeightEstimates(bartFit$y[levelRows], trt[levelRows], weights, estimand, yhat.0, yhat.1, p.score, yBounds, p.scoreBounds)
     })
     names(samples.est) <- levels(group.by)
   }

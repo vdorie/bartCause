@@ -1,5 +1,7 @@
-getBARTFit <- function(object)
+getBARTFit <- function(object) {
+  x <- NULL ## R CMD check
   evalx(object$fit.rsp$yhat.train, if (length(dim(x)) > 2L) aperm(x, c(3L, 1L, 2L)) else t(x))
+}
 
 getBARTFitForSubset <- function(object, observedSubset) {
   trainingSamples <- object$fit.rsp$yhat.train

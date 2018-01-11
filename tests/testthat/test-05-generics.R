@@ -11,7 +11,7 @@ fit <- cibart(y, z, x, testData, method.trt = "glm", group.by = g, n.samples = 5
 p.score <- fitted(glm(z ~ x, family = stats::binomial, data = testData))
 
 set.seed(22)
-x.train <- cbind(testData$x, p.score, z = testData$z)
+x.train <- cbind(testData$x, z = testData$z, p.score)
 x.test  <- x.train; x.test[,"z"] <- 1 - x.test[,"z"]
 bartFit <- dbarts::bart2(x.train, testData$y, x.test, n.samples = 50L, n.burn = 25L, n.thread = 1L, verbose = FALSE)
 
@@ -70,9 +70,9 @@ test_that("summary object contain correct information", {
   expect_equal(sum$ci.style, eval(formals(cibart:::summary.cibartFit)$ci.style)[1L])
   expect_equal(sum$ci.level, eval(formals(cibart:::summary.cibartFit)$ci.level))
   expect_equal(sum$numObservations, length(testData$y))
-  expect_equal(sum$numSamples, 50L)
-  expect_equal(sum$n.chains, 1L)
-  expect_equal(sum$estimates$estimate, fitted(fit, "est")) 
+  expect_equal(sum$numSamples, 50L * 4L)
+  expect_equal(sum$n.chains, 4L)
+  expect_equal(sum$estimates$estimate, unname(fitted(fit, "est")))
 })
 
 test_that("summary works with confidence interval styles", {

@@ -72,6 +72,7 @@ getBartTreatmentFit <- function(treatment, confounders, data, subset, weights, .
   bartCall <- addCallArguments(bartCall, list(...))
   
   bartFit <- eval(bartCall, envir = evalEnv)
+  x <- NULL ## R CMD check
   samples <- evalx(pnorm(bartFit$yhat.train), if (length(dim(x)) > 2L) aperm(x, c(3L, 1L, 2L)) else t(x))
   
   list(fit = bartFit,
@@ -135,6 +136,7 @@ getBartXValTreatmentFit <- function(treatment, confounders, data, subset, weight
   bartCall$k <- TEST_K[which.min(apply(xbartFit, 2L, mean))]
   
   bartFit <- eval(bartCall, envir = evalEnv)
+  x <- NULL ## R CMD check
   samples <- evalx(pnorm(bartFit$yhat.train), if (length(dim(x)) > 2L) aperm(x, c(3L, 1L, 2L)) else t(x))
   
   list(fit = bartFit,

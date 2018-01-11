@@ -91,6 +91,7 @@ getResponseDataCall <- function(fn, response, treatment, confounders, data, subs
 getTreatmentLiteralCall <- function(fn, treatment, confounders, subset, weights)
 {
   matchedCall <- match.call()
+  x <- NULL ## R CMD check
   
   treatmentName <- "z"
   while (treatmentName %in% colnames(confounders))
@@ -115,6 +116,7 @@ getTreatmentLiteralCall <- function(fn, treatment, confounders, subset, weights)
 getResponseLiteralCall <- function(fn, response, treatment, confounders, subset, weights, p.score)
 {
   matchedCall <- match.call()
+  x <- NULL ## R CMD check
   
   df <- as.data.frame(cbind(confounders, response, treatment))
   responseName <- "y"
