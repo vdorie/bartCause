@@ -72,8 +72,9 @@ addCallDefaults <- function(call, fn)
   formalsToAdd <- names(fnFormals) %in% possibleArgs & names(fnFormals) %not_in% currentArgs
   if (any(formalsToAdd)) {
     fnFormals <- fnFormals[formalsToAdd]
-    for (i in seq_along(fnFormals))
-      call[[names(fnFormals)[i]]] <- fnFormals[[i]]
+    for (i in seq_along(fnFormals)) {
+      if (!is.null(fnFormals[[i]])) call[[names(fnFormals)[i]]] <- fnFormals[[i]]
+    }
   }
   
   call

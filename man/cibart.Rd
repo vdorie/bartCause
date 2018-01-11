@@ -56,6 +56,11 @@ cibart(response, treatment, confounders, data, subset, weights,
     a matrix, it should be of dimensions equal to the number of observations times the number of samples
     used in any response model.
   }
+  \item{estimand}{
+    A character string specifying which causal effect to target. Options are \code{"ate"} - average
+    treatment effect, \code{"att"} - average treatment effect on the treated, and \code{"atc"} - average
+    treatment effect on the controls.
+  }
   \item{group.by}{
     An optional factor that, when present, causes the treatment effect estimate to be calculated within
     each group.
@@ -105,35 +110,24 @@ Vincent Dorie: \email{vdorie@gmail.com}.
 \code{\link{pdbart}}
 }
 \examples{
-## simulate data (example from Friedman MARS paper)
-## y = f(x) + epsilon , epsilon ~ N(0, sigma)
-## x consists of 10 variables, only first 5 matter
+## fit a simple linear model
+n <- 100L
+beta.z <- c(.75, -0.5,  0.25)
+beta.y <- c(.5,   1.0, -1.5)
+  
+set.seed(725)
+x <- matrix(rnorm(3 * n), n, 3)
+tau <- rgamma(1L, 0.25 * 16 * rgamma(1L, 1 * 32, 32), 16)
 
-f <- function(x) {
-    10 * sin(pi * x[,1] * x[,2]) + 20 * (x[,3] - 0.5)^2 +
-      10 * x[,4] + 5 * x[,5]
-}
+p.score <- pnorm(x %*% beta.z)
+z <- rbinom(n, 1, p.score)
 
-set.seed(99)
-sigma <- 1.0
-n     <- 100
+mu.0 <- x %*% beta.y
+mu.1 <- x %*% beta.y + tau
 
-x  <- matrix(runif(n * 10), n, 10)
-Ey <- f(x)
-y  <- rnorm(n, Ey, sigma)
+y <- mu.0 * (1 - z) + mu.1 * z + rnorm(n, 0, 2)
 
-## run BART
-set.seed(99)
-bartFit <- bart(x, y)
-
-plot(bartFit)
-
-## compare BART fit to linear matter and truth = Ey
-lmFit <- lm(y ~ ., data.frame(x, y))
-
-fitmat <- cbind(y, Ey, lmFit$fitted, bartFit$yhat.train.mean)
-colnames(fitmat) <- c('y', 'Ey', 'lm', 'bart')
-print(cor(fitmat))
+fit <- cibart(y, z, x, n.samples = 100L)
 }
 \keyword{nonparametric}
 \keyword{tree}

@@ -73,6 +73,7 @@ cibart <- function(
   responseCall <- addCallDefaults(responseCall, cibart::cibart)
   
   evalEnv <- callingEnv
+  if (is.na(propensityScoreAsCovariate)) stop("propensityScoreAsCovariate must be TRUE or FALSE")
   if (propensityScoreAsCovariate && !is.null(p.score)) {
     evalEnv <- new.env(parent = callingEnv)
     evalEnv$p.score <- p.score

@@ -374,13 +374,14 @@ getTMLEResponseFit <-
       yhat.0 <- if (length(dim(yhat.0) > 2L)) yhat.0[levelRows,,] else yhat.0[levelRows,]
       yhat.1 <- if (length(dim(yhat.0) > 2L)) yhat.1[levelRows,,] else yhat.1[levelRows,]
       
-      if (is.null(dim(p.score))) {
-        p.score <- p.score[levelRows]
+      p.score <- if (is.null(dim(p.score))) {
+        p.score[levelRows]
       } else {
-        p.score <- if (length(dim(p.score)) > 2L) p.score[levelRows,,] else p.score[levelRows,]
+        if (length(dim(p.score)) > 2L) p.score[levelRows,,] else p.score[levelRows,]
       }
+      if (!is.null(weights)) weights <- weights[levelRows]
       
-      getTMLEEstimates(bartFit$y, trt, weights, estimand, yhat.0, yhat.1, p.score, yBounds, p.scoreBounds, depsilon, maxIter)
+      getTMLEEstimates(bartFit$y[levelRows], trt[levelRows], weights, estimand, yhat.0, yhat.1, p.score, yBounds, p.scoreBounds, depsilon, maxIter)
     })
     names(samples.est) <- levels(group.by)
   }

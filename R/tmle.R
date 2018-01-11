@@ -65,7 +65,8 @@ getTMLEFunctions <- function(estimand, weights) {
     
     result
   }
-  
+  ## for R CMD check
+  a.weight <- indiv.diff <- p.score <- psi <- x <- y <- yhat <- z <- NULL
   if (!is.null(weights)) {
     if (estimand == "att") {
       yhat0Body <- quote(-(p.score / (1 - p.score)) / sum(p.score * weights))

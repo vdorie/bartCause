@@ -7,7 +7,9 @@ Depends:
   R (>= 3.1-0)
 Imports:
   dbarts (>= 0.9-0),
-  methods
+  methods,
+  stats,
+  graphics
 Suggests:
   testthat (>= 0.9-0)
 Description: Contains a variety of methods to generate typical causal inference estimates using Bayesian Additive Regression Trees (BART) as the underlying regression model.

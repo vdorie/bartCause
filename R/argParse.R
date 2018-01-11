@@ -7,9 +7,10 @@ getGroupBy <- function(confounders, data, subset, group.by)
   
   if (is.null(matchedCall$group.by)) return(NULL)
   
-  if (!dataAreMissing) {
-    group.by <- data[[matchedCall$group.by]]
-  }
+  tryResult <- tryCatch(group.by.literal <- group.by, error = function(e) e)
+  
+  if (!dataAreMissing && is(tryResult, "error"))
+    group.by <- eval(matchedCall$group.by, envir = data)
   
   if (!subsetIsMissing) group.by <- group.by[subset]
   
@@ -68,6 +69,9 @@ getResponseDataCall <- function(fn, response, treatment, confounders, data, subs
       pScoreName <- deparse(matchedCall$p.score)
     }
     
+    formula <- a ~ b
+    formula[[2L]] <- matchedCall$response
+    formula[[3L]] <- quote(a + b)
     formula[[3L]][[2L]] <- quote(a + b)
     formula[[3L]][[2L]][[2L]] <- matchedCall$confounders
     formula[[3L]][[2L]][[3L]] <- parse(text = pScoreName)[[1L]]
