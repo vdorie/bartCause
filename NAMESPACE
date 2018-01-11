@@ -1,0 +1,15 @@
+export(cibart)
+export(extract)
+export(plot.sigma, plot.est, plot.indiv)
+
+S3method(summary, cibartFit)
+S3method(print, cibartFit)
+S3method(print, cibartFit.summary)
+S3method(fitted, cibartFit)
+S3method(extract, cibartFit)
+
+
+importFrom(dbarts, bart2, guessNumCores, xbart)
+
+importFrom(methods, is)
+importFrom(stats, glm, binomial)
