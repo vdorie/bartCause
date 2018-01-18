@@ -11,6 +11,8 @@ cibart(response, treatment, confounders, data, subset, weights,
        method.trt = c("none", "glm", "bart", "bart.xval"),
        estimand   = c("ate", "att", "atc"),
        group.by = NULL,
+       commonSup.rule = c("none", "sd", "chisq"),
+       commonSup.cut  = c(NA_real_, 1, 0.05),
        propensityScoreAsCovariate = TRUE,
        keepCall = TRUE, verbose = TRUE,
        ...)
@@ -65,6 +67,22 @@ cibart(response, treatment, confounders, data, subset, weights,
     An optional factor that, when present, causes the treatment effect estimate to be calculated within
     each group.
   }
+  \item{commonSup.rule}{
+    Rule for exclusion of observations lacking in common support. Options are \code{"none"} - no
+    suppression, \code{"sd"} - exlude units whose predicted counterfactual standard deviation is extreme
+    compared to the maximum standard deviation under those units' observed treatment condition, where
+    extreme refers to the distribution of all standard deviations of observed treatment conditions,
+    \code{"chisq"} - exclude observations according to ratio of the variance of posterior predicted
+    counterfactual to the posterior variance of the observed condition, having a Chi Squared distribution
+    with one degree of freedom under the null hypothesis of have equal distributions.
+  }
+  \item{commonSup.cut}{
+    Cuttoffs for \code{commonSup.rule}. Ignored for \code{"none"}, when \code{commonSup.rule} is
+    \code{"sd"}, refers to how many standard deviations of the distribution of posterior variance for
+    counterfactuals an observation can be above the maximum of posterior variances for that treatment
+    condition. When \code{commonSup.rule} is \code{"chisq"}, is the \eqn{p} value used for rejection
+    of the hypothesis of equal variances.
+  }
   \item{propensityScoreAsCovariate}{
     A logical such that when \code{TRUE}, the propensity score is added to the response model as a
     covariate.
@@ -84,24 +102,88 @@ cibart(response, treatment, confounders, data, subset, weights,
   }
 }
 \details{
-  cibart words words
+  \code{cibart} represents a collection of methods that primarily use the Bayesian Additive Regression Trees
+  (BART) algorithm to estimate causal treatment effects with binary treatment variables and continuous
+  outcomes. This requires models to be fit to the response surface (distribution of the response as a
+  function of treatment and confounders, \eqn{p(Y(1), Y(0) | X)} and optionally for treatment assignment
+  mechanism (probability of receiving treatment, i.e. propensity score, \eqn{Pr(Z = 1 | X)}). The response surface
+  model is used to impute counterfactuals, which may then be adjusted together with the propensity score to
+  produce estimates of effects.
+  
+  Similar to \code{\link{lm}}, models can be specified symbolically. When the \code{data} term is present,
+  it will be added to the search path for the \code{response}, \code{treatment}, and \code{confounders}
+  variables. The confounders must be specified devoid of any "left hand side", as they appear in both of the
+  models
+  
+  The response surface methods included are:
+  
+  \itemize{
+    \item \code{"bart"} - use BART to fit the response surface and produce individual estimates \eqn{\hat{Y(1)}_i}
+          and \eqn{\hat{Y(0)}_i}. Treatment effect estimates are obtained by averaging the difference of these
+          across the population of interest.
+    \item \code{"pweight"} - individual effects are esimated as in \code{"bart"}, but treatment effect estimates
+          are obtained by using a propensity score weighted average. For the average treatment effect on the
+          treated, these weights are \eqn{p(z_i | x_i) / (\sum{z} / n)}. For ATC, replace \eqn{z} with \eqn{1 - z}.
+          For ATE, \code{"pweight"} is equal to \code{"bart"}.
+    \item \code{"tmle"} - individual effects are esimated as in \code{"bart"} and a weighted average is taken
+          as in \code{"pweight"}, however the response surface estimates and propensity scores are corrected
+          by using the Targetted Minimum Loss based Estimation method.
+  }
+  
+  The treatment assignment models are:
+  
+  \itemize{
+    \item \code{"none"} - no modeling is doing. Only applies when using response method \code{"bart"} and
+          \code{propensityScoreAsCovariate} is \code{FALSE}.
+    \item \code{"glm"} - fit a binomial generalized linear model with logistic link and confounders included
+          as linear terms.
+    \item \code{"bart"} - fit a binary BART directly to the treatment using all the confounders.
+    \item \code{"bart.xval"} - use the \code{\link{xbart}} function to perform cross validation on the node
+          prior sensitivity (for that method, \code{k}) before fitting a final model.
+    \item Finally, a vector or matrix of propensity scores can be supplied. Propensity score matrices should
+          have a number of rows equal to the number of observations in the data and a number of columns
+          equal to the number of posterior samples.
+  }
 }
 \value{
-  \code{cibart} returns an object of class \code{cibartFit}.
+  \code{cibart} returns an object of class \code{cibartFit}. Information about the object can be derived
+  by using methods \code{\link{summary}}, \code{link{plot.sigma}}, \code{\link{plot.est}}, and
+  \code{\link{plot.indiv}}. Numerical quantities are recovered with the \code{\link{fitted}} and
+  \code{\link{extract}} generics.
+  
+  Objects of class \code{cibartFit} are lists containing items:
+  
+  \item{\code{method.rsp}}{character string specifying the method used to fit the response surface}
+  \item{\code{method.trt}}{character string specifying the method used to fit the treatment assignment
+                           mechanism}
+  \item{\code{estimand}}{character string specifying the targetted causal effect}
+  \item{\code{fit.rsp}}{object containing the fitted response model}
+  \item{\code{fit.trt}}{object containing the fitted treatment model}
+  \item{\code{group.by}}{optional factor vector containing the groups in which treatment effects are
+                         estimated}
+  \item{\code{samples.est}}{matrix or array of posterior samples of the treatment effect estimate}
+  \item{\code{samples.indiv.diff}}{matrix or array of posterior samples of the individual treatment effects}
+  \item{\code{p.score}}{the vector of propensity scores used as a covariate in the response model,
+                        when applicable}
+  \item{\code{samples.p.score}}{matrix or array of posterior samples of the propensity score, when applicable}
+  \item{\code{name.trt}}{character string giving the name of the treatment variable in the data 
+                         of \code{fit.rsp}}
+  \item{\code{trt}}{vector of treatment assignments}
+  \item{\code{call}}{how \code{cibart} was called}
+  \item{\code{n.chains}}{number of independent posterior sampler chains in response model}
 }
 \references{
-Chipman, H., George, E., and McCulloch, R. (2009)
-   BART: Bayesian Additive Regression Trees.
+Chipman, H., George, E. and McCulloch R. (2006)
+  Bayesian Ensemble Learning.
+  \emph{Proceedings of the 19th International Conference on Neural Information Processing Systems}, 265--272.
+  Cambridge, MA: MIT Press.
+  \url{http://papers.nips.cc/paper/3084-bayesian-ensemble-learning.pdf}.
 
-Chipman, H., George, E., and McCulloch R. (2006)
-   Bayesian Ensemble Learning. 
-   Advances in Neural Information Processing Systems 19,
-   Scholkopf, Platt and Hoffman, Eds., MIT Press, Cambridge, MA, 265-272.
-
-both of the above at:
-\url{http://www.rob-mcculloch.org}
-
-JLH Stat Sci
+Hill, J. L. (2011)
+  Bayesian Nonparametric Modeling for Causal Inference.
+  \emph{Journal of Computational and Graphical Statistics} \bold{20(1)}, 217--240.
+  Taylor & Francis.
+  \url{https://doi.org/10.1198/jcgs.2010.08162}.
 }
 \author{
 Vincent Dorie: \email{vdorie@gmail.com}.
@@ -114,7 +196,8 @@ Vincent Dorie: \email{vdorie@gmail.com}.
 n <- 100L
 beta.z <- c(.75, -0.5,  0.25)
 beta.y <- c(.5,   1.0, -1.5)
-  
+sigma <- 2
+
 set.seed(725)
 x <- matrix(rnorm(3 * n), n, 3)
 tau <- rgamma(1L, 0.25 * 16 * rgamma(1L, 1 * 32, 32), 16)
@@ -125,11 +208,10 @@ z <- rbinom(n, 1, p.score)
 mu.0 <- x \%*\% beta.y
 mu.1 <- x \%*\% beta.y + tau
 
-y <- mu.0 * (1 - z) + mu.1 * z + rnorm(n, 0, 2)
+y <- mu.0 * (1 - z) + mu.1 * z + rnorm(n, 0, sigma)
 
 fit <- cibart(y, z, x, n.samples = 100L)
 }
-\keyword{nonparametric}
-\keyword{tree}
-\keyword{regression}
-\keyword{nonlinear}
+\keyword{causal}
+\keyword{bart}
+\keyword{tmle}

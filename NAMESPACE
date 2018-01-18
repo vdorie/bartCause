@@ -12,8 +12,8 @@ S3method(extract, cibartFit)
 importFrom(dbarts, bart2, guessNumCores, xbart)
 
 importFrom(methods, is)
-importFrom(stats, glm, binomial, fitted)
-importFrom(stats, plogis, pnorm, qlogis, qnorm)
+importFrom(stats, glm, binomial, fitted, sd)
+importFrom(stats, plogis, pnorm, qlogis, qnorm, qchisq)
 importFrom(stats, quantile, setNames)
 
 importFrom(graphics, abline, hist, lines, plot)

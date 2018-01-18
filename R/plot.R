@@ -1,13 +1,15 @@
 plot.sigma <- function(x, main = "Traceplot sigma", xlab = "iteration", ylab = "sigma", lty = 1:x$n.chains, ...) {
   if (!is(x, "cibartFit")) stop("plot.sigma requires an object of class 'cibartFit'")
   
-  if (is.null(dim(x$sigma))) {
-    sigma <- c(x$first.sigma, x$sigma)
-    numBurnIn  <- length(x$first.sigma)
+  first.sigma <- x$fit.rsp$first.sigma
+  
+  if (is.null(dim(x$fit.rsp$sigma))) {
+    sigma <- c(x$fit.rsp$sigma, sigma)
+    numBurnIn  <- length(first.sigma)
     numSamples <- length(sigma)
   } else {
-    sigma <- cbind(x$first.sigma, x$sigma)
-    numBurnIn  <- ncol(x$first.sigma)
+    sigma <- cbind(x$fit.rsp$first.sigma, sigma)
+    numBurnIn  <- ncol(first.sigma)
     numSamples <- ncol(sigma)
   }
   
@@ -48,6 +50,17 @@ plot.indiv <- function(x, main = "Histogram Individual Effects", xlab = "treatme
   
   samples <- extract(x, "indiv.diff", combineChains = TRUE)
   
-  hist(apply(samples, 1L, mean), main = main, ...)
+  hist(apply(samples, 1L, mean), main = main, xlab = xlab, breaks = breaks, ...)
+}
+
+if (FALSE) plot.support <- function(x, main = "Histogram Common Support Stat", xlab = "common support statistic", breaks = 20, ...)
+{
+  if (!is(x, "cibartFit")) stop("plot.support requires an object of class 'cibartFit'")
+  
+  commonSup.stat <- getCommonSupportStatistic(x$sd.obs, x$sd.cf, x$commonSup.rule, x$commonSup.cut)
+  commonSup.cut  <- getCommonSupportCutoff(x$sd.obs, x$sd.cf, x$commonSup.rule, x$commonSup.cut)
+  
+  hist(commonSup.stat, main = main, xlab = xlab, breaks = breaks, ...)
+  abline(v = commonSup.cut, col = "red", ...)
 }
 

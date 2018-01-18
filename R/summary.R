@@ -41,15 +41,34 @@ summary.cibartFit <- function(object, ci.style = c("norm", "quant", "hpd"), ci.l
     row.names(estimates) <- paste0(object$estimand, ".", levels(object$group.by))
   }
   
-  result <- list(call       = object$call,
-                 method.rsp = object$method.rsp,
-                 method.trt = object$method.trt,
-                 ci.style   = ci.style,
-                 ci.level   = ci.level,
-                 numObservations = numObservations,
-                 numSamples = numSamples,
-                 estimates  = estimates,
-                 n.chains   = object$n.chains)
+  result <-
+    namedList(call       = object$call,
+              method.rsp = object$method.rsp,
+              method.trt = object$method.trt,
+              ci.style,
+              ci.level,
+              numObservations,
+              numSamples,
+              estimates,
+              n.chains   = object$n.chains,
+              commonSup.rule = object$commonSup.rule)
+  
+  if (object$commonSup.rule != "none") {
+    result$commonSup.cut <- object$commonSup.cut
+    if (is.null(object$group.by)) {
+      n.cut <- as.data.frame(t(c(trt = sum(object$trt & !object$commonSup.sub), ctl = sum(!object$trt & !object$commonSup.sub))))
+      row.names(n.cut) <- ""
+    } else {
+      n.cut <- as.data.frame(t(sapply(seq_along(levels(object$group.by)), function(i) {
+        level <- levels(object$group.by)[i]
+        levelObs <- object$group.by == level
+        c(trt = sum( object$trt[levelObs] & !object$commonSup.sub[levelObs]),
+          ctl = sum(!object$trt[levelObs] & !object$commonSup.sub[levelObs]))
+      })))
+      row.names(n.cut) <- levels(object$group.by)
+    }
+    result$n.cut <- n.cut
+  }
   class(result) <- "cibartFit.summary"
   
   result
@@ -80,6 +99,14 @@ print.cibartFit.summary <- function(x, ...)
              quant = "empirical quantiles",
              hpd   = "highest posterior density"),
       "\n", sep = "", ...)
+  
+  if (x$commonSup.rule != "none") {
+    cat("\nCommon support enforced by cutting using '", x$commonSup.rule, "' rule, cutoff: ", x$commonSup.cut,
+        "\nSuppressed observations:\n", sep = "")
+    print(x$n.cut)
+    cat("\n")
+  }
+  
   cat("Result based on ", x$numSamples, " posterior samples", 
       if (!is.null(x$n.chains)) paste0(" across ", x$n.chains, " chains") else "",
       "\n", sep = "", ...)

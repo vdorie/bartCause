@@ -4,7 +4,8 @@ source(system.file("common", "linearData.R", package = "cibart"))
 
 test_that("bart fit matches manual call", {
   set.seed(22)
-  cibartFit <- cibart:::getBartResponseFit(y, z, x, testData, estimand = "ate", n.chains = 1L, n.threads = 1L, n.burn = 50L, n.samples = 150L, n.trees = 75L)
+  cibartFit <- cibart:::getBartResponseFit(y, z, x, testData, estimand = "ate", group.by = NULL, commonSup.rule = "none", commonSup.cut = NA,
+                                           n.chains = 1L, n.threads = 1L, n.burn = 50L, n.samples = 150L, n.trees = 75L)
   x.train <- with(testData, cbind(x, z))
   # colnames(x.train) <- c("x1", "x2", "x3", "z")
   x.test <- x.train
