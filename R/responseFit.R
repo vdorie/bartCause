@@ -246,7 +246,7 @@ getPWeightResponseFit <-
       p.score <- if (is.null(dim(p.score)))
         p.score[commonSup.sub]
       else {
-        if (length(dim(p.score) > 2L)) p.score[commonSup.sub,,] else p.score[commonSup.sub,]
+        if (length(dim(p.score)) > 2L) p.score[commonSup.sub,,] else p.score[commonSup.sub,]
       }
       
       if (!is.null(weights)) weights <- weights[commonSup.sub]
@@ -257,8 +257,8 @@ getPWeightResponseFit <-
     samples.est <- lapply(levels(group.by), function(level) {
       levelRows <- group.by == level & commonSup.sub
       
-      yhat.0 <- if (length(dim(yhat.0) > 2L)) yhat.0[levelRows,,] else yhat.0[levelRows,]
-      yhat.1 <- if (length(dim(yhat.0) > 2L)) yhat.1[levelRows,,] else yhat.1[levelRows,]
+      yhat.0 <- if (length(dim(yhat.0)) > 2L) yhat.0[levelRows,,] else yhat.0[levelRows,]
+      yhat.1 <- if (length(dim(yhat.0)) > 2L) yhat.1[levelRows,,] else yhat.1[levelRows,]
       
       p.score <- if (is.null(dim(p.score))) {
         p.score[levelRows]
@@ -420,7 +420,7 @@ getTMLEResponseFit <-
       p.score <- if (is.null(dim(p.score)))
         p.score[commonSup.sub]
       else {
-        if (length(dim(p.score) > 2L)) p.score[commonSup.sub,,] else p.score[commonSup.sub,]
+        if (length(dim(p.score)) > 2L) p.score[commonSup.sub,,] else p.score[commonSup.sub,]
       }
       
       if (!is.null(weights)) weights <- weights[commonSup.sub]
@@ -430,8 +430,8 @@ getTMLEResponseFit <-
   } else {
     samples.est <- lapply(levels(group.by), function(level) {
       levelRows <- group.by == level & commonSup.sub
-      yhat.0 <- if (length(dim(yhat.0) > 2L)) yhat.0[levelRows,,] else yhat.0[levelRows,]
-      yhat.1 <- if (length(dim(yhat.0) > 2L)) yhat.1[levelRows,,] else yhat.1[levelRows,]
+      yhat.0 <- if (length(dim(yhat.0)) > 2L) yhat.0[levelRows,,] else yhat.0[levelRows,]
+      yhat.1 <- if (length(dim(yhat.0)) > 2L) yhat.1[levelRows,,] else yhat.1[levelRows,]
       
       p.score <- if (is.null(dim(p.score))) {
         p.score[levelRows]

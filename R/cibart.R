@@ -79,9 +79,10 @@ cibart <- function(
     tmle    = redirectCall(matchedCall, quoteInNamespace(getTMLEResponseFit)))
   
   if (!is.null(matchedCall$commonSup.rule)) {
-     if (is.null(matchedCall$commonSup.rule))
+     if (is.null(matchedCall$commonSup.cut))
        commonSup.cut <- eval(formals(cibart)$commonSup.cut)[match(commonSup.rule, eval(formals(cibart)$commonSup.rule))]
-    responseCall$commonSup.cut <- commonSup.cut
+    responseCall$commonSup.rule <- commonSup.rule[1L]
+    responseCall$commonSup.cut <- commonSup.cut[1L]
   } else {
     responseCall$commonSup.rule <- "none"
     responseCall$commonSup.cut  <- NA_real_
