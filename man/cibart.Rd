@@ -15,7 +15,7 @@ cibart(response, treatment, confounders, data, subset, weights,
        commonSup.cut  = c(NA_real_, 1, 0.05),
        propensityScoreAsCovariate = TRUE,
        keepCall = TRUE, verbose = TRUE,
-       ...)
+       \dots)
 }
 \arguments{
   \item{response}{
@@ -27,7 +27,7 @@ cibart(response, treatment, confounders, data, subset, weights,
   \item{confounders}{
     A matrix or data frame of covariates to be used in estimating the treatment and response model.
     Can also the right-hand-side of a formula (e.g. \code{x1 + x2 + ...}). The \code{data} argument
-    will be searched when supplied
+    will be searched when supplied.
   }
   \item{data}{
     An optional data frame or named list containing the \code{response}, \code{treatment}, and
@@ -89,7 +89,7 @@ cibart(response, treatment, confounders, data, subset, weights,
   }
   \item{keepCall}{
     A logical such that when \code{FALSE}, the call to \code{cibart} is not kept. This can reduce the 
-    amount of information printed by \code{\link{summary}} when passing in data as literals.
+    amount of information printed by \code{\link[=cibart-generics]{summary}} when passing in data as literals.
   }
   \item{verbose}{
     A logical that when \code{TRUE} prints information as the model is fit.
@@ -144,12 +144,16 @@ cibart(response, treatment, confounders, data, subset, weights,
           have a number of rows equal to the number of observations in the data and a number of columns
           equal to the number of posterior samples.
   }
+  
+  Common support rules can be used to exclude observations 
+  commonSup.rule = c("none", "sd", "chisq"),
+       commonSup.cut  = c(NA_real_, 1, 0.05),
 }
 \value{
   \code{cibart} returns an object of class \code{cibartFit}. Information about the object can be derived
-  by using methods \code{\link{summary}}, \code{link{plot.sigma}}, \code{\link{plot.est}}, and
-  \code{\link{plot.indiv}}. Numerical quantities are recovered with the \code{\link{fitted}} and
-  \code{\link{extract}} generics.
+  by using methods \code{\link[=cibart-generics]{summary}}, \code{\link{plot_sigma}}, \code{\link{plot_est}},
+  \code{\link{plot_indiv}}, and \code{\link{plot_support}}. Numerical quantities are recovered with the
+  \code{\link[=cibart-generics]{fitted}} and \code{\link{extract}} generics.
   
   Objects of class \code{cibartFit} are lists containing items:
   
@@ -158,6 +162,7 @@ cibart(response, treatment, confounders, data, subset, weights,
                            mechanism}
   \item{\code{estimand}}{character string specifying the targetted causal effect}
   \item{\code{fit.rsp}}{object containing the fitted response model}
+  \item{\code{data.rsp}}{\code{\link{dbartsData}} object used when fitting the response model}
   \item{\code{fit.trt}}{object containing the fitted treatment model}
   \item{\code{group.by}}{optional factor vector containing the groups in which treatment effects are
                          estimated}
@@ -171,6 +176,13 @@ cibart(response, treatment, confounders, data, subset, weights,
   \item{\code{trt}}{vector of treatment assignments}
   \item{\code{call}}{how \code{cibart} was called}
   \item{\code{n.chains}}{number of independent posterior sampler chains in response model}
+  \item{\code{commonSup.rule}}{common support rule used for suppressing observations}
+  \item{\code{commonSup.cut}}{common support parameter used to set cutoff when suppression observations}
+  \item{\code{sd.obs}}{vector of standard deviations of individual posterior predictors for observed treatment
+                       conditions}
+  \item{\code{sd.cf}}{vector of standard deviations of individual posterior predictors for counterfactuals}
+  \item{\code{commonSup.sub}}{logical vector expressing which observations are used when estimating treatment
+                              effects}
 }
 \references{
 Chipman, H., George, E. and McCulloch R. (2006)
@@ -184,12 +196,17 @@ Hill, J. L. (2011)
   \emph{Journal of Computational and Graphical Statistics} \bold{20(1)}, 217--240.
   Taylor & Francis.
   \url{https://doi.org/10.1198/jcgs.2010.08162}.
+
+Hill, J. L. and Su Y. S. (2013)
+  Assessing Lack of Common Support in Causal Inference Using Bayesian Nonparametrics: Implications for Evaluating the Effect of Breastfeeding on Children's Cognitive Outcomes
+  \emph{The Annals of Applied Statistics} \bold{7(3)}, 1386--1420.
+  \url{https://www.jstor.org/stable/23566478}.
 }
 \author{
 Vincent Dorie: \email{vdorie@gmail.com}.
 }
 \seealso{
-\code{\link{pdbart}}
+\code{\link{bart2}}
 }
 \examples{
 ## fit a simple linear model

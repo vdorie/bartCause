@@ -1,6 +1,6 @@
 export(cibart)
 export(extract)
-export(plot.sigma, plot.est, plot.indiv)
+export(plot_sigma, plot_est, plot_indiv, plot_support)
 
 S3method(summary, cibartFit)
 S3method(print, cibartFit)
@@ -17,3 +17,4 @@ importFrom(stats, plogis, pnorm, qlogis, qnorm, qchisq)
 importFrom(stats, quantile, setNames)
 
 importFrom(graphics, abline, hist, lines, plot)
+importFrom(graphics, legend, mtext, par, points)

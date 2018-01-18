@@ -107,12 +107,12 @@ cibart <- function(
   }
   
   if (verbose) cat("fitting response model via method '", method.rsp, "'\n", sep = "")
-  fit.rsp <- samples.est <- samples.indiv.diff <- name.trt <- trt <- sd.obs <- sd.cf <- commonSup.sub <- NULL
-  massign[fit.rsp, samples.est, samples.indiv.diff, name.trt, trt, sd.obs, sd.cf, commonSup.sub] <-
+  fit.rsp <- data.rsp <- samples.est <- samples.indiv.diff <- name.trt <- trt <- sd.obs <- sd.cf <- commonSup.sub <- NULL
+  massign[fit.rsp, data.rsp, samples.est, samples.indiv.diff, name.trt, trt, sd.obs, sd.cf, commonSup.sub] <-
     eval(responseCall, envir = evalEnv)
   
   
-  result <- namedList(fit.rsp, fit.trt, samples.est, samples.indiv.diff, p.score, samples.p.score,
+  result <- namedList(fit.rsp, data.rsp, fit.trt, samples.est, samples.indiv.diff, p.score, samples.p.score,
                       method.rsp, method.trt, estimand, group.by,
                       commonSup.rule, commonSup.cut,
                       name.trt, trt,

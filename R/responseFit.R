@@ -138,7 +138,7 @@ getBartResponseFit <- function(response, treatment, confounders, data, subset, w
     }
   }
   
-  namedList(fit = bartFit, samples.est, samples.indiv.diff, name.trt = treatmentName, trt, sd.obs, sd.cf, commonSup.sub)
+  namedList(fit = bartFit, data = responseData, samples.est, samples.indiv.diff, name.trt = treatmentName, trt, sd.obs, sd.cf, commonSup.sub)
 }
 
 boundValues <- function(x, bounds){
@@ -210,8 +210,8 @@ getPWeightResponseFit <-
   bartCall <- redirectCall(matchedCall, quoteInNamespace(getBartResponseFit))
   bartCall$calculateEstimates <- FALSE
   
-  bartFit <- samples.indiv.diff <- name.trt <- trt <- sd.obs <- sd.cf <- commonSup.sub <- NULL
-  massign[bartFit,, samples.indiv.diff, name.trt, trt, sd.obs, sd.cf, commonSup.sub] <- eval(bartCall, envir = callingEnv)
+  bartFit <- responseData <- samples.indiv.diff <- name.trt <- trt <- sd.obs <- sd.cf <- commonSup.sub <- NULL
+  massign[bartFit, responseData,, samples.indiv.diff, name.trt, trt, sd.obs, sd.cf, commonSup.sub] <- eval(bartCall, envir = callingEnv)
   
   treatmentRows <- trt > 0
   
@@ -272,7 +272,7 @@ getPWeightResponseFit <-
     names(samples.est) <- levels(group.by)
   }
   
-  namedList(fit = bartFit, samples.est, samples.indiv.diff, name.trt, trt, sd.obs, sd.cf, commonSup.sub)
+  namedList(fit = bartFit, data = responseData, samples.est, samples.indiv.diff, name.trt, trt, sd.obs, sd.cf, commonSup.sub)
 }
 
 getTMLEEstimates <- function(y, z, weights, estimand, yhat.0, yhat.1, p.score, yBounds, p.scoreBounds, depsilon, maxIter)
@@ -382,8 +382,8 @@ getTMLEResponseFit <-
   
   bartCall <- redirectCall(matchedCall, quoteInNamespace(getBartResponseFit))
   
-  bartFit <- samples.indiv.diff <- name.trt <- trt <- sd.obs <- sd.cf <- commonSup.sub <- NULL
-  massign[bartFit,, samples.indiv.diff, name.trt, trt, sd.obs, sd.cf, commonSup.sub] <- eval(bartCall, envir = callingEnv)
+  bartFit <- responseData <- samples.indiv.diff <- name.trt <- trt <- sd.obs <- sd.cf <- commonSup.sub <- NULL
+  massign[bartFit, responseData,, samples.indiv.diff, name.trt, trt, sd.obs, sd.cf, commonSup.sub] <- eval(bartCall, envir = callingEnv)
   
   treatmentRows <- trt > 0
   
@@ -445,5 +445,5 @@ getTMLEResponseFit <-
     names(samples.est) <- levels(group.by)
   }
 
-  namedList(fit = bartFit, samples.est, samples.indiv.diff, name.trt = name.trt, trt = trt)
+  namedList(fit = bartFit, data = responseData, samples.est, samples.indiv.diff, name.trt = name.trt, trt = trt)
 }
