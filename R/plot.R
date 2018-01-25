@@ -53,7 +53,9 @@ plot_indiv <- function(x, main = "Histogram Individual Effects", xlab = "treatme
   hist(apply(samples, 1L, mean), main = main, xlab = xlab, breaks = breaks, ...)
 }
 
-plot_support <- function(x, main = "Common Support Scatterplot", xvar = "pca.1", yvar = "pca.2",
+plot_support <- function(x, main = "Common Support Scatterplot",
+                         xvar = "pca.1", yvar = "pca.2",
+                         xlab = NULL, ylab = NULL,
                          pch.trt = 21, bg.trt = "black",
                          pch.ctl = pch.trt, bg.ctl = NA,
                          pch.sup = pch.trt, bg.sup = NA, col.sup = "red", cex.sup = 1.5,
@@ -113,11 +115,7 @@ plot_support <- function(x, main = "Common Support Scatterplot", xvar = "pca.1",
     list(val, lab)
   }
   
-  if (is.null(matchedCall$xlab)) xlab <- NULL
-  if (is.null(matchedCall$ylab)) ylab <- NULL
-  
   x.val <- y.val <- NULL
-  
   massign[x.val, xlab] <- getColumn(xvar, xlab)
   massign[y.val, ylab] <- getColumn(yvar, ylab)
   

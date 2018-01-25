@@ -113,7 +113,9 @@ cibart(response, treatment, confounders, data, subset, weights,
   Similar to \code{\link{lm}}, models can be specified symbolically. When the \code{data} term is present,
   it will be added to the search path for the \code{response}, \code{treatment}, and \code{confounders}
   variables. The confounders must be specified devoid of any "left hand side", as they appear in both of the
-  models
+  models.
+  
+  \strong{Response Surface}
   
   The response surface methods included are:
   
@@ -123,12 +125,14 @@ cibart(response, treatment, confounders, data, subset, weights,
           across the population of interest.
     \item \code{"pweight"} - individual effects are esimated as in \code{"bart"}, but treatment effect estimates
           are obtained by using a propensity score weighted average. For the average treatment effect on the
-          treated, these weights are \eqn{p(z_i | x_i) / (\sum{z} / n)}. For ATC, replace \eqn{z} with \eqn{1 - z}.
+          treated, these weights are \eqn{p(z_i | x_i) / (\sum z / n)}. For ATC, replace \eqn{z} with \eqn{1 - z}.
           For ATE, \code{"pweight"} is equal to \code{"bart"}.
     \item \code{"tmle"} - individual effects are esimated as in \code{"bart"} and a weighted average is taken
           as in \code{"pweight"}, however the response surface estimates and propensity scores are corrected
           by using the Targetted Minimum Loss based Estimation method.
   }
+  
+  \strong{Treatment Assignment}
   
   The treatment assignment models are:
   
@@ -145,9 +149,28 @@ cibart(response, treatment, confounders, data, subset, weights,
           equal to the number of posterior samples.
   }
   
-  Common support rules can be used to exclude observations 
-  commonSup.rule = c("none", "sd", "chisq"),
-       commonSup.cut  = c(NA_real_, 1, 0.05),
+  \strong{Common Support Rules}
+  
+  Common support, or that the probability of receiving all treatment conditions is non-zero within every area of
+  the covariate space (\eqn{P(Z = 1 | X = x) > 0} for all \eqn{x} in the inferential sample), can be enforced by
+  excluding observations with high posterior uncertainty. \code{cibart} supports two common support rules through
+  \code{commonSup.rule} argument:
+  
+  \itemize{
+    \item \code{"sd"} - observations are cut from the inferential sample if:
+      \eqn{s_i^{f(1-z)} > m_z + a \times sd(s_j^{f(z)}}{s_i^f(1-z) > m_z + a * sd(s_j^f(z))},
+      where \eqn{s_i^{f(1-z)}}{s_i^f(1-z)} is the posterior
+      standard deviation of the predicted counterfactual for observation \eqn{i}, \eqn{s_j^f(z)} is the posterior
+      standard deviation of the prediction for the observed treatment condition of objservation \eqn{j}, 
+      \eqn{sd(s_j^{f(z)}}{sd(s_j^f(z))} is the empirical standard deviation of those quantities, and
+      \eqn{m_z = max_j \{s_j^{f(z)}\}}{m_z = max_j s_j^f(z)} for all \eqn{j} in the same treatment group,
+      i.e. \eqn{Z_j = z}. \eqn{a} is a constant to be passed in using \code{commonSup.cut} and its default is 1.
+    \item \code{"chisq"} - observations are cut from the inferential sample if:
+      \eqn{(s_i^{f(1-z)} / s_i^{f(z)})^2 > q_\alpha}{s_i^f(1-z) / s_i^f(z))^2 > q_\alpha}, where
+      \eqn{s_i} are as above and \eqn{q_\alpha}, is the upper \eqn{\alpha} percentile of a \eqn{\chi^2}
+      distribution with one degree of freedom, corresponding to a null hypothesis of equal variance. The default
+      for \eqn{\alpha} is 0.05, and it is specified using the \code{commonSup.cut} parameter.
+  }
 }
 \value{
   \code{cibart} returns an object of class \code{cibartFit}. Information about the object can be derived
