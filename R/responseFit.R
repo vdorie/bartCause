@@ -445,5 +445,5 @@ getTMLEResponseFit <-
     names(samples.est) <- levels(group.by)
   }
 
-  namedList(fit = bartFit, data = responseData, samples.est, samples.indiv.diff, name.trt = name.trt, trt = trt)
+  namedList(fit = bartFit, data = responseData, samples.est, samples.indiv.diff, name.trt, trt, sd.obs, sd.cf, commonSup.sub)
 }

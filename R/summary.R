@@ -66,6 +66,7 @@ summary.cibartFit <- function(object, ci.style = c("norm", "quant", "hpd"), ci.l
           ctl = sum(!object$trt[levelObs] & !object$commonSup.sub[levelObs]))
       })))
       row.names(n.cut) <- levels(object$group.by)
+      result$estimates$n <- result$estimates$n - rowSums(n.cut)
     }
     result$n.cut <- n.cut
   }
