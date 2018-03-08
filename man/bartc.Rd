@@ -120,9 +120,9 @@ bartc(response, treatment, confounders, data, subset, weights,
   The response surface methods included are:
   
   \itemize{
-    \item \code{"bart"} - use BART to fit the response surface and produce individual estimates \eqn{\hat{Y(1)}_i}
-          and \eqn{\hat{Y(0)}_i}. Treatment effect estimates are obtained by averaging the difference of these
-          across the population of interest.
+    \item \code{"bart"} - use BART to fit the response surface and produce individual estimates
+          \eqn{\hat{Y}(1)_i}{Y(1)^hat_i} and \eqn{\hat{Y}(0)_i}{Y(0)^hat_i}. Treatment effect estimates are
+          obtained by averaging the difference of these across the population of interest.
     \item \code{"pweight"} - individual effects are esimated as in \code{"bart"}, but treatment effect estimates
           are obtained by using a propensity score weighted average. For the average treatment effect on the
           treated, these weights are \eqn{p(z_i | x_i) / (\sum z / n)}. For ATC, replace \eqn{z} with \eqn{1 - z}.
