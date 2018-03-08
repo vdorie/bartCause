@@ -1,4 +1,4 @@
-BartCause
+bartCause
 =========
 
 Causal Inference using Bayesian Additive Regression Trees
@@ -8,4 +8,4 @@ An `R` package fitting a collection of treatment and response models using the B
 To install:
 
     install.packages("devtools")
-    devtools::install_github("vdorie/BartCause")
+    devtools::install_github("vdorie/bartCause")

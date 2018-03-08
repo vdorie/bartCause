@@ -1,6 +1,6 @@
 context("regression")
 
-source(system.file("common", "linearData.R", package = "BartCause"))
+source(system.file("common", "linearData.R", package = "bartCause"))
 
 test_that("naive bart matches old", {
   set.seed(22)

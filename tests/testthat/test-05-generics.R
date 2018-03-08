@@ -1,6 +1,6 @@
 context("generic functions")
 
-source(system.file("common", "linearData.R", package = "BartCause"))
+source(system.file("common", "linearData.R", package = "bartCause"))
 
 set.seed(22)
 testData$g <- sample(3L, nrow(testData$x), replace = TRUE)
@@ -68,8 +68,8 @@ test_that("summary object contain correct information", {
   expect_true(sum$call == parse(text = 'bartc(response = y, treatment = z, confounders = x, data = testData, method.trt = "glm", group.by = g, n.samples = 50L, n.burn = 25L, n.thread = 1L, verbose = FALSE)')[[1L]])
   expect_equal(sum$method.rsp, "bart")
   expect_equal(sum$method.trt, "glm")
-  expect_equal(sum$ci.style, eval(formals(BartCause:::summary.bartcFit)$ci.style)[1L])
-  expect_equal(sum$ci.level, eval(formals(BartCause:::summary.bartcFit)$ci.level))
+  expect_equal(sum$ci.style, eval(formals(bartCause:::summary.bartcFit)$ci.style)[1L])
+  expect_equal(sum$ci.level, eval(formals(bartCause:::summary.bartcFit)$ci.level))
   expect_equal(sum$numObservations, length(testData$y))
   expect_equal(sum$numSamples, 50L * 4L)
   expect_equal(sum$n.chains, 4L)

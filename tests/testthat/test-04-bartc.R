@@ -1,6 +1,6 @@
 context("bartc main function")
 
-source(system.file("common", "linearData.R", package = "BartCause"))
+source(system.file("common", "linearData.R", package = "bartCause"))
 
 test_that("bartc fails with invalid inputs", {
   expect_error(bartc(not.found, z, x, testData, verbose = FALSE))

@@ -1,6 +1,6 @@
 context("common support diagnostics")
 
-source(system.file("common", "linearData.R", package = "BartCause"))
+source(system.file("common", "linearData.R", package = "bartCause"))
 testData$g <- sample(3L, nrow(testData$x), replace = TRUE)
 
 test_that("sd common support diagnostic works", {

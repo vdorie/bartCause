@@ -30,8 +30,8 @@ bartc <- function(
   ## check validity of character vector arguments by comparing to function prototype
   for (argName in c("method.rsp", "estimand", "commonSup.rule")) {
     arg <- get(argName)
-    if (!is.character(arg) || arg[1L] %not_in% eval(formals(BartCause::bartc)[[argName]]))
-      stop(argName, " must be in '", paste0(eval(formals(BartCause::bartc)[[argName]]), collapse = "', '"), "'")
+    if (!is.character(arg) || arg[1L] %not_in% eval(formals(bartCause::bartc)[[argName]]))
+      stop(argName, " must be in '", paste0(eval(formals(bartCause::bartc)[[argName]]), collapse = "', '"), "'")
     assign(argName, arg[1L])
   }
     
@@ -46,8 +46,8 @@ bartc <- function(
     method.trt <- "given"
   } else if (is.character(method.trt)) {
     method.trt <- method.trt[1L]
-    if (method.trt %not_in% eval(formals(BartCause::bartc)$method.trt))
-      stop("method.trt must be in '", paste0(eval(formals(BartCause::bartc)$method.trt), collapse = "', '"), "'")
+    if (method.trt %not_in% eval(formals(bartCause::bartc)$method.trt))
+      stop("method.trt must be in '", paste0(eval(formals(bartCause::bartc)$method.trt), collapse = "', '"), "'")
     
     
     treatmentCall <- switch(method.trt,
@@ -63,7 +63,7 @@ bartc <- function(
       massign[fit.trt, p.score, samples.p.score] <- eval(treatmentCall, envir = callingEnv)
     }
   } else {
-    stop("method.trt must be in '", paste0(eval(formals(BartCause::bartc)$method.trt), collapse = "', '"), "' or a fixed vector")
+    stop("method.trt must be in '", paste0(eval(formals(bartCause::bartc)$method.trt), collapse = "', '"), "' or a fixed vector")
   }
     
   if (is.na(propensityScoreAsCovariate))
@@ -88,7 +88,7 @@ bartc <- function(
     responseCall$commonSup.cut  <- NA_real_
   }
 
-  responseCall <- addCallDefaults(responseCall, BartCause::bartc)
+  responseCall <- addCallDefaults(responseCall, bartCause::bartc)
   
   evalEnv <- callingEnv
   if (propensityScoreAsCovariate && !is.null(p.score)) {
