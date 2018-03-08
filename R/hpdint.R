@@ -36,3 +36,4 @@ getHPDInterval <- function(x, alpha)
   
   c(x.lh.min, x.rh.min)
 }
+

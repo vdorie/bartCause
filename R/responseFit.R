@@ -87,6 +87,7 @@ getBartResponseFit <- function(response, treatment, confounders, data, subset, w
   bartCall <- redirectCall(matchedCall, dbarts::bart2)
   bartCall$formula <- quote(responseData)
   bartCall$data    <- NULL
+  bartCall$keepTrees <- FALSE
   
   ## it is possible that some extra args were given for an xbart treatment call
   dotsList <- list(...)
@@ -190,7 +191,7 @@ getPWeightEstimates <- function(y, z, weights, estimand, yhat.0, yhat.1, p.score
 
 getPWeightResponseFit <-
   function(response, treatment, confounders, data, subset, weights, estimand, group.by, p.score, samples.p.score,
-           yBounds = c(.0005, .9995), p.scoreBounds = c(0.01, 0.99), ...)
+           yBounds = c(.005, .995), p.scoreBounds = c(0.025, 0.975), ...)
 {
   dataAreMissing    <- missing(data)
   weightsAreMissing <- missing(weights)
@@ -284,24 +285,35 @@ getTMLEEstimates <- function(y, z, weights, estimand, yhat.0, yhat.1, p.score, y
   if (!is.null(weights)) {
     weights <- rep_len(weights, length(y))
     weights <- weights / sum(weights)
+  } else {
+    yhat.0 <- flattenSamples(yhat.0)
+    yhat.1 <- flattenSamples(yhat.1)
+    p.score <- boundValues(flattenSamples(p.score), p.scoreBounds)
+    return(sapply(seq_len(ncol(yhat.0)), function(i) {
+      res <- tmle::tmle(Y = y, A = z, W = matrix(0, length(y), 1L), Q = cbind(Q0W = yhat.0[,i], Q1W = yhat.1[,i]), g1W = if (!is.null(dim(p.score))) p.score[,i] else p.score)
+      res$estimates[[switch(estimand, ate = "ATE", att = "ATT", atc = "ATC")]]$psi
+    }))
   }
   
-  m <- min(y)
-  M <- max(y)
+  r <- range(y)
+  r <- r + 0.1 * c(-abs(r[1L]), abs(r[2L]))
+  y.st <- boundValues(y, r)
+  yhat.0.st <- boundValues(yhat.0, r)
+  yhat.1.st <- boundValues(yhat.1, r)
+  r.st <- range(y.st)
   
-  ## map y, yhat to (0, 1)
-  y      <- boundValues((boundValues(y, c(m, M)) - m) / (M - m), yBounds)
-  yhat.0 <- boundValues((boundValues(yhat.0, c(m, M)) - m) / (M - m), yBounds)
-  yhat.1 <- boundValues((boundValues(yhat.1, c(m, M)) - m) / (M - m), yBounds)
+  y.st <- (y.st - min(r.st)) / diff(r.st)
+  yhat.0.st <- qlogis(boundValues((yhat.0.st - min(r.st)) / diff(r.st), yBounds))
+  yhat.1.st <- qlogis(boundValues((yhat.1.st - min(r.st)) / diff(r.st), yBounds))
+  
+  
+  yhat.0.samp <- flattenSamples(yhat.0.st)
+  yhat.1.samp <- flattenSamples(yhat.1.st)
+  
+  p.score.samp <- boundValues(flattenSamples(p.score), p.scoreBounds)
   
   origDims <- dim(yhat.0)
   
-  yhat.0.samp <- flattenSamples(yhat.0)
-  yhat.1.samp <- flattenSamples(yhat.1)
-  
-  indiv.diff.samp <- yhat.1.samp - yhat.0.samp
-  
-  p.score.samp <- boundValues(flattenSamples(p.score), p.scoreBounds)
   
   getPWeightEstimate <- getPWeightFunction(estimand, weights, numeric(), numeric())
   
@@ -312,30 +324,45 @@ getTMLEEstimates <- function(y, z, weights, estimand, yhat.0, yhat.1, p.score, y
   result <- sapply(seq_len(ncol(yhat.0.samp)), function(i) {
     yhat.0 <- yhat.0.samp[,i]
     yhat.1 <- yhat.1.samp[,i]
-    indiv.diff <- indiv.diff.samp[,i]
     yhat <- yhat.1 * z + yhat.0 * (1 - z)
     
     p.score <- if (!is.null(dim(p.score.samp))) p.score.samp[,i] else p.score.samp
+    p.score.st <- boundValues(p.score, p.scoreBounds)
+    
+    H1W <- z / p.score.st
+    H0W <- (1 - z) / (1 - p.score.st)
+    
+    suppressWarnings(epsilon <- coef(glm(y.st ~ -1 + offset(yhat) + H0W + H1W, family = binomial)))
+    epsilon[is.na(epsilon)] <- 0 
+  
+    yhat.0 <- plogis(yhat.0 + epsilon["H0W"] / (1 - p.score.st))
+    yhat.1 <- plogis(yhat.1 + epsilon["H1W"] / p.score.st)
+    
+    indiv.diff <- yhat.1 - yhat.0
+    yhat <- yhat.1 * z + yhat.0 * (1 - z)
     
     psi <- getPWeightEstimate(z, weights, indiv.diff, p.score)
+    psi.prev <- psi
     
     a.weight <- z * getYhat1Deriv(z, weights, p.score) + (1 - z) * getYhat0Deriv(z, weights, p.score)
-    ic <- getIC(y, yhat, indiv.diff, psi, a.weight)
+    ic <- getIC(y.st, yhat, indiv.diff, psi, a.weight)
     
     if (mean(ic) > 0) depsilon <- -depsilon
     
     loss.prev <- Inf
-    loss <- calcLoss(y, z, yhat, p.score, weights)
+    loss <- calcLoss(y.st, z, yhat, p.score, weights)
     if (is.nan(loss) || is.na(loss) || is.infinite(loss)) return(psi)
       
     iter <- 0L
     while (loss.prev > loss && iter < maxIter)
     {
       p.score.prev <- p.score
-      p.score <- boundValues(plogis(qlogis(p.score) - depsilon * getPScoreDeriv(z, weights, p.score, indiv.diff, psi)), p.scoreBounds)
+      p.score <- boundValues(plogis(qlogis(p.score.prev) - depsilon * getPScoreDeriv(z, weights, p.score.prev, indiv.diff, psi.prev)), p.scoreBounds)
       
-      yhat.0 <- boundValues(plogis(qlogis(yhat.0) - depsilon * getYhat0Deriv(z, weights, p.score.prev)), yBounds)
-      yhat.1 <- boundValues(plogis(qlogis(yhat.1) - depsilon * getYhat1Deriv(z, weights, p.score.prev)), yBounds)
+      yhat.0.prev <- yhat.0
+      yhat.1.prev <- yhat.1
+      yhat.0 <- boundValues(plogis(qlogis(yhat.0.prev) - depsilon * getYhat0Deriv(z, weights, p.score.prev)), yBounds)
+      yhat.1 <- boundValues(plogis(qlogis(yhat.1.prev) - depsilon * getYhat1Deriv(z, weights, p.score.prev)), yBounds)
       indiv.diff <- yhat.1 - yhat.0
       yhat <- yhat.1 * z + yhat.0 * (1 - z)
       
@@ -343,7 +370,7 @@ getTMLEEstimates <- function(y, z, weights, estimand, yhat.0, yhat.1, p.score, y
       psi <- getPWeightEstimate(z, weights, indiv.diff, p.score)
       
       loss.prev <- loss
-      loss <- calcLoss(y, z, yhat, p.score, weights)
+      loss <- calcLoss(y.st, z, yhat, p.score, weights)
       
       ## ic <- getIC(y, yhat, indiv.diff, psi, a.weight)
       
@@ -356,14 +383,14 @@ getTMLEEstimates <- function(y, z, weights, estimand, yhat.0, yhat.1, p.score, y
   })
   
   if (!is.null(origDims) && length(origDims) > 2L)
-    matrix(result, origDims[2L], origDims[3L]) * (M - m)
+    matrix(result, origDims[2L], origDims[3L]) * (max(r.st) - min(r.st))
   else
-    result * (M - m)
+    result * (max(r.st) - min(r.st))
 }
 
 getTMLEResponseFit <-
   function(response, treatment, confounders, data, subset, weights, estimand, group.by, p.score, samples.p.score,
-           yBounds = c(.0005, .9995), p.scoreBounds = c(0.01, 0.99), depsilon = 0.001, maxIter = max(1000, 2 / depsilon), ...)
+           yBounds = c(.005, .995), p.scoreBounds = c(0.025, 0.975), depsilon = 0.001, maxIter = max(1000, 2 / depsilon), ...)
 {
   dataAreMissing    <- missing(data)
   weightsAreMissing <- missing(weights)

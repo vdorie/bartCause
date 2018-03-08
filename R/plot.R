@@ -1,5 +1,5 @@
 plot_sigma <- function(x, main = "Traceplot sigma", xlab = "iteration", ylab = "sigma", lty = 1:x$n.chains, ...) {
-  if (!is(x, "cibartFit")) stop("plot.sigma requires an object of class 'cibartFit'")
+  if (!is(x, "bartcFit")) stop("plot.sigma requires an object of class 'bartcFit'")
   
   first.sigma <- x$fit.rsp$first.sigma
   
@@ -27,7 +27,7 @@ plot_sigma <- function(x, main = "Traceplot sigma", xlab = "iteration", ylab = "
 }
 
 plot_est <- function(x, main = paste("Traceplot", x$estimand), xlab = "iteration", ylab = x$estimand, lty = 1:x$n.chains, ...) {
-  if (!is(x, "cibartFit")) stop("plot.set requires an object of class 'cibartFit'")
+  if (!is(x, "bartcFit")) stop("plot.set requires an object of class 'bartcFit'")
   
   samples <- extract(x, "est", combineChains = FALSE)
   numSamples <- if (!is.null(dim(samples))) dim(samples)[2L] else length(samples)
@@ -46,7 +46,7 @@ plot_est <- function(x, main = paste("Traceplot", x$estimand), xlab = "iteration
 
 plot_indiv <- function(x, main = "Histogram Individual Effects", xlab = "treatment effect", breaks = 20, ...)
 {
-  if (!is(x, "cibartFit")) stop("plot.indiv requires an object of class 'cibartFit'")
+  if (!is(x, "bartcFit")) stop("plot.indiv requires an object of class 'bartcFit'")
   
   samples <- extract(x, "indiv.diff", combineChains = TRUE)
   
@@ -62,7 +62,7 @@ plot_support <- function(x, main = "Common Support Scatterplot",
                          legend.x = "topleft", legend.y = NULL,
                          ...)
 {
-  if (!is(x, "cibartFit")) stop("plot.support requires an object of class 'cibartFit'")
+  if (!is(x, "bartcFit")) stop("plot.support requires an object of class 'bartcFit'")
   if (x$commonSup.rule == "none") stop("common support plot requires support rule other than 'none'")
   
   matchedCall <- match.call()

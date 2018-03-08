@@ -1,21 +1,21 @@
-\name{cibart}
-\alias{cibart}
+\name{bartc}
+\alias{bartc}
 \title{Causal Inference using Bayesian Additive Regression Trees}
 \description{
   Fits a collection of treatment and response models using the Bayesian Additive Regresssion Trees
   (BART) algorithm, producing estimates of treatment effects.
 }
 \usage{
-cibart(response, treatment, confounders, data, subset, weights,
-       method.rsp = c("bart", "pweight", "tmle"),
-       method.trt = c("none", "glm", "bart", "bart.xval"),
-       estimand   = c("ate", "att", "atc"),
-       group.by = NULL,
-       commonSup.rule = c("none", "sd", "chisq"),
-       commonSup.cut  = c(NA_real_, 1, 0.05),
-       propensityScoreAsCovariate = TRUE,
-       keepCall = TRUE, verbose = TRUE,
-       \dots)
+bartc(response, treatment, confounders, data, subset, weights,
+      method.rsp = c("bart", "pweight", "tmle"),
+      method.trt = c("none", "glm", "bart", "bart.xval"),
+      estimand   = c("ate", "att", "atc"),
+      group.by = NULL,
+      commonSup.rule = c("none", "sd", "chisq"),
+      commonSup.cut  = c(NA_real_, 1, 0.05),
+      propensityScoreAsCovariate = TRUE,
+      keepCall = TRUE, verbose = TRUE,
+      \dots)
 }
 \arguments{
   \item{response}{
@@ -88,8 +88,8 @@ cibart(response, treatment, confounders, data, subset, weights,
     covariate.
   }
   \item{keepCall}{
-    A logical such that when \code{FALSE}, the call to \code{cibart} is not kept. This can reduce the 
-    amount of information printed by \code{\link[=cibart-generics]{summary}} when passing in data as literals.
+    A logical such that when \code{FALSE}, the call to \code{bartc} is not kept. This can reduce the 
+    amount of information printed by \code{\link[=bartc-generics]{summary}} when passing in data as literals.
   }
   \item{verbose}{
     A logical that when \code{TRUE} prints information as the model is fit.
@@ -102,7 +102,7 @@ cibart(response, treatment, confounders, data, subset, weights,
   }
 }
 \details{
-  \code{cibart} represents a collection of methods that primarily use the Bayesian Additive Regression Trees
+  \code{bartc} represents a collection of methods that primarily use the Bayesian Additive Regression Trees
   (BART) algorithm to estimate causal treatment effects with binary treatment variables and continuous
   outcomes. This requires models to be fit to the response surface (distribution of the response as a
   function of treatment and confounders, \eqn{p(Y(1), Y(0) | X)} and optionally for treatment assignment
@@ -153,7 +153,7 @@ cibart(response, treatment, confounders, data, subset, weights,
   
   Common support, or that the probability of receiving all treatment conditions is non-zero within every area of
   the covariate space (\eqn{P(Z = 1 | X = x) > 0} for all \eqn{x} in the inferential sample), can be enforced by
-  excluding observations with high posterior uncertainty. \code{cibart} supports two common support rules through
+  excluding observations with high posterior uncertainty. \code{bartc} supports two common support rules through
   \code{commonSup.rule} argument:
   
   \itemize{
@@ -173,12 +173,12 @@ cibart(response, treatment, confounders, data, subset, weights,
   }
 }
 \value{
-  \code{cibart} returns an object of class \code{cibartFit}. Information about the object can be derived
-  by using methods \code{\link[=cibart-generics]{summary}}, \code{\link{plot_sigma}}, \code{\link{plot_est}},
+  \code{bartc} returns an object of class \code{artcFit}. Information about the object can be derived
+  by using methods \code{\link[=bartc-generics]{summary}}, \code{\link{plot_sigma}}, \code{\link{plot_est}},
   \code{\link{plot_indiv}}, and \code{\link{plot_support}}. Numerical quantities are recovered with the
-  \code{\link[=cibart-generics]{fitted}} and \code{\link{extract}} generics.
+  \code{\link[=bartc-generics]{fitted}} and \code{\link{extract}} generics.
   
-  Objects of class \code{cibartFit} are lists containing items:
+  Objects of class \code{bartcFit} are lists containing items:
   
   \item{\code{method.rsp}}{character string specifying the method used to fit the response surface}
   \item{\code{method.trt}}{character string specifying the method used to fit the treatment assignment
@@ -197,7 +197,7 @@ cibart(response, treatment, confounders, data, subset, weights,
   \item{\code{name.trt}}{character string giving the name of the treatment variable in the data 
                          of \code{fit.rsp}}
   \item{\code{trt}}{vector of treatment assignments}
-  \item{\code{call}}{how \code{cibart} was called}
+  \item{\code{call}}{how \code{bartc} was called}
   \item{\code{n.chains}}{number of independent posterior sampler chains in response model}
   \item{\code{commonSup.rule}}{common support rule used for suppressing observations}
   \item{\code{commonSup.cut}}{common support parameter used to set cutoff when suppression observations}
@@ -250,7 +250,7 @@ mu.1 <- x \%*\% beta.y + tau
 
 y <- mu.0 * (1 - z) + mu.1 * z + rnorm(n, 0, sigma)
 
-fit <- cibart(y, z, x, n.samples = 100L)
+fit <- bartc(y, z, x, n.samples = 100L)
 }
 \keyword{causal}
 \keyword{bart}

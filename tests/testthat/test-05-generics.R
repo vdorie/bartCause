@@ -1,12 +1,13 @@
 context("generic functions")
 
-source(system.file("common", "linearData.R", package = "cibart"))
+source(system.file("common", "linearData.R", package = "BartCause"))
 
 set.seed(22)
 testData$g <- sample(3L, nrow(testData$x), replace = TRUE)
 groups <- unique(testData$g)
 set.seed(22)
-fit <- cibart(y, z, x, testData, method.trt = "glm", group.by = g, n.samples = 50L, n.burn = 25L, n.thread = 1L, verbose = FALSE)
+fit <- bartc(y, z, x, testData, method.trt = "glm", group.by = g, n.samples = 50L,
+             n.burn = 25L, n.thread = 1L, verbose = FALSE)
 
 p.score <- fitted(glm(z ~ x, family = stats::binomial, data = testData))
 
@@ -64,11 +65,11 @@ test_that("extract matches manual fit", {
 test_that("summary object contain correct information", {
   sum <- summary(fit)
   
-  expect_true(sum$call == parse(text = 'cibart(response = y, treatment = z, confounders = x, data = testData, method.trt = "glm", group.by = g, n.samples = 50L, n.burn = 25L, n.thread = 1L, verbose = FALSE)')[[1L]])
+  expect_true(sum$call == parse(text = 'bartc(response = y, treatment = z, confounders = x, data = testData, method.trt = "glm", group.by = g, n.samples = 50L, n.burn = 25L, n.thread = 1L, verbose = FALSE)')[[1L]])
   expect_equal(sum$method.rsp, "bart")
   expect_equal(sum$method.trt, "glm")
-  expect_equal(sum$ci.style, eval(formals(cibart:::summary.cibartFit)$ci.style)[1L])
-  expect_equal(sum$ci.level, eval(formals(cibart:::summary.cibartFit)$ci.level))
+  expect_equal(sum$ci.style, eval(formals(BartCause:::summary.bartcFit)$ci.style)[1L])
+  expect_equal(sum$ci.level, eval(formals(BartCause:::summary.bartcFit)$ci.level))
   expect_equal(sum$numObservations, length(testData$y))
   expect_equal(sum$numSamples, 50L * 4L)
   expect_equal(sum$n.chains, 4L)
@@ -76,8 +77,8 @@ test_that("summary object contain correct information", {
 })
 
 test_that("summary works with confidence interval styles", {
-  expect_is(summary(fit, ci.style = "norm"),  "cibartFit.summary")
-  expect_is(summary(fit, ci.style = "quant"), "cibartFit.summary")
-  expect_is(summary(fit, ci.style = "hpd"),   "cibartFit.summary")
+  expect_is(summary(fit, ci.style = "norm"),  "bartcFit.summary")
+  expect_is(summary(fit, ci.style = "quant"), "bartcFit.summary")
+  expect_is(summary(fit, ci.style = "hpd"),   "bartcFit.summary")
 })
 

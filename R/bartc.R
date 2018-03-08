@@ -3,7 +3,7 @@ flattenSamples <- function(y) {
   if (!is.null(dim(y)) && length(dim(y)) > 2L) evalx(dim(y), matrix(y, nrow = x[1L], ncol = x[2L] * x[3L])) else y
 }
 
-cibart <- function(
+bartc <- function(
   response, treatment, confounders, data, subset, weights,
   method.rsp = c("bart", "pweight", "tmle"),
   method.trt = c("none", "glm", "bart", "bart.xval"),
@@ -30,8 +30,8 @@ cibart <- function(
   ## check validity of character vector arguments by comparing to function prototype
   for (argName in c("method.rsp", "estimand", "commonSup.rule")) {
     arg <- get(argName)
-    if (!is.character(arg) || arg[1L] %not_in% eval(formals(cibart::cibart)[[argName]]))
-      stop(argName, " must be in '", paste0(eval(formals(cibart::cibart)[[argName]]), collapse = "', '"), "'")
+    if (!is.character(arg) || arg[1L] %not_in% eval(formals(BartCause::bartc)[[argName]]))
+      stop(argName, " must be in '", paste0(eval(formals(BartCause::bartc)[[argName]]), collapse = "', '"), "'")
     assign(argName, arg[1L])
   }
     
@@ -46,8 +46,8 @@ cibart <- function(
     method.trt <- "given"
   } else if (is.character(method.trt)) {
     method.trt <- method.trt[1L]
-    if (method.trt %not_in% eval(formals(cibart::cibart)$method.trt))
-      stop("method.trt must be in '", paste0(eval(formals(cibart::cibart)$method.trt), collapse = "', '"), "'")
+    if (method.trt %not_in% eval(formals(BartCause::bartc)$method.trt))
+      stop("method.trt must be in '", paste0(eval(formals(BartCause::bartc)$method.trt), collapse = "', '"), "'")
     
     
     treatmentCall <- switch(method.trt,
@@ -63,7 +63,7 @@ cibart <- function(
       massign[fit.trt, p.score, samples.p.score] <- eval(treatmentCall, envir = callingEnv)
     }
   } else {
-    stop("method.trt must be in '", paste0(eval(formals(cibart::cibart)$method.trt), collapse = "', '"), "' or a fixed vector")
+    stop("method.trt must be in '", paste0(eval(formals(BartCause::bartc)$method.trt), collapse = "', '"), "' or a fixed vector")
   }
     
   if (is.na(propensityScoreAsCovariate))
@@ -80,7 +80,7 @@ cibart <- function(
   
   if (!is.null(matchedCall$commonSup.rule)) {
      if (is.null(matchedCall$commonSup.cut))
-       commonSup.cut <- eval(formals(cibart)$commonSup.cut)[match(commonSup.rule, eval(formals(cibart)$commonSup.rule))]
+       commonSup.cut <- eval(formals(bartc)$commonSup.cut)[match(commonSup.rule, eval(formals(bartc)$commonSup.rule))]
     responseCall$commonSup.rule <- commonSup.rule[1L]
     responseCall$commonSup.cut <- commonSup.cut[1L]
   } else {
@@ -88,7 +88,7 @@ cibart <- function(
     responseCall$commonSup.cut  <- NA_real_
   }
 
-  responseCall <- addCallDefaults(responseCall, cibart::cibart)
+  responseCall <- addCallDefaults(responseCall, BartCause::bartc)
   
   evalEnv <- callingEnv
   if (propensityScoreAsCovariate && !is.null(p.score)) {
@@ -120,7 +120,7 @@ cibart <- function(
                       call = givenCall)
   result$n.chains <- if (!is.null(dim(fit.rsp$sigma))) nrow(fit.rsp$sigma) else 1L
   
-  class(result) <- "cibartFit"
+  class(result) <- "bartcFit"
   result
 }
 

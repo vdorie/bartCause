@@ -1,22 +1,22 @@
-\name{cibart-generics}
-\alias{cibart-generics}
+\name{bartc-generics}
+\alias{bartc-generics}
 \alias{extract}
-\alias{fitted.cibartFit}
-\alias{extract.cibartFit}
-\title{Generic Methods for \code{cibartFit} Objects}
+\alias{fitted.bartcFit}
+\alias{extract.bartcFit}
+\title{Generic Methods for \code{bartcFit} Objects}
 \description{
   Visual exploratory data analysis and model fitting diagnostics for causal inference models fit
-  using the \code{\link{cibart}} function.
+  using the \code{\link{bartc}} function.
 }
 \usage{
-\method{fitted}{cibartFit}(object,
+\method{fitted}{bartcFit}(object,
                            value = c("est", "y", "y0", "y1", "indiv.diff", "p.score"),
                            sample = c("inferential", "all"),
                            \dots)
 
 extract(object, \dots)
 
-\method{extract}{cibartFit}(object,
+\method{extract}{bartcFit}(object,
                             value = c("est", "y", "y0", "y1", "indiv.diff", "p.score"),
                             sample = c("inferential", "all"),
                             combineChains = TRUE,
@@ -24,7 +24,7 @@ extract(object, \dots)
 }
 \arguments{
   \item{object}{
-    Object of class \code{cibartFit}.
+    Object of class \code{bartcFit}.
   }
   \item{value}{
     Which quantity to return. See details for a description of possible values.
@@ -37,13 +37,13 @@ extract(object, \dots)
     If the models were fit with more than one chain, results retain the chain structure unless
     \code{combineChains} is \code{TRUE}.
   }
-  \item{...}{
+  \item{\dots}{
     Additional parameters passed up the generic method chain.
   }
 }
 \details{
   \code{fitted} returns the values that would serve as predictions for an object returned by the
-  \code{\link{cibart}} function, while \code{extract} instead returns the full matrix or array of posterior
+  \code{\link{bartc}} function, while \code{extract} instead returns the full matrix or array of posterior
   samples. The possible options are:
   
   \itemize{
@@ -74,7 +74,7 @@ extract(object, \dots)
 Vincent Dorie: \email{vdorie@gmail.com}.
 }
 \seealso{
-\code{\link{cibart}}
+\code{\link{bartc}}
 }
 \examples{
 ## fit a simple linear model

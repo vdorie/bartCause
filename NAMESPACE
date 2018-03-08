@@ -1,12 +1,12 @@
-export(cibart)
+export(bartc)
 export(extract)
 export(plot_sigma, plot_est, plot_indiv, plot_support)
 
-S3method(summary, cibartFit)
-S3method(print, cibartFit)
-S3method(print, cibartFit.summary)
-S3method(fitted, cibartFit)
-S3method(extract, cibartFit)
+S3method(summary, bartcFit)
+S3method(print, bartcFit)
+S3method(print, bartcFit.summary)
+S3method(fitted, bartcFit)
+S3method(extract, bartcFit)
 
 
 importFrom(dbarts, bart2, guessNumCores, xbart)
@@ -14,7 +14,7 @@ importFrom(dbarts, bart2, guessNumCores, xbart)
 importFrom(methods, is)
 importFrom(stats, glm, binomial, fitted, sd)
 importFrom(stats, plogis, pnorm, qlogis, qnorm, qchisq)
-importFrom(stats, quantile, setNames)
+importFrom(stats, quantile, setNames, coef)
 
 importFrom(graphics, abline, hist, lines, plot)
 importFrom(graphics, legend, mtext, par, points)

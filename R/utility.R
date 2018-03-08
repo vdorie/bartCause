@@ -175,7 +175,7 @@ namedList <- function(...) {
 quoteInNamespace <- function(name, character.only = FALSE) {
   result <- quote(a + b)
   result[[1L]] <- as.symbol(":::")
-  result[[2L]] <- as.symbol("cibart")
+  result[[2L]] <- as.symbol("BartCause")
   
   result[[3L]] <- if (character.only) name else match.call()[[2]]
   result

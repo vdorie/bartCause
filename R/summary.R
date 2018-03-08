@@ -12,10 +12,10 @@ getTreatmentEffectEstimate <- function(samples, ci.style, ci.level) {
   c(estimate = est, sd = sd, ci.lower = ci[1L], ci.upper = ci[2L])
 }
 
-summary.cibartFit <- function(object, ci.style = c("norm", "quant", "hpd"), ci.level = 0.95, ...)
+summary.bartcFit <- function(object, ci.style = c("norm", "quant", "hpd"), ci.level = 0.95, ...)
 {
   if (!is.character(ci.style))
-    stop("ci.style must be in '", paste0(eval(formals(summary.cibartFit)$ci.style), collapse = "', '"), "'")
+    stop("ci.style must be in '", paste0(eval(formals(summary.bartcFit)$ci.style), collapse = "', '"), "'")
   ci.style <- ci.style[1L]
   
   if (!is.numeric(ci.level))
@@ -70,12 +70,12 @@ summary.cibartFit <- function(object, ci.style = c("norm", "quant", "hpd"), ci.l
     }
     result$n.cut <- n.cut
   }
-  class(result) <- "cibartFit.summary"
+  class(result) <- "bartcFit.summary"
   
   result
 }
 
-print.cibartFit.summary <- function(x, ...)
+print.bartcFit.summary <- function(x, ...)
 {
   dotsList <- list(...)
   digits <- if (!is.null(dotsList$digits)) dotsList$digits else max(3L, getOption("digits") - 3L)
@@ -115,9 +115,9 @@ print.cibartFit.summary <- function(x, ...)
   invisible(x)
 }
 
-print.cibartFit <- function(x, ...)
+print.bartcFit <- function(x, ...)
 {
-  cat("cibart fit using methods:\n",
+  cat("bartc fit using methods:\n",
       "  model.rsp: ", x$method.rsp, "\n",
       "  model.trt: ", x$method.trt, "\n\n", sep = "", ...)
   

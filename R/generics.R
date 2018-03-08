@@ -19,18 +19,18 @@ getBARTFitForSubset <- function(object, observedSubset) {
   }
 }
 
-fitted.cibartFit <-
+fitted.bartcFit <-
   function(object,
            value = c("est", "y", "y0", "y1", "indiv.diff", "p.score"),
            sample = c("inferential", "all"),
            ...)
 {
-  if (!is.character(value) || value[1L] %not_in% eval(formals(fitted.cibartFit)$value))
-    stop("value must be in '", paste0(eval(formals(fitted.cibartFit)$value), collapse = "', '"), "'")
+  if (!is.character(value) || value[1L] %not_in% eval(formals(fitted.bartcFit)$value))
+    stop("value must be in '", paste0(eval(formals(fitted.bartcFit)$value), collapse = "', '"), "'")
   value <- value[1L]
   
-  if (!is.character(sample) || sample[1L] %not_in% eval(formals(fitted.cibartFit)$sample))
-    stop("sample must be in '", paste0(eval(formals(fitted.cibartFit)$sample), collapse = "', '"), "'")
+  if (!is.character(sample) || sample[1L] %not_in% eval(formals(fitted.bartcFit)$sample))
+    stop("sample must be in '", paste0(eval(formals(fitted.bartcFit)$sample), collapse = "', '"), "'")
   sample <- sample[1L]
   
   if (value == "est")
@@ -55,7 +55,7 @@ fitted.cibartFit <-
   result[subset]
 }
 
-extract.cibartFit <-
+extract.bartcFit <-
   function(object,
            value = c("est", "y", "y0", "y1", "indiv.diff", "p.score"),
            sample = c("inferential", "all"),
@@ -63,12 +63,12 @@ extract.cibartFit <-
            ...)
 {
   value <- value[1L]
-  if (value %not_in% eval(formals(extract.cibartFit)$value))
-    stop("value must be in '", paste0(eval(formals(extract.cibartFit)$value), collapse = "', '"), "'")
+  if (value %not_in% eval(formals(extract.bartcFit)$value))
+    stop("value must be in '", paste0(eval(formals(extract.bartcFit)$value), collapse = "', '"), "'")
   
   sample <- sample[1L]
-  if (sample %not_in% eval(formals(extract.cibartFit)$sample))
-    stop("sample must be in '", paste0(eval(formals(extract.cibartFit)$sample), collapse = "', '"), "'")
+  if (sample %not_in% eval(formals(extract.bartcFit)$sample))
+    stop("sample must be in '", paste0(eval(formals(extract.bartcFit)$sample), collapse = "', '"), "'")
   
   if (value == "est") {
     if (!is.null(object$group.by))

@@ -1,13 +1,13 @@
-\name{cibart-plot}
-\alias{cibart-plot}
+\name{bartc-plot}
+\alias{bartc-plot}
 \alias{plot_sigma}
 \alias{plot_est}
 \alias{plot_indiv}
 \alias{plot_support}
-\title{Plot methods for \code{cibart}}
+\title{Plot methods for \code{bartc}}
 \description{
   Visual exploratory data analysis and model fitting diagnostics for causal inference models fit
-  using the \code{\link{cibart}} function.
+  using the \code{\link{bartc}} function.
 }
 \usage{
 plot_sigma(x, main = "Traceplot sigma", 
@@ -36,7 +36,7 @@ plot_support(x, main = "Common Support Scatterplot",
 }
 \arguments{
   \item{x}{
-    Object of class \code{cibartFit}.
+    Object of class \code{bartcFit}.
   }
   \item{main}{
     Character title of plot.
@@ -98,9 +98,9 @@ plot_support(x, main = "Common Support Scatterplot",
   }
 }
 \details{
-  Produces various plots using objects fit by \code{\link{cibart}}. \code{plot_sigma} and \code{plot_est}
+  Produces various plots using objects fit by \code{\link{bartc}}. \code{plot_sigma} and \code{plot_est}
   are traditional parameter trace plots that can be used to diagnose the convergence of the posterior
-  sampler. If the \code{cibart} model is fit with \code{n.chains} greater than one, by default each chain
+  sampler. If the \code{bartc} model is fit with \code{n.chains} greater than one, by default each chain
   will be plotted with its own line type.
   
   \code{plot_indiv} produces a simple histogram of the distribution of the estimates of the individual
@@ -118,11 +118,11 @@ plot_support(x, main = "Common Support Scatterplot",
   Vincent Dorie: \email{vdorie@gmail.com}.
 }
 \seealso{
-  \code{\link{cibart}}
+  \code{\link{bartc}}
 }
 \examples{
 \dontrun{
-fit <- cibart(...)
+fit <- bartc(...)
 
 plot_sigma(fit)
 

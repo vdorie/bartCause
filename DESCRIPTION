@@ -1,4 +1,4 @@
-Package: cibart
+Package: BartCause
 Version: 1.0-0
 Date: 2017-11-26
 Title: Causal Inference using Bayesian Additive Regression Trees
@@ -7,13 +7,14 @@ Depends:
   R (>= 3.1-0)
 Imports:
   dbarts (>= 0.9-0),
+  tmle,
   methods,
   stats,
   graphics
 Suggests:
   testthat (>= 0.9-0)
-Description: Contains a variety of methods to generate typical causal inference estimates using Bayesian Additive Regression Trees (BART) as the underlying regression model.
+Description: Contains a variety of methods to generate typical causal inference estimates using Bayesian Additive Regression Trees (BART) as the underlying regression model (Hill (2012) <doi:10.1198/jcgs.2010.08162>).
 License: GPL (>= 2)
 NeedsCompilation: no
-URL: https://github.com/vdorie/cibart
-BugReports: https://github.com/vdorie/cibart/issues
+URL: https://github.com/vdorie/BartCause
+BugReports: https://github.com/vdorie/BartCause/issues
