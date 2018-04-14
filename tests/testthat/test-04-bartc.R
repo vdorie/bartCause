@@ -117,5 +117,14 @@ test_that("bartc runs with all response settings and group.by set", {
   expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "tmle", group.by = g,
                   n.samples = 10L, n.burn = 5L, n.trees = 25L, n.chains = 2L, verbose = FALSE, maxIter = 10),
             "bartcFit")
+  
+  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "bart", group.by = g, use.rbart = TRUE,
+                  n.samples = 10L, n.burn = 5L, n.trees = 25L, n.chains = 2L, verbose = FALSE),
+            "bartcFit")
+  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "pweight", group.by = g, use.rbart = TRUE,
+                  n.samples = 10L, n.burn = 5L, n.trees = 25L, n.chains = 2L, verbose = FALSE),
+            "bartcFit")
+  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "tmle", group.by = g, use.rbart = TRUE,
+                  n.samples = 10L, n.burn = 5L, n.trees = 25L, n.chains = 2L, verbose = FALSE, maxIter = 10),
+            "bartcFit")
 })
-

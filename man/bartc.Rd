@@ -13,7 +13,7 @@ bartc(response, treatment, confounders, data, subset, weights,
       group.by = NULL,
       commonSup.rule = c("none", "sd", "chisq"),
       commonSup.cut  = c(NA_real_, 1, 0.05),
-      propensityScoreAsCovariate = TRUE,
+      propensityScoreAsCovariate = TRUE, use.rbart = FALSE,
       keepCall = TRUE, verbose = TRUE,
       \dots)
 }
@@ -86,6 +86,10 @@ bartc(response, treatment, confounders, data, subset, weights,
   \item{propensityScoreAsCovariate}{
     A logical such that when \code{TRUE}, the propensity score is added to the response model as a
     covariate.
+  }
+  \item{use.rbart}{
+    Logical specifying the use of \code{\link[=rbart_vi]{rbart}} for when \code{group.by} is supplied.
+    When \code{TRUE}, the grouping variable is added as a random intercept to the response model.
   }
   \item{keepCall}{
     A logical such that when \code{FALSE}, the call to \code{bartc} is not kept. This can reduce the 

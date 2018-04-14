@@ -37,7 +37,7 @@ getBartEstimates <- function(treatmentRows, weights, estimand, indiv.diff, commo
 }
 
 getBartResponseFit <- function(response, treatment, confounders, data, subset, weights, estimand, group.by,
-                               commonSup.rule, commonSup.cut, p.score, calculateEstimates = TRUE, ...)
+                               commonSup.rule, commonSup.cut, p.score, use.rbart, calculateEstimates = TRUE, ...)
 {
   treatmentIsMissing    <- missing(treatment)
   responseIsMissing     <- missing(response)
@@ -84,7 +84,8 @@ getBartResponseFit <- function(response, treatment, confounders, data, subset, w
   responseData@x.test[,treatmentName] <- 1 - responseData@x.test[,treatmentName]
   
   ## redict to pull in any args passed
-  bartCall <- redirectCall(matchedCall, dbarts::bart2)
+  use.rbart <- !is.null(matchedCall$group.by) && use.rbart
+  bartCall <- if (!use.rbart) redirectCall(matchedCall, dbarts::bart2) else redirectCall(matchedCall, dbarts::rbart_vi)
   bartCall$formula <- quote(responseData)
   bartCall$data    <- NULL
   bartCall$keepTrees <- FALSE
@@ -190,7 +191,7 @@ getPWeightEstimates <- function(y, z, weights, estimand, yhat.0, yhat.1, p.score
 }
 
 getPWeightResponseFit <-
-  function(response, treatment, confounders, data, subset, weights, estimand, group.by, p.score, samples.p.score,
+  function(response, treatment, confounders, data, subset, weights, estimand, group.by, p.score, samples.p.score, use.rbart,
            yBounds = c(.005, .995), p.scoreBounds = c(0.025, 0.975), ...)
 {
   dataAreMissing    <- missing(data)
@@ -389,7 +390,7 @@ getTMLEEstimates <- function(y, z, weights, estimand, yhat.0, yhat.1, p.score, y
 }
 
 getTMLEResponseFit <-
-  function(response, treatment, confounders, data, subset, weights, estimand, group.by, p.score, samples.p.score,
+  function(response, treatment, confounders, data, subset, weights, estimand, group.by, p.score, samples.p.score, use.rbart,
            yBounds = c(.005, .995), p.scoreBounds = c(0.025, 0.975), depsilon = 0.001, maxIter = max(1000, 2 / depsilon), ...)
 {
   dataAreMissing    <- missing(data)
@@ -408,6 +409,7 @@ getTMLEResponseFit <-
   }
   
   bartCall <- redirectCall(matchedCall, quoteInNamespace(getBartResponseFit))
+  bartCall$calculateEstimates <- FALSE
   
   bartFit <- responseData <- samples.indiv.diff <- name.trt <- trt <- sd.obs <- sd.cf <- commonSup.sub <- NULL
   massign[bartFit, responseData,, samples.indiv.diff, name.trt, trt, sd.obs, sd.cf, commonSup.sub] <- eval(bartCall, envir = callingEnv)

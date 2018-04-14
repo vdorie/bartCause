@@ -11,7 +11,7 @@ bartc <- function(
   group.by = NULL,
   commonSup.rule = c("none", "sd", "chisq"),
   commonSup.cut  = c(NA_real_, 1, 0.05),
-  propensityScoreAsCovariate = TRUE,
+  propensityScoreAsCovariate = TRUE, use.rbart = FALSE,
   keepCall = TRUE, verbose = TRUE,
   ...
 )
