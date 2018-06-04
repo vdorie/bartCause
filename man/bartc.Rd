@@ -255,6 +255,7 @@ mu.1 <- x \%*\% beta.y + tau
 y <- mu.0 * (1 - z) + mu.1 * z + rnorm(n, 0, sigma)
 
 fit <- bartc(y, z, x, n.samples = 100L)
+summary(fit)
 }
 \keyword{causal}
 \keyword{bart}

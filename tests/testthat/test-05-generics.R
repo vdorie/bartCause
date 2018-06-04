@@ -7,14 +7,14 @@ testData$g <- sample(3L, nrow(testData$x), replace = TRUE)
 groups <- unique(testData$g)
 set.seed(22)
 fit <- bartc(y, z, x, testData, method.trt = "glm", group.by = g, n.samples = 50L,
-             n.burn = 25L, n.thread = 1L, verbose = FALSE)
+             n.burn = 25L, n.threads = 1L, verbose = FALSE)
 
 p.score <- fitted(glm(z ~ x, family = stats::binomial, data = testData))
 
 set.seed(22)
 x.train <- cbind(testData$x, z = testData$z, p.score)
 x.test  <- x.train; x.test[,"z"] <- 1 - x.test[,"z"]
-bartFit <- dbarts::bart2(x.train, testData$y, x.test, n.samples = 50L, n.burn = 25L, n.thread = 1L, verbose = FALSE)
+bartFit <- dbarts::bart2(x.train, testData$y, x.test, n.samples = 50L, n.burn = 25L, n.threads = 1L, verbose = FALSE)
 
 samples.y  <- aperm(bartFit$yhat.train, c(3L, 1L, 2L))
 samples.cf <- aperm(bartFit$yhat.test, c(3L, 1L, 2L))
