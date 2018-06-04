@@ -54,7 +54,7 @@ plot_indiv <- function(x, main = "Histogram Individual Effects", xlab = "treatme
 }
 
 plot_support <- function(x, main = "Common Support Scatterplot",
-                         xvar = "pca.1", yvar = "pca.2",
+                         xvar = "tree.1", yvar = "tree.2",
                          xlab = NULL, ylab = NULL,
                          pch.trt = 21, bg.trt = "black",
                          pch.ctl = pch.trt, bg.ctl = NA,
@@ -79,14 +79,28 @@ plot_support <- function(x, main = "Common Support Scatterplot",
         callingEnv$x.rot <- x.matrix %*% decomp$vectors
       }
       
-      if (is.character(var) && startsWith(var, "pca.")) {
-        col <- suppressWarnings(as.integer(substr(var, 5L, nchar(var))))
-        if (is.na(col)) stop("unable to parse pca column '", var, "'")
-        if (col > ncol(callingEnv$x.rot)) stop("column '", var, "' greater than number of columns")
-        
-        val <- callingEnv$x.rot[,col]
-        if (is.null(lab)) lab <- paste0("principal component ", col)
+      col <- suppressWarnings(as.integer(substr(var, 5L, nchar(var))))
+      if (is.na(col)) stop("unable to parse pca column '", var, "'")
+      if (col > ncol(callingEnv$x.rot)) stop("column '", var, "' greater than number of columns")
+      
+      val <- callingEnv$x.rot[,col]
+      if (is.null(lab)) lab <- paste0("principal component ", col)
+    } else if (is.character(var) && startsWith(var, "tree.")) {
+      if (is.null(callingEnv$treeVars)) {
+        if (!requireNamespace("rpart", quietly = TRUE))
+          stop("tree plots require the package 'rpart'; please install it to use this feature", call. = FALSE)
+        df <- data.frame(.y = fitted(x, "indiv.diff"), x$data.rsp@x)
+        tree <- rpart::rpart(.y ~ ., df, ...)
+        contCols <- apply(x$data.rsp@x, 2L, function(col) length(unique(col)) > 2L)
+        callingEnv$treeVars <- tree$variable.importance[names(tree$variable.importance) %in% names(which(contCols))]
       }
+      
+      col <- suppressWarnings(as.integer(substr(var, 6L, nchar(var))))
+      if (is.na(col)) stop("unable to parse tree column '", var, "'")
+      if (col > length(callingEnv$treeVars)) stop("column '", var, "' greater than the number of continuous columns")
+      
+      val <- x$data.rsp@x[,names(callingEnv$treeVars)[col]]
+      if (is.null(lab)) lab <- paste0(names(callingEnv$treeVars)[col], " (by tree)")
     } else if (var == "css") {
       val <- with(x, getCommonSupportStatistic(sd.obs, sd.cf, commonSup.rule, commonSup.cut))
       if (is.null(lab)) lab <- paste0(x$commonSup.rule, " common support stat")
@@ -94,6 +108,18 @@ plot_support <- function(x, main = "Common Support Scatterplot",
       if (is.null(x$p.score)) stop("p.score not present in fit")
       val <- x$p.score
       if (is.null(lab)) lab <- "propensity score"
+    } else if (var == "y") {
+      val <- x$data.rsp@y
+      if (is.null(lab)) lab <- "y"
+    } else if (var == "y0") {
+      val <- fitted(x, "y0")
+      if (is.null(lab)) lab <- expression(hat(y)(0))
+    } else if (var == "y1") {
+      val <- fitted(x, "y1")
+      if (is.null(lab)) lab <- expression(hat(y)(1))
+    } else if (var == "indiv.diff") {
+      val <- fitted(x, "indiv.diff")
+      if (is.null(lab)) lab <- expression(hat(y)(1) - hat(y)(0))
     } else if (is.numeric(var)) {
       if (length(var) == 1L) {
         var <- as.integer(round(var, 0))

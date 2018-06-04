@@ -26,7 +26,7 @@ plot_indiv(x, main = "Histogram Individual Effects",
            ...)
 
 plot_support(x, main = "Common Support Scatterplot",
-             xvar = "pca.1", yvar = "pca.2",
+             xvar = "tree.1", yvar = "tree.2",
              xlab = NULL, ylab = NULL,
              pch.trt = 21, bg.trt = "black",
              pch.ctl = pch.trt, bg.ctl = NA,
@@ -55,10 +55,10 @@ plot_support(x, main = "Common Support Scatterplot",
     Argument to code{\link{hist}}.
   }
   \item{xvar}{
-    Variable for use on \eqn{x} axis. Can be of the form "pca.XX", where "XX" is the number of a
-    principal axes ordered by eigenvalues, the value "css" for the common support statistic,
-    "p.score" for the propensity score, the number or name of a column used to fit the response
-    model, or a given vector.
+    Variable for use on \eqn{x} axis.  Can be one of \code{"tree.XX"}, \code{"pca.XX"}, \code{"css"}, 
+    \code{"p.score"}, \code{"y"}, \code{"y0"}, \code{"y1"}, \code{"indiv.diff"}, \code{"p.score"},
+    the number of name of a column used to fit the response model, or a given vector. See below for
+    details.
   }
   \item{yvar}{
     Variable for use on the \eqn{y} axis, of the same form as \code{xvar}.
@@ -108,11 +108,25 @@ plot_support(x, main = "Common Support Scatterplot",
   
   \code{plot_support} is used to visualize the common support diagnostic in the form of a scatterplot.
   Points that the diagnostic excludes are outlined in red. The contents of the \eqn{x} and \eqn{y} axes
-  are controlled by the \code{xvar} and \code{yvar} arguments respectively, and those arguments permit
-  constructs such as \code{"pca.1"} or \code{"css"}. See the arguments section for possible options.
+  are controlled by the \code{xvar} and \code{yvar} arguments respectively and can be of the form:
+
+\itemize{
+  \item{\code{"tree.XX"}}{ - Variable number \code{"XX"} as selected by variable importance in predicting
+    individual treatment effects using a tree fit by \code{\link{rpart}}. \code{"XX"} must be a number
+    not exceeding the number of continuous variables used to fit the response model.}
+  \item{\code{"pca.XX"}}{ - \code{"XX"}th principal component axis.}
+  \item{\code{"css"}}{ - The common support statistic.}
+  \item{\code{"y"}}{ - Observed response variable.}
+  \item{\code{"y0"}}{ - Fitted predicted values for the response under the control.}
+  \item{\code{"y1"}}{ - Fitted predicted values for the response under the treatment}
+  \item{\code{"indiv.diff"}}{ - Individual treatment effect estimates, or \eqn{\hat{y}(1) - \hat{y}(0)}.}
+  \item{\code{"p.score"}}{ - Propensity score used to fit the response model (if applicable).}
+  \item{predictor columns}{ - Given by name or number.}
+  \item{supplied vector}{ - Any vector of length equal to the number of observations.}
+}
 }
 \value{
-  None, although plotting occurs as a side -effect.
+  None, although plotting occurs as a side-effect.
 }
 \author{
   Vincent Dorie: \email{vdorie@gmail.com}.
@@ -126,7 +140,7 @@ fit <- bartc(...)
 
 plot_sigma(fit)
 
-plot_support(fit, xvar = "x1", yvar = "css", legend.x = NULL)
+plot_support(fit, xvar = "tree.1", yvar = "css", legend.x = NULL)
 }
 }
 \keyword{causal}

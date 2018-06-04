@@ -86,9 +86,14 @@ getBartResponseFit <- function(response, treatment, confounders, data, subset, w
   ## redict to pull in any args passed
   use.rbart <- !is.null(matchedCall$group.by) && use.rbart
   bartCall <- if (!use.rbart) redirectCall(matchedCall, dbarts::bart2) else redirectCall(matchedCall, dbarts::rbart_vi)
+  invalidArgs <- names(bartCall)[-1L] %not_in% names(eval(formals(eval(bartCall[[1L]])))) &
+                 names(bartCall)[-1L] %not_in% names(eval(formals(dbarts::dbartsControl)))
+  if (any(invalidArgs))
+    bartCall <- bartCall[c(1L, 1L + which(!invalidArgs))]
+    
   bartCall$formula <- quote(responseData)
   bartCall$data    <- NULL
-  bartCall$keepTrees <- FALSE
+  if (is.null(bartCall$keepTrees)) bartCall$keepTrees <- FALSE
   
   ## it is possible that some extra args were given for an xbart treatment call
   dotsList <- list(...)

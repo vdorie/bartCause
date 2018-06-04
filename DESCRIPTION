@@ -1,6 +1,6 @@
 Package: bartCause
 Version: 1.0-0
-Date: 2018-04-16
+Date: 2018-06-04
 Title: Causal Inference using Bayesian Additive Regression Trees
 Authors@R: c(person("Vincent", "Dorie",    role = c("aut", "cre"), email = "vdorie@gmail.com"))
 Depends:
@@ -12,7 +12,8 @@ Imports:
   stats,
   graphics
 Suggests:
-  testthat (>= 0.9-0)
+  testthat (>= 0.9-0),
+  rpart
 Description: Contains a variety of methods to generate typical causal inference estimates using Bayesian Additive Regression Trees (BART) as the underlying regression model (Hill (2012) <doi:10.1198/jcgs.2010.08162>).
 License: GPL (>= 2)
 NeedsCompilation: no

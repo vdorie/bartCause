@@ -70,7 +70,7 @@ getBartTreatmentFit <- function(treatment, confounders, data, subset, weights, .
   
   bartCall$verbose <- FALSE
   bartCall <- addCallArguments(bartCall, list(...))
-  bartCall$keepTrees <- FALSE
+  if (is.null(bartCall$keepTrees)) bartCall$keepTrees <- FALSE
   
   bartFit <- eval(bartCall, envir = evalEnv)
   x <- NULL ## R CMD check
@@ -117,12 +117,12 @@ getBartXValTreatmentFit <- function(treatment, confounders, data, subset, weight
   xbartCall$k <- TEST_K
   bartCall <- xbartCall
   bartCall[[1L]] <- quote(dbarts::bart2)
-  bartCall$keepTrees <- FALSE
-  
   dotsList <- list(...)
   
   xbartCall <- addCallArguments(xbartCall, dotsList)
   bartCall  <- addCallArguments(bartCall, dotsList)
+  
+  if (is.null(bartCall$keepTrees)) bartCall$keepTrees <- FALSE
   
   if (!is.null(matchedCall$n.burn) && is.list(dotsList[["n.burn"]]) && length(dotsList[["n.burn"]]) > 1L) {
     xbartCall$n.burn <- dotsList[["n.burn"]][[1L]]

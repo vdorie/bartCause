@@ -81,7 +81,7 @@ print.bartcFit.summary <- function(x, ...)
   digits <- if (!is.null(dotsList$digits)) dotsList$digits else max(3L, getOption("digits") - 3L)
   
   if (!is.null(x$call))
-    cat("Call: ", paste0(deparse(x$call), collapse = "\n      "), "\n\n", sep = "", ...)
+    cat("Call: ", paste0(deparse(x$call), collapse = "\n        "), "\n\n", sep = "", ...)
   
   cat("Causal inference model fit by:\n",
       "  model.rsp: ", x$method.rsp, "\n",
@@ -115,11 +115,12 @@ print.bartcFit.summary <- function(x, ...)
   invisible(x)
 }
 
-print.bartcFit <- function(x, ...)
+print.bartcFit <- function(x, digits = max(3L, getOption("digits") - 3L), ...)
 {
-  cat("bartc fit using methods:\n",
-      "  model.rsp: ", x$method.rsp, "\n",
-      "  model.trt: ", x$method.trt, "\n\n", sep = "", ...)
+  if (!is.null(x$call))
+    cat("Call:\n", paste0(deparse(x$call), collapse = "\n  "), "\n\n", sep = "")
+  
+  cat("Treatment effect (", x$estimand, "): ", format(fitted(x, "est"), digits = digits), "\n", sep = "", ...)
   
   invisible(x)
 }
