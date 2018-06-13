@@ -180,3 +180,36 @@ quoteInNamespace <- function(name, character.only = FALSE) {
   result[[3L]] <- if (character.only) name else match.call()[[2]]
   result
 }
+
+## silly function to handle subsetting when there are (possibly) multiple
+## chains - goes through the parse tree and adds the correct number of commas
+addDimsToSubset <- function(e) {
+  subDims <- function(e, env) {
+    if (is.call(e) && e[[1L]] == "[") {
+      temp <- quote(dim(a))
+      temp[[2L]] <- e[[2L]]
+     
+      dims <- eval(temp, env)
+      if (is.null(dims)) return(e)
+      
+      temp <- if (length(dims) > 2L) quote(a[b,,]) else quote(a[b,])
+      
+      temp[[2L]] <- e[[2L]]
+      temp[[3L]] <- e[[3L]]
+      if (any(names(e) %in% "drop")) temp[["drop"]] <- e[["drop"]]
+      return(temp)
+    }
+    
+    if (!is.symbol(e)) for (i in seq_along(e)) e[[i]] <- subDims(e[[i]], env)
+    
+    e
+  }
+  
+  e <- match.call()$e
+  env <- parent.frame()
+  
+  tryResult <- tryCatch(result <- eval(subDims(e, env), env), error = function(e) e)
+  if (is(tryResult, "error")) browser()
+  result
+}
+

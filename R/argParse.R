@@ -84,7 +84,8 @@ getResponseDataCall <- function(fn, response, treatment, confounders, data, subs
   result <- redirectCall(matchedCall, fn)
   result <- addCallArgument(result, 1L, formula)
   
-  list(call = result, env = evalEnv, trt = deparse(matchedCall$treatment))
+  responseVar <- evalEnv[[deparse(result$data)]][[result[[2L]][[2L]]]]
+  list(call = result, env = evalEnv, trt = deparse(matchedCall$treatment), missingRows = is.na(responseVar))
 }
 
 ## treat args as literals
@@ -147,6 +148,6 @@ getResponseLiteralCall <- function(fn, response, treatment, confounders, subset,
   if (!is.null(matchedCall$subset))  result$subset <- subset
   if (!is.null(matchedCall$weights)) result$weights <- weights
   
-  list(call = result, df = df, trt = treatmentName)
+  list(call = result, df = df, trt = treatmentName, missingRows = is.na(df[[responseName]]))
 }
 

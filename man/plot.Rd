@@ -117,8 +117,8 @@ plot_support(x, main = "Common Support Scatterplot",
   \item{\code{"pca.XX"}}{ - \code{"XX"}th principal component axis.}
   \item{\code{"css"}}{ - The common support statistic.}
   \item{\code{"y"}}{ - Observed response variable.}
-  \item{\code{"y0"}}{ - Fitted predicted values for the response under the control.}
-  \item{\code{"y1"}}{ - Fitted predicted values for the response under the treatment}
+  \item{\code{"y0"}}{ - Predicted values for the response under the control as obtained by \code{\link{fitted}}.}
+  \item{\code{"y1"}}{ - Predicted values for the response under the treatment  \code{\link{fitted}}.}
   \item{\code{"indiv.diff"}}{ - Individual treatment effect estimates, or \eqn{\hat{y}(1) - \hat{y}(0)}.}
   \item{\code{"p.score"}}{ - Propensity score used to fit the response model (if applicable).}
   \item{predictor columns}{ - Given by name or number.}

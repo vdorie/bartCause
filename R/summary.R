@@ -27,7 +27,7 @@ summary.bartcFit <- function(object, ci.style = c("norm", "quant", "hpd"), ci.le
   samples <- extract(object, "est", combineChains = TRUE)
   
   numSamples <- if (!is.null(object$group.by)) length(samples[[1L]]) else length(samples)
-  numObservations <- dim(object$samples.indiv.diff)[1L]
+  numObservations <- dim(object$yhat.obs)[1L]
   
   if (is.null(object$group.by)) {
     estimates <- as.data.frame(t(getTreatmentEffectEstimate(samples, ci.style, ci.level)))

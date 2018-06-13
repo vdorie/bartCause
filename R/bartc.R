@@ -58,6 +58,7 @@ bartc <- function(
     
     
     if (!is.null(treatmentCall)) {
+      
       if (verbose) cat("fitting treatment model via method '", method.trt, "'\n", sep = "")
       
       massign[fit.trt, p.score, samples.p.score] <- eval(treatmentCall, envir = callingEnv)
@@ -107,16 +108,18 @@ bartc <- function(
   }
   
   if (verbose) cat("fitting response model via method '", method.rsp, "'\n", sep = "")
-  fit.rsp <- data.rsp <- samples.est <- samples.indiv.diff <- name.trt <- trt <- sd.obs <- sd.cf <- commonSup.sub <- NULL
-  massign[fit.rsp, data.rsp, samples.est, samples.indiv.diff, name.trt, trt, sd.obs, sd.cf, commonSup.sub] <-
+  
+  fit.rsp <- data.rsp <- yhat.obs <- yhat.cf <- samples.est <- name.trt <- trt <- sd.obs <-
+    sd.cf <- commonSup.sub <- missingRows <- NULL
+  massign[fit.rsp, data.rsp, yhat.obs, yhat.cf, samples.est, name.trt, trt, sd.obs, sd.cf, commonSup.sub, missingRows] <-
     eval(responseCall, envir = evalEnv)
   
   
-  result <- namedList(fit.rsp, data.rsp, fit.trt, samples.est, samples.indiv.diff, p.score, samples.p.score,
+  result <- namedList(fit.rsp, data.rsp, fit.trt, yhat.obs, yhat.cf, samples.est, p.score, samples.p.score,
                       method.rsp, method.trt, estimand, group.by,
                       commonSup.rule, commonSup.cut,
                       name.trt, trt,
-                      sd.obs, sd.cf, commonSup.sub,
+                      sd.obs, sd.cf, commonSup.sub, missingRows,
                       call = givenCall)
   result$n.chains <- if (!is.null(dim(fit.rsp$sigma))) nrow(fit.rsp$sigma) else 1L
   

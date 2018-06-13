@@ -1,22 +1,6 @@
-getBARTFit <- function(object) {
-  x <- NULL ## R CMD check
-  evalx(object$fit.rsp$yhat.train, if (length(dim(x)) > 2L) aperm(x, c(3L, 1L, 2L)) else t(x))
-}
-
 getBARTFitForSubset <- function(object, observedSubset) {
-  trainingSamples <- object$fit.rsp$yhat.train
-  testSamples     <- object$fit.rsp$yhat.test
-  
-  counterFactualSubset <- !observedSubset
-  
-  result <- trainingSamples
-  if (length(dim(result)) > 2L) {
-    result[,,counterFactualSubset] <- testSamples[,,counterFactualSubset]
-    aperm(result, c(3L, 1L, 2L))
-  } else {
-    result[ ,counterFactualSubset] <- testSamples[ ,counterFactualSubset]
-    t(result)
-  }
+  z <- ifelse(observedSubset, 1, 0)
+  object$yhat.obs * z + object$yhat.cf * (1 - z)
 }
 
 fitted.bartcFit <-
@@ -38,10 +22,10 @@ fitted.bartcFit <-
   
   result <-
     switch(value,
-           y           = apply(flattenSamples(getBARTFit(object)), 1L, mean),
+           y           = apply(flattenSamples(object$yhat.obs), 1L, mean),
            y0          = apply(flattenSamples(getBARTFitForSubset(object, !object$trt)), 1L, mean),
            y1          = apply(flattenSamples(getBARTFitForSubset(object,  object$trt)), 1L, mean),
-           indiv.diff  = apply(flattenSamples(object$samples.indiv.diff), 1L, mean),
+           indiv.diff  = apply(flattenSamples((object$yhat.obs - object$yhat.cf) * ifelse(object$trt, 1, -1)), 1L, mean),
            p.score     = object$p.score) 
   
   if (is.null(result)) return(NULL)
@@ -79,10 +63,10 @@ extract.bartcFit <-
   
   result <-
     switch(value,
-           y           = getBARTFit(object),
+           y           = object$yhat.obs,
            y0          = getBARTFitForSubset(object, !object$trt),
            y1          = getBARTFitForSubset(object,  object$trt),
-           indiv.diff  = object$samples.indiv.diff,
+           indiv.diff  = (object$yhat.obs - object$yhat.cf) * ifelse(object$trt, 1, -1),
            p.score     = object$samples.p.score)
   
   if (is.null(result)) return(NULL)

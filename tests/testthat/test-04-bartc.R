@@ -22,7 +22,8 @@ test_that("bartc returns valid ouput with one chain", {
                n.samples = 200L, n.burn = 100L, n.chains = 1L, verbose = FALSE)
   expect_is(fit, "bartcFit")
   expect_equal(length(fit$samples.est), 200L)
-  expect_equal(dim(fit$samples.indiv.diff), c(n.obs, 200L))
+  expect_equal(dim(fit$yhat.obs), c(n.obs, 200L))
+  expect_equal(dim(fit$yhat.cf), c(n.obs, 200L))
   expect_equal(length(fit$p.score), n.obs)
   expect_true(is.null(fit$samples.p.score))
   
@@ -31,7 +32,8 @@ test_that("bartc returns valid ouput with one chain", {
   
   expect_is(fit, "bartcFit")
   expect_equal(length(fit$samples.est), 200L)
-  expect_equal(dim(fit$samples.indiv.diff), c(n.obs, 200L))
+  expect_equal(dim(fit$yhat.obs), c(n.obs, 200L))
+  expect_equal(dim(fit$yhat.cf), c(n.obs, 200L))
   expect_equal(length(fit$p.score), n.obs)
   expect_equal(dim(fit$samples.p.score), c(n.obs, 200L))
 })
@@ -44,7 +46,8 @@ test_that("bartc returns valid ouput with two chains", {
   expect_is(fit, "bartcFit")
   expect_equal(length(fit$samples.est), 200L)
   expect_equal(dim(fit$samples.est), c(2L, 100L))
-  expect_equal(dim(fit$samples.indiv.diff), c(n.obs, 2L, 100L))
+  expect_equal(dim(fit$yhat.obs), c(n.obs, 2L, 100L))
+  expect_equal(dim(fit$yhat.cf), c(n.obs, 2L, 100L))
   expect_equal(length(fit$p.score), n.obs)
   expect_true(is.null(fit$samples.p.score))
   
@@ -53,7 +56,8 @@ test_that("bartc returns valid ouput with two chains", {
   
   expect_is(fit, "bartcFit")
   expect_equal(length(fit$samples.est), 200L)
-  expect_equal(dim(fit$samples.indiv.diff), c(n.obs, 2L, 100L))
+  expect_equal(dim(fit$yhat.obs), c(n.obs, 2L, 100L))
+  expect_equal(dim(fit$yhat.cf), c(n.obs, 2L, 100L))
   expect_equal(length(fit$p.score), n.obs)
   expect_equal(dim(fit$samples.p.score), c(n.obs, 2L, 100L))
 })
