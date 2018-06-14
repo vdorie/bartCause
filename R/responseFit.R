@@ -298,7 +298,7 @@ getTMLEEstimates <- function(y, z, weights, estimand, yhat.0, yhat.1, p.score, y
   estimand <- estimand[1L]
   
   if (anyNA(y)) {
-    completeRows <- is.na(y)
+    completeRows <- !is.na(y)
     y <- y[completeRows]
     z <- z[completeRows]
     if (!is.null(weights)) weights <- weights[completeRows]
