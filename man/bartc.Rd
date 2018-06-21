@@ -7,13 +7,13 @@
 }
 \usage{
 bartc(response, treatment, confounders, data, subset, weights,
-      method.rsp = c("bart", "pweight", "tmle"),
+      method.rsp = c("bart", "p.weight", "tmle"),
       method.trt = c("none", "glm", "bart", "bart.xval"),
       estimand   = c("ate", "att", "atc"),
       group.by = NULL,
       commonSup.rule = c("none", "sd", "chisq"),
       commonSup.cut  = c(NA_real_, 1, 0.05),
-      propensityScoreAsCovariate = TRUE, use.rbart = FALSE,
+      p.scoreAsCovariate = TRUE, use.rbart = FALSE,
       keepCall = TRUE, verbose = TRUE,
       \dots)
 }
@@ -43,7 +43,7 @@ bartc(response, treatment, confounders, data, subset, weights,
   \item{method.rsp}{
     A character string specifying which method to use when fitting the response surface and estimating
     the treatment effect. Options are: \code{"bart"} - fit the response surface with BART and take
-    the average of the individual treatment effect estimates, \code{"pweight"} - fit the resposne surface
+    the average of the individual treatment effect estimates, \code{"p.weight"} - fit the resposne surface
     with BART but compute the treatment effect estimate by using a propensity score weighted sum of
     individual effects, and \code{"tmle"} - as above, but further adjust the individual estimates using
     the Targetted Minimum Loss based Estimation (TMLE) adjustment.
@@ -83,7 +83,7 @@ bartc(response, treatment, confounders, data, subset, weights,
     condition. When \code{commonSup.rule} is \code{"chisq"}, is the \eqn{p} value used for rejection
     of the hypothesis of equal variances.
   }
-  \item{propensityScoreAsCovariate}{
+  \item{p.scoreAsCovariate}{
     A logical such that when \code{TRUE}, the propensity score is added to the response model as a
     covariate.
   }
@@ -127,12 +127,12 @@ bartc(response, treatment, confounders, data, subset, weights,
     \item \code{"bart"} - use BART to fit the response surface and produce individual estimates
           \eqn{\hat{Y}(1)_i}{Y(1)^hat_i} and \eqn{\hat{Y}(0)_i}{Y(0)^hat_i}. Treatment effect estimates are
           obtained by averaging the difference of these across the population of interest.
-    \item \code{"pweight"} - individual effects are esimated as in \code{"bart"}, but treatment effect estimates
+    \item \code{"p.weight"} - individual effects are esimated as in \code{"bart"}, but treatment effect estimates
           are obtained by using a propensity score weighted average. For the average treatment effect on the
           treated, these weights are \eqn{p(z_i | x_i) / (\sum z / n)}. For ATC, replace \eqn{z} with \eqn{1 - z}.
-          For ATE, \code{"pweight"} is equal to \code{"bart"}.
+          For ATE, \code{"p.weight"} is equal to \code{"bart"}.
     \item \code{"tmle"} - individual effects are esimated as in \code{"bart"} and a weighted average is taken
-          as in \code{"pweight"}, however the response surface estimates and propensity scores are corrected
+          as in \code{"p.weight"}, however the response surface estimates and propensity scores are corrected
           by using the Targetted Minimum Loss based Estimation method.
   }
   
@@ -142,7 +142,7 @@ bartc(response, treatment, confounders, data, subset, weights,
   
   \itemize{
     \item \code{"none"} - no modeling is doing. Only applies when using response method \code{"bart"} and
-          \code{propensityScoreAsCovariate} is \code{FALSE}.
+          \code{p.scoreAsCovariate} is \code{FALSE}.
     \item \code{"glm"} - fit a binomial generalized linear model with logistic link and confounders included
           as linear terms.
     \item \code{"bart"} - fit a binary BART directly to the treatment using all the confounders.
@@ -175,6 +175,14 @@ bartc(response, treatment, confounders, data, subset, weights,
       distribution with one degree of freedom, corresponding to a null hypothesis of equal variance. The default
       for \eqn{\alpha} is 0.05, and it is specified using the \code{commonSup.cut} parameter.
   }
+  
+  \strong{Missing Data}
+  
+  Missingness is allowed only in the response. If some response values are \code{NA}, the BART models will be
+  trained just for where data are available and those values will be used to make predictions for the missing
+  observations. Missing observations are not used when calculating statistics for assessing common support,
+  although they may still be excluded on those grounds. Further, missing observations may not be compatible
+  with response method \code{"tmle"}.
 }
 \value{
   \code{bartc} returns an object of class \code{artcFit}. Information about the object can be derived
@@ -256,6 +264,10 @@ y <- mu.0 * (1 - z) + mu.1 * z + rnorm(n, 0, sigma)
 
 fit <- bartc(y, z, x, n.samples = 100L)
 summary(fit)
+
+## example to show refitting under the common support rule
+fit2 <- refit(fit, commonSup.rule = "sd")
+fit3 <- bartc(y, z, x, subset = fit2$commonSup.sub, n.samples = 100L)
 }
 \keyword{causal}
 \keyword{bart}

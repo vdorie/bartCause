@@ -134,7 +134,12 @@ getResponseLiteralCall <- function(fn, response, treatment, confounders, subset,
     while (pScoreName %in% names(df))
       pScoreName <- paste0(pScoreName, "ps")
     
-    df[[pScoreName]] <- p.score
+    if (!is.null(matchedCall$subset)) {
+      df[[pScoreName]] <- numeric(nrow(df))
+      df[[pScoreName]][subset] <- p.score
+    } else {
+      df[[pScoreName]] <- p.score
+    }
   }
   
   formula <- a ~ b

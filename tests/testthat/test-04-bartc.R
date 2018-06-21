@@ -10,7 +10,7 @@ test_that("bartc fails with invalid inputs", {
   expect_error(bartc(y, z, x, testData, verbose = FALSE, method.trt = "not-a-method"))
   expect_error(bartc(y, z, x, testData, verbose = FALSE, estimand = "not-an-estimand"))
   expect_error(bartc(y, z, x, testData, verbose = FALSE, group.by = not.found))
-  expect_error(bartc(y, z, x, testData, verbose = FALSE, propensityScoreAsCovariate = NA))
+  expect_error(bartc(y, z, x, testData, verbose = FALSE, p.scoreAsCovariate = NA))
   expect_error(bartc(y, z, x, testData, verbose = FALSE, keepCall = NA))
   expect_error(bartc(y, z, x, testData, verbose = NA))
 })
@@ -90,7 +90,7 @@ test_that("bartc runs with all response settings and one chain", {
   expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "bart",
                   n.samples = 20L, n.burn = 10L, n.trees = 25L, n.chains = 1L, verbose = FALSE),
             "bartcFit")
-  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "pweight",
+  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "p.weight",
                   n.samples = 20L, n.burn = 10L, n.trees = 25L, n.chains = 1L, verbose = FALSE),
             "bartcFit")
   expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "tmle",
@@ -102,7 +102,7 @@ test_that("bartc runs with all response settings and two chains", {
   expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "bart",
                   n.samples = 10L, n.burn = 5L, n.trees = 25L, n.chains = 2L, verbose = FALSE),
             "bartcFit")
-  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "pweight",
+  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "p.weight",
                   n.samples = 10L, n.burn = 5L, n.trees = 25L, n.chains = 2L, verbose = FALSE),
             "bartcFit")
   expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "tmle",
@@ -115,7 +115,7 @@ test_that("bartc runs with all response settings and group.by set", {
   expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "bart", group.by = g,
                   n.samples = 10L, n.burn = 5L, n.trees = 25L, n.chains = 2L, verbose = FALSE),
             "bartcFit")
-  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "pweight", group.by = g,
+  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "p.weight", group.by = g,
                   n.samples = 10L, n.burn = 5L, n.trees = 25L, n.chains = 2L, verbose = FALSE),
             "bartcFit")
   expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "tmle", group.by = g,
@@ -125,7 +125,7 @@ test_that("bartc runs with all response settings and group.by set", {
   expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "bart", group.by = g, use.rbart = TRUE,
                   n.samples = 10L, n.burn = 5L, n.trees = 25L, n.chains = 2L, verbose = FALSE),
             "bartcFit")
-  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "pweight", group.by = g, use.rbart = TRUE,
+  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "p.weight", group.by = g, use.rbart = TRUE,
                   n.samples = 10L, n.burn = 5L, n.trees = 25L, n.chains = 2L, verbose = FALSE),
             "bartcFit")
   expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "tmle", group.by = g, use.rbart = TRUE,
@@ -139,7 +139,7 @@ test_that("bartc runs with missing data", {
   expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "bart", group.by = g,
                   n.samples = 10L, n.burn = 5L, n.trees = 25L, n.chains = 2L, verbose = FALSE),
             "bartcFit")
-  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "pweight", group.by = g,
+  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "p.weight", group.by = g,
                   n.samples = 10L, n.burn = 5L, n.trees = 25L, n.chains = 2L, verbose = FALSE),
             "bartcFit")
   expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "tmle", group.by = g,

@@ -159,7 +159,7 @@ getBartResponseFit <- function(response, treatment, confounders, data, subset, w
   sd.obs <- apply(yhat.obs, 1L, sd)
   sd.cf  <- apply(yhat.cf,  1L, sd)
   
-  commonSup.sub <- getCommonSupportSubset(sd.obs, sd.cf, commonSup.rule, commonSup.cut, trt)
+  commonSup.sub <- getCommonSupportSubset(sd.obs, sd.cf, commonSup.rule, commonSup.cut, trt, missingRows)
   
   samples.est <- NULL
   if (calculateEstimates) {
@@ -180,7 +180,7 @@ getBartResponseFit <- function(response, treatment, confounders, data, subset, w
     }
   }
   
-  namedList(fit = bartFit, data = responseData, yhat.obs, yhat.cf, samples.est, name.trt = treatmentName, trt, sd.obs, sd.cf, commonSup.sub, missingRows)
+  namedList(fit = bartFit, data = responseData, yhat.obs, yhat.cf, samples.est, name.trt = treatmentName, trt, sd.obs, sd.cf, commonSup.sub, missingRows, fitPars = NULL)
 }
 
 boundValues <- function(x, bounds){
@@ -288,7 +288,7 @@ getPWeightResponseFit <-
     names(samples.est) <- levels(group.by)
   }
   
-  namedList(fit = bartFit, data = responseData, yhat.obs, yhat.cf, samples.est, name.trt, trt, sd.obs, sd.cf, commonSup.sub, missingRows)
+  namedList(fit = bartFit, data = responseData, yhat.obs, yhat.cf, samples.est, name.trt, trt, sd.obs, sd.cf, commonSup.sub, missingRows, fitPars = namedList(yBounds, p.scoreBounds))
 }
 
 getTMLEEstimates <- function(y, z, weights, estimand, yhat.0, yhat.1, p.score, yBounds, p.scoreBounds, depsilon, maxIter)
@@ -474,5 +474,5 @@ getTMLEResponseFit <-
     names(samples.est) <- levels(group.by)
   }
 
-  namedList(fit = bartFit, data = responseData, yhat.obs, yhat.cf, samples.est, name.trt, trt, sd.obs, sd.cf, commonSup.sub, missingRows)
+  namedList(fit = bartFit, data = responseData, yhat.obs, yhat.cf, samples.est, name.trt, trt, sd.obs, sd.cf, commonSup.sub, missingRows, fitPars = namedList(yBounds, p.scoreBounds, depsilon, maxIter))
 }

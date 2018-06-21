@@ -1,5 +1,5 @@
 export(bartc)
-export(extract)
+export(extract, refit)
 export(plot_sigma, plot_est, plot_indiv, plot_support)
 
 S3method(summary, bartcFit)
@@ -7,6 +7,7 @@ S3method(print, bartcFit)
 S3method(print, bartcFit.summary)
 S3method(fitted, bartcFit)
 S3method(extract, bartcFit)
+S3method(refit, bartcFit)
 
 
 importFrom(dbarts, bart2, guessNumCores, xbart)

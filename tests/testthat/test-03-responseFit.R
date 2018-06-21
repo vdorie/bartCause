@@ -18,11 +18,11 @@ test_that("bart fit matches manual call", {
   expect_equal(bartFit$yhat.test,  bartcFit$fit$yhat.test)
 })
 
-test_that("pweight fits", {
+test_that("p.weight fits", {
   set.seed(22)
   testData$w <- 1 + rpois(length(testData$y), 0.5)
   
-  testCall <- quote(bartc(y, z, x, testData, method.trt = "glm", method.rsp = "pweight",
+  testCall <- quote(bartc(y, z, x, testData, method.trt = "glm", method.rsp = "p.weight",
                           n.chains = 1L, n.threads = 1L, n.samples = 200L, n.burn = 40L,
                           verbose = FALSE))
   

@@ -92,7 +92,7 @@ print.bartcFit.summary <- function(x, ...)
   print(x$estimates, digits = digits, ...)
   if (!is.null(x$estimates[["n"]]) && any(x$estimates[["n"]] <= 10L) && x$numObservations > 10L)
     cat("  if (n < 10) group-size estimates may be unstable\n", ...)
-  cat("\n")
+  cat("Estimates fit from ", x$numObservations - if (x$commonSup.rule != "none") sum(x$n.cut) else 0, " total observations\n", sep = "")
   
   cat(round(100 * x$ci.level, digits), "% credible interval calculated by: ",
       switch(x$ci.style,

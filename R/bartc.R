@@ -5,13 +5,13 @@ flattenSamples <- function(y) {
 
 bartc <- function(
   response, treatment, confounders, data, subset, weights,
-  method.rsp = c("bart", "pweight", "tmle"),
+  method.rsp = c("bart", "p.weight", "tmle"),
   method.trt = c("none", "glm", "bart", "bart.xval"),
   estimand   = c("ate", "att", "atc"),
   group.by = NULL,
   commonSup.rule = c("none", "sd", "chisq"),
   commonSup.cut  = c(NA_real_, 1, 0.05),
-  propensityScoreAsCovariate = TRUE, use.rbart = FALSE,
+  p.scoreAsCovariate = TRUE, use.rbart = FALSE,
   keepCall = TRUE, verbose = TRUE,
   ...
 )
@@ -67,21 +67,23 @@ bartc <- function(
     stop("method.trt must be in '", paste0(eval(formals(bartCause::bartc)$method.trt), collapse = "', '"), "' or a fixed vector")
   }
     
-  if (is.na(propensityScoreAsCovariate))
-    stop("propensityScoreAsCovariate must be TRUE or FALSE")
-  if (method.rsp %in% c("pweight", "tmle") && method.trt == "none")
+  if (is.na(p.scoreAsCovariate))
+    stop("p.scoreAsCovariate must be TRUE or FALSE")
+  if (method.rsp %in% c("p.weight", "tmle") && method.trt == "none")
     stop("response method '", method.rsp, "' requires propensity score estimation")
-  if (method.rsp == "bart" && propensityScoreAsCovariate == FALSE && method.trt != "none")
+  if (method.rsp == "bart" && p.scoreAsCovariate == FALSE && method.trt != "none")
     warning("for response method 'bart', propensity score not used unless included as covariate")
+  if (!is.null(matchedCall$p.scoreAsCovariate) && p.scoreAsCovariate == TRUE && method.trt == "none")
+    warning("p.scoreAsCovariate == TRUE requires method.trt != 'none'")
   
   responseCall <- switch(method.rsp,
-    bart    = redirectCall(matchedCall, quoteInNamespace(getBartResponseFit)),
-    pweight = redirectCall(matchedCall, quoteInNamespace(getPWeightResponseFit)),
-    tmle    = redirectCall(matchedCall, quoteInNamespace(getTMLEResponseFit)))
+    bart     = redirectCall(matchedCall, quoteInNamespace(getBartResponseFit)),
+    p.weight = redirectCall(matchedCall, quoteInNamespace(getPWeightResponseFit)),
+    tmle     = redirectCall(matchedCall, quoteInNamespace(getTMLEResponseFit)))
   
   if (!is.null(matchedCall$commonSup.rule)) {
      if (is.null(matchedCall$commonSup.cut))
-       commonSup.cut <- eval(formals(bartc)$commonSup.cut)[match(commonSup.rule, eval(formals(bartc)$commonSup.rule))]
+       commonSup.cut <- eval(formals(bartCause::bartc)$commonSup.cut)[match(commonSup.rule, eval(formals(bartCause::bartc)$commonSup.rule))]
     responseCall$commonSup.rule <- commonSup.rule[1L]
     responseCall$commonSup.cut <- commonSup.cut[1L]
   } else {
@@ -92,7 +94,7 @@ bartc <- function(
   responseCall <- addCallDefaults(responseCall, bartCause::bartc)
   
   evalEnv <- callingEnv
-  if (propensityScoreAsCovariate && !is.null(p.score)) {
+  if (p.scoreAsCovariate && !is.null(p.score)) {
     evalEnv <- new.env(parent = callingEnv)
     pScoreArgName <- "ps"
     if (!is.null(matchedCall$data))
@@ -110,8 +112,9 @@ bartc <- function(
   if (verbose) cat("fitting response model via method '", method.rsp, "'\n", sep = "")
   
   fit.rsp <- data.rsp <- yhat.obs <- yhat.cf <- samples.est <- name.trt <- trt <- sd.obs <-
-    sd.cf <- commonSup.sub <- missingRows <- NULL
-  massign[fit.rsp, data.rsp, yhat.obs, yhat.cf, samples.est, name.trt, trt, sd.obs, sd.cf, commonSup.sub, missingRows] <-
+    sd.cf <- commonSup.sub <- missingRows <- fitPars <- NULL
+  massign[fit.rsp, data.rsp, yhat.obs, yhat.cf, samples.est, name.trt,
+          trt, sd.obs, sd.cf, commonSup.sub, missingRows, fitPars] <-
     eval(responseCall, envir = evalEnv)
   
   
@@ -119,7 +122,7 @@ bartc <- function(
                       method.rsp, method.trt, estimand, group.by,
                       commonSup.rule, commonSup.cut,
                       name.trt, trt,
-                      sd.obs, sd.cf, commonSup.sub, missingRows,
+                      sd.obs, sd.cf, commonSup.sub, missingRows, fitPars,
                       call = givenCall)
   result$n.chains <- if (!is.null(dim(fit.rsp$sigma))) nrow(fit.rsp$sigma) else 1L
   

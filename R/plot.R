@@ -89,7 +89,7 @@ plot_support <- function(x, main = "Common Support Scatterplot",
       if (is.null(callingEnv$treeVars)) {
         if (!requireNamespace("rpart", quietly = TRUE))
           stop("tree plots require the package 'rpart'; please install it to use this feature", call. = FALSE)
-        df <- data.frame(.y = fitted(x, "indiv.diff"), x$data.rsp@x)
+        df <- data.frame(.y = fitted(x, "indiv.diff", sample = "all"), x$data.rsp@x)
         tree <- rpart::rpart(.y ~ ., df, ...)
         contCols <- apply(x$data.rsp@x, 2L, function(col) length(unique(col)) > 2L)
         callingEnv$treeVars <- tree$variable.importance[names(tree$variable.importance) %in% names(which(contCols))]
@@ -112,14 +112,18 @@ plot_support <- function(x, main = "Common Support Scatterplot",
       val <- x$data.rsp@y
       if (is.null(lab)) lab <- "y"
     } else if (var == "y0") {
-      val <- fitted(x, "y0")
+      val <- fitted(x, "y0", sample = "all")
       if (is.null(lab)) lab <- expression(hat(y)(0))
     } else if (var == "y1") {
-      val <- fitted(x, "y1")
+      val <- fitted(x, "y1", sample = "all")
       if (is.null(lab)) lab <- expression(hat(y)(1))
     } else if (var == "indiv.diff") {
-      val <- fitted(x, "indiv.diff")
+      val <- fitted(x, "indiv.diff", sample = "all")
       if (is.null(lab)) lab <- expression(hat(y)(1) - hat(y)(0))
+    } else if (var == "p.weights") {
+      if (x$method.rsp != "p.weight") stop("'p.weights' only valid for response method 'p.weight'")
+      val <- fitted(x, "p.weights", sample = "all")
+      if (is.null(lab)) lab <- "p.weights"
     } else if (is.numeric(var)) {
       if (length(var) == 1L) {
         var <- as.integer(round(var, 0))
@@ -144,14 +148,13 @@ plot_support <- function(x, main = "Common Support Scatterplot",
   x.val <- y.val <- NULL
   massign[x.val, xlab] <- getColumn(xvar, xlab)
   massign[y.val, ylab] <- getColumn(yvar, ylab)
-  
   plot(x.val, y.val, main = main,
        pch = ifelse(x$trt > 0, pch.trt, pch.ctl), bg = ifelse(x$trt > 0, bg.trt, bg.ctl), xlab = xlab, ylab = ylab, ...)
   if (any(x$commonSup.sub == FALSE))
     points(x.val[!x$commonSup.sub], y.val[!x$commonSup.sub], pch = pch.sup, col = col.sup, bg = bg.sup, cex = cex.sup, ...)
   
   if (xvar == "css") {
-    cut <- with(x, getCommonSupportCutoff(sd.obs, sd.cf, commonSup.rule, commonSup.cut, trt))
+    cut <- with(x, getCommonSupportCutoff(sd.obs, sd.cf, commonSup.rule, commonSup.cut, trt, missingRows))
     if (is.null(matchedCall$lwd)) lwd <- 0.75
     abline(v = cut, col = col.sup, lwd = lwd, ...)
     if (length(cut) > 1L) {
@@ -162,7 +165,7 @@ plot_support <- function(x, main = "Common Support Scatterplot",
     }
   }
   if (yvar == "css") {
-    cut <- with(x, getCommonSupportCutoff(sd.obs, sd.cf, commonSup.rule, commonSup.cut, trt))
+    cut <- with(x, getCommonSupportCutoff(sd.obs, sd.cf, commonSup.rule, commonSup.cut, trt, missingRows))
     if (is.null(matchedCall$lwd)) lwd <- 0.75
     abline(h = cut, col = col.sup, lwd = lwd, ...)
     if (length(cut) > 1L) {

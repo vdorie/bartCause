@@ -1,3 +1,19 @@
+getPWeights <- function(estimand, z, weights, p.score, p.scoreBounds)
+{
+  p.score <- boundValues(p.score, p.scoreBounds)
+  if (!is.null(weights)) {
+    switch(estimand,
+           att = p.score * weights / apply(p.score * weights, 1L, sum),
+           atc = (1 - p.score) * weights / apply((1 - p.score) * weights, 2L, sum),
+           ate = weights)
+  } else {
+    switch(estimand,
+           att = p.score / mean(z),
+           atc = (1 - p.score) / mean(1 - z),
+           ate = array(1 / length(z), dim(p.score)))
+  }
+}
+
 getPWeightFunction <- function(estimand, weights, indiv.diff, p.score)
 {
   fnBody <- if (!is.null(weights)) {

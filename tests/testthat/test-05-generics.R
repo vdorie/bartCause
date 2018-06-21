@@ -62,6 +62,37 @@ test_that("extract matches manual fit", {
     expect_equal(est[[as.character(group)]], apply(indiv.diff[testData$g == group,,], c(2L, 3L), mean))
 })
 
+test_that("generics work for p.weights", {
+  pfit <- bartc(y, z, x, testData, method.trt = "bart", method.rsp = "p.weight",
+                estimand = "att", group.by = g, n.samples = 50L,
+                n.burn = 25L, n.threads = 1L, verbose = FALSE)
+  pfit.sum <- summary(pfit)
+  
+  p.weights  <- extract(pfit, "p.weights", sample = "all")
+
+  g.sel <- lapply(unique(testData$g), function(level) which(testData$g == level))
+  
+  #boundValues <- asNamespace("bartCause")$boundValues
+  boundValues <- bartCause:::boundValues
+  
+  ## match internal bounding
+  yBounds <- c(.005, .995)
+  p.scoreBounds <- c(0.025, 0.975)
+  
+  for (i in seq_along(unique(testData$g))) {
+    m <- min(testData$y[g.sel[[i]]]); M <- max(testData$y[g.sel[[i]]])
+    
+    yhat.0 <- boundValues((boundValues(extract(pfit, "y0", sample = "all")[g.sel[[i]],], c(m, M)) - m) / (M - m), yBounds)
+    yhat.1 <- boundValues((boundValues(extract(pfit, "y1", sample = "all")[g.sel[[i]],], c(m, M)) - m) / (M - m), yBounds)
+    
+    indiv.diff <- yhat.1 - yhat.0
+
+    expect_equal(pfit.sum$est$estimate[i], mean(apply((indiv.diff * p.weights[g.sel[[i]],]), 2L, mean) * (M - m)))
+  }
+  
+  expect_equal(apply(p.weights, 1L, mean), fitted(pfit, "p.weights", sample = "all"))
+})
+
 test_that("summary object contain correct information", {
   sum <- summary(fit)
   

@@ -57,8 +57,8 @@ plot_support(x, main = "Common Support Scatterplot",
   \item{xvar}{
     Variable for use on \eqn{x} axis.  Can be one of \code{"tree.XX"}, \code{"pca.XX"}, \code{"css"}, 
     \code{"p.score"}, \code{"y"}, \code{"y0"}, \code{"y1"}, \code{"indiv.diff"}, \code{"p.score"},
-    the number of name of a column used to fit the response model, or a given vector. See below for
-    details.
+    \code{"p.weights"}, the number of name of a column used to fit the response model, or a given
+    vector. See below for details.
   }
   \item{yvar}{
     Variable for use on the \eqn{y} axis, of the same form as \code{xvar}.
@@ -121,6 +121,8 @@ plot_support(x, main = "Common Support Scatterplot",
   \item{\code{"y1"}}{ - Predicted values for the response under the treatment  \code{\link{fitted}}.}
   \item{\code{"indiv.diff"}}{ - Individual treatment effect estimates, or \eqn{\hat{y}(1) - \hat{y}(0)}.}
   \item{\code{"p.score"}}{ - Propensity score used to fit the response model (if applicable).}
+  \item{\code{"p.weights"}}{ - Weights used when taking average of individual differences for response method
+    \code{"p.weight"}.}
   \item{predictor columns}{ - Given by name or number.}
   \item{supplied vector}{ - Any vector of length equal to the number of observations.}
 }
