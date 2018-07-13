@@ -2,7 +2,9 @@ Package: bartCause
 Version: 1.0-0
 Date: 2018-06-04
 Title: Causal Inference using Bayesian Additive Regression Trees
-Authors@R: c(person("Vincent", "Dorie",    role = c("aut", "cre"), email = "vdorie@gmail.com"))
+Authors@R: c(
+  person("Vincent", "Dorie", role = c("aut", "cre"), email = "vdorie@gmail.com"),
+  person("Jennifer", "Hill", role = "aut",           email = "jennifer.hill@nyu.edu"))
 Depends:
   R (>= 3.1-0)
 Imports:

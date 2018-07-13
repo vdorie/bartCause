@@ -4,11 +4,11 @@ plot_sigma <- function(x, main = "Traceplot sigma", xlab = "iteration", ylab = "
   first.sigma <- x$fit.rsp$first.sigma
   
   if (is.null(dim(x$fit.rsp$sigma))) {
-    sigma <- c(x$fit.rsp$sigma, sigma)
+    sigma <- c(first.sigma, x$fit.rsp$sigma)
     numBurnIn  <- length(first.sigma)
     numSamples <- length(sigma)
   } else {
-    sigma <- cbind(x$fit.rsp$first.sigma, sigma)
+    sigma <- cbind(first.sigma, x$fit.rsp$sigma)
     numBurnIn  <- ncol(first.sigma)
     numSamples <- ncol(sigma)
   }
