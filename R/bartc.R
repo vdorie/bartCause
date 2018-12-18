@@ -11,13 +11,29 @@ bartc <- function(
   group.by = NULL,
   commonSup.rule = c("none", "sd", "chisq"),
   commonSup.cut  = c(NA_real_, 1, 0.05),
+  args.rsp = list(), args.trt = list(),
   p.scoreAsCovariate = TRUE, use.rbart = FALSE,
-  keepCall = TRUE, verbose = TRUE,
-  ...
+  keepCall = TRUE, verbose = TRUE, ...
 )
 {
-  matchedCall <- match.call()
+  matchedCall    <- match.call()
+  sysCall        <- sys.call()
   callingEnv <- parent.frame(1L)
+  
+  if (any(names(matchedCall) %not_in% names(sysCall) & names(sysCall) != "")) {
+    # some dots arg can get eaten by R's argument matching algorithm, like 'k' for keepCall
+    mismatchedArgs <- which(names(matchedCall) %not_in% names(sysCall) & names(sysCall) != "")
+    if (any(names(sysCall)[mismatchedArgs] %in% names(formals(dbarts::bart2)))) {
+      mismatchedArgs <- mismatchedArgs[names(sysCall)[mismatchedArgs] %in% names(formals(dbarts::bart2))]
+      oldNames <- names(matchedCall)[mismatchedArgs]
+      newNames <- names(sysCall)[mismatchedArgs]
+      names(matchedCall)[mismatchedArgs] <- newNames
+      for (i in seq_along(oldNames)) {
+        oldValue <- get(oldNames[i])
+        assign(oldNames[i], eval(formals(bartc)[[oldNames[i]]]))
+      }
+    }
+  }
   
   verbose <- verbose
   givenCall <- if (keepCall) matchedCall else call("NULL")
@@ -55,7 +71,8 @@ bartc <- function(
       bart      = redirectCall(matchedCall, quoteInNamespace(getBartTreatmentFit)),
       bart.xval = redirectCall(matchedCall, quoteInNamespace(getBartXValTreatmentFit)),
       none      = NULL)
-    
+    if (!is.null(args.trt) && length(args.trt) > 0L)
+      treatmentCall[names(matchedCall[["args.trt"]])[-1L]] <- matchedCall[["args.trt"]][-1L]
     
     if (!is.null(treatmentCall)) {
       
@@ -90,7 +107,7 @@ bartc <- function(
     responseCall$commonSup.rule <- "none"
     responseCall$commonSup.cut  <- NA_real_
   }
-
+  
   responseCall <- addCallDefaults(responseCall, bartCause::bartc)
   
   evalEnv <- callingEnv
@@ -108,6 +125,9 @@ bartc <- function(
       responseCall$samples.p.score <- quote(samples.p.score)
     }
   }
+  
+  if (!is.null(args.rsp) && length(args.rsp) > 0L)
+    responseCall[names(matchedCall[["args.rsp"]])[-1L]] <- matchedCall[["args.rsp"]][-1L]
   
   if (verbose) cat("fitting response model via method '", method.rsp, "'\n", sep = "")
   

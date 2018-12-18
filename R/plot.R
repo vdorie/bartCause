@@ -26,19 +26,28 @@ plot_sigma <- function(x, main = "Traceplot sigma", xlab = "iteration", ylab = "
   invisible(NULL)
 }
 
-plot_est <- function(x, main = paste("Traceplot", x$estimand), xlab = "iteration", ylab = x$estimand, lty = 1:x$n.chains, ...) {
+plot_est <- function(x, main = paste("Traceplot", x$estimand), xlab = "iteration", ylab = x$estimand,
+                     lty = 1:x$n.chains, col = NULL, ...) {
   if (!is(x, "bartcFit")) stop("plot.set requires an object of class 'bartcFit'")
   
   samples <- extract(x, "est", combineChains = FALSE)
-  numSamples <- if (!is.null(dim(samples))) dim(samples)[2L] else length(samples)
-
-  plot(NULL, xlim = c(1L, numSamples), ylim = range(samples), main = main, xlab = xlab, ylab = ylab, ...)
+  if (!is.list(samples)) samples <- list(samples)
   
-  if (!is.null(dim(samples))) {
-    for (i in seq_len(x$n.chains))
-      lines(seq_len(numSamples), samples[i,], lty = lty[i], ...)
-  } else {
-    lines(seq_len(numSamples), samples, lty = lty[1L], ...)
+  if (is.null(col)) { col <- if (is.null(x$group.by)) 1 else seq_len(nlevels(x$group.by)) }
+  col <- rep_len(col, length(samples))
+  
+  numSamples <- if (!is.null(dim(samples[[1L]]))) dim(samples[[1L]])[2L] else length(samples[[1L]])
+  
+  plot(NULL, xlim = c(1L, numSamples), ylim = range(sapply(samples, range)), main = main, xlab = xlab, ylab = ylab, ...)
+  
+  for (j in seq_along(samples)) {
+    for (i in seq_len(x$n.chains)) {
+      if (!is.null(dim(samples[[j]]))) {
+        lines(seq_len(numSamples), samples[[j]][i,], lty = lty[i], col = col[j], ...)
+      } else {
+        lines(seq_len(numSamples), samples[[j]], lty = lty[1L], col = col[j], ...)
+      }
+    }
   }
   
   invisible(NULL)

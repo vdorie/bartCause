@@ -28,9 +28,10 @@ getGLMTreatmentFit <- function(treatment, confounders, data, subset, weights, ..
     
     evalEnv <- sys.frame(sys.nframe())
   }
+  extraArgs <- matchedCall[names(matchedCall) %not_in% names(glmCall) | names(matchedCall) == ""]
   
   glmCall <- addCallArgument(glmCall, 2L, quote(stats::binomial))
-  glmCall <- addCallArguments(glmCall, list(...))
+  glmCall <- addCallArguments(glmCall, extraArgs)
   
   glmFit <- eval(glmCall, envir = evalEnv)
   
@@ -67,10 +68,10 @@ getBartTreatmentFit <- function(treatment, confounders, data, subset, weights, .
     
     evalEnv <- sys.frame(sys.nframe())
   }
+  extraArgs <- matchedCall[names(matchedCall) %not_in% names(bartCall) | names(matchedCall) == ""]
   
   bartCall$verbose <- FALSE
-  bartCall <- addCallArguments(bartCall, list(...))
-  if (is.null(bartCall$keepTrees)) bartCall$keepTrees <- FALSE
+  bartCall <- addCallArguments(bartCall, extraArgs)
   
   bartFit <- eval(bartCall, envir = evalEnv)
   x <- NULL ## R CMD check
@@ -113,29 +114,42 @@ getBartXValTreatmentFit <- function(treatment, confounders, data, subset, weight
     
     evalEnv <- sys.frame(sys.nframe())
   }
-  xbartCall$verbose <- FALSE
-  xbartCall$k <- TEST_K
-  bartCall <- xbartCall
-  bartCall[[1L]] <- quote(dbarts::bart2)
+  extraArgs <- matchedCall[names(matchedCall) %not_in% names(xbartCall) | names(matchedCall) == ""]
   dotsList <- list(...)
   
-  xbartCall <- addCallArguments(xbartCall, dotsList)
-  bartCall  <- addCallArguments(bartCall, dotsList)
+  xbartCall[["verbose"]] <- FALSE
+  xbartCall[["k"]] <- TEST_K
+  bartCall <- xbartCall
+  bartCall[[1L]] <- quote(dbarts::bart2)
   
-  if (is.null(bartCall$keepTrees)) bartCall$keepTrees <- FALSE
+  xbartCall <- addCallArguments(xbartCall, extraArgs)
+  bartCall  <- addCallArguments(bartCall, extraArgs)
   
-  if (!is.null(matchedCall$n.burn) && is.list(dotsList[["n.burn"]]) && length(dotsList[["n.burn"]]) > 1L) {
-    xbartCall$n.burn <- dotsList[["n.burn"]][[1L]]
-    bartCall$n.burn  <- dotsList[["n.burn"]][[2L]]
-  }
-  if (!is.null(matchedCall$n.samples) && is.list(dotsList[["n.samples"]]) && length(dotsList[["n.samples"]]) > 1L) {
-    xbartCall$n.samples <- dotsList[["n.samples"]][[1L]]
-    bartCall$n.samples  <- dotsList[["n.samples"]][[2L]]
+  # these are common to both and could have been specified twice in a list format
+  for (argName in c("n.samples", "n.burn", "n.threads", "n.trees", "k", "power", "base")) {
+    if (!is.null(matchedCall[[argName]]) && is.list(dotsList[[argName]]) && length(dotsList[[argName]]) > 1L) {
+      xbartCall[[argName]] <- dotsList[[argName]][[1L]]
+      bartCall[[argName]]  <- dotsList[[argName]][[2L]]
+    }
   }
   
   xbartFit <- eval(xbartCall, envir = evalEnv)
+  xval <- apply(xbartFit, seq.int(2L, length(dim(xbartFit))), mean)
+  if (is.null(dim(xval))) {
+    dim(xval) <- length(xval)
+    dimnames(xval) <- dimnames(xbartFit)[-1L]
+  }
+  xvalOpt <- which.min(xval)
   
-  bartCall$k <- TEST_K[which.min(apply(xbartFit, 2L, mean))]
+  xvalInd <- getArrayIndicesForOffset(xvalOpt, dim(xval))
+  for (i.dim in seq_len(length(dim(xval)))) {
+    parName <- names(dimnames(xval))[i.dim]
+    
+    bartCall[[parName]] <-
+      if (is.numeric(xbartCall[[parName]])) xbartCall[[parName]][xvalInd[i.dim]]
+      else                                  dotsList[[parName]][xvalInd[i.dim]]
+  }
+  
   
   bartFit <- eval(bartCall, envir = evalEnv)
   x <- NULL ## R CMD check

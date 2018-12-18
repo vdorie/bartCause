@@ -17,7 +17,7 @@ plot_sigma(x, main = "Traceplot sigma",
 
 plot_est(x, main = paste("Traceplot", x$estimand),
          xlab = "iteration", ylab = x$estimand,
-         lty = 1:x$n.chains,
+         lty = 1:x$n.chains, col = NULL,
          ...)
 
 plot_indiv(x, main = "Histogram Individual Effects",
@@ -50,6 +50,9 @@ plot_support(x, main = "Common Support Scatterplot",
   \item{lty}{
     For line plots (\code{plot.sigma}, \code{plot.est}), models use the values of \code{lty} to
     visually distinguish each chain.
+  }
+  \item{lty}{
+    For \code{plot.est}, use the values of \code{col} to visually distinguish each group, if there are any.
   }
   \item{breaks}{
     Argument to code{\link{hist}}.

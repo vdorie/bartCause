@@ -13,6 +13,7 @@ bartc(response, treatment, confounders, data, subset, weights,
       group.by = NULL,
       commonSup.rule = c("none", "sd", "chisq"),
       commonSup.cut  = c(NA_real_, 1, 0.05),
+      args.rsp = list(), args.trt = list(),
       p.scoreAsCovariate = TRUE, use.rbart = FALSE,
       keepCall = TRUE, verbose = TRUE,
       \dots)
@@ -98,11 +99,13 @@ bartc(response, treatment, confounders, data, subset, weights,
   \item{verbose}{
     A logical that when \code{TRUE} prints information as the model is fit.
   }
-  \item{\dots}{
-    Further arguments to the treatment and response model fitting algorithms. See \code{\link{glm}}
-    and \code{\link{bart2}} for reference. For \code{method.trt == "bart.xval"}, \code{n.burn} and
-    \code{n.samples} can be lists supplying two sets of arguments, the first for the crossvalidation
-    method (\code{\link{xbart}}) and the second for the fit itself.
+  \item{args.rsp,args.trt,\dots}{ 
+    Further arguments to the treatment and response model fitting algorithms. Arguments passed to the main
+    function as \dots will be used in both models. \code{args.rsp} and \code{args.trt} can be used to set
+    parameters in a single fit, and will override other values. See \code{\link{glm}} and
+    \code{\link{bart2}} for reference. For \code{method.trt == "bart.xval"}, any of the parameters accepted
+    by both \code{\link{xbart}} and \code{\link{bart2}} can be passed as a list and the first value will be
+    used in the crossvalidation step and the second for the fit itself.
   }
 }
 \details{

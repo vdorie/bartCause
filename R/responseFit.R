@@ -105,6 +105,7 @@ getBartResponseFit <- function(response, treatment, confounders, data, subset, w
   ## redict to pull in any args passed
   use.rbart <- !is.null(matchedCall$group.by) && use.rbart
   bartCall <- if (!use.rbart) redirectCall(matchedCall, dbarts::bart2) else redirectCall(matchedCall, dbarts::rbart_vi)
+  
   invalidArgs <- names(bartCall)[-1L] %not_in% names(eval(formals(eval(bartCall[[1L]])))) &
                  names(bartCall)[-1L] %not_in% names(eval(formals(dbarts::dbartsControl)))
   if (any(invalidArgs))
@@ -112,16 +113,6 @@ getBartResponseFit <- function(response, treatment, confounders, data, subset, w
     
   bartCall$formula <- quote(responseData)
   bartCall$data    <- NULL
-  if (is.null(bartCall$keepTrees)) bartCall$keepTrees <- FALSE
-  
-  ## it is possible that some extra args were given for an xbart treatment call
-  dotsList <- list(...)
-  if (!is.null(matchedCall$n.burn) && is.list(dotsList[["n.burn"]]) && length(dotsList[["n.burn"]]) > 1L) {
-    bartCall$n.burn  <- dotsList[["n.burn"]][[2L]]
-  }
-  if (!is.null(matchedCall$n.samples) && is.list(dotsList[["n.samples"]]) && length(dotsList[["n.samples"]]) > 1L) {
-    bartCall$n.samples  <- dotsList[["n.samples"]][[2L]]
-  }
   
   bartFit <- eval(bartCall)
   
@@ -231,7 +222,8 @@ getPWeightEstimates <- function(y, z, weights, estimand, yhat.0, yhat.1, p.score
 }
 
 getPWeightResponseFit <-
-  function(response, treatment, confounders, data, subset, weights, estimand, group.by, p.score, samples.p.score, use.rbart,
+  function(response, treatment, confounders, data, subset, weights, estimand, group.by, p.score, samples.p.score,
+           use.rbart,
            yBounds = c(.005, .995), p.scoreBounds = c(0.025, 0.975), ...)
 {
   dataAreMissing    <- missing(data)
@@ -414,7 +406,8 @@ getTMLEEstimates <- function(y, z, weights, estimand, yhat.0, yhat.1, p.score, y
 }
 
 getTMLEResponseFit <-
-  function(response, treatment, confounders, data, subset, weights, estimand, group.by, p.score, samples.p.score, use.rbart,
+  function(response, treatment, confounders, data, subset, weights, estimand, group.by, p.score, samples.p.score,
+           use.rbart,
            yBounds = c(.005, .995), p.scoreBounds = c(0.025, 0.975), depsilon = 0.001, maxIter = max(1000, 2 / depsilon), ...)
 {
   dataAreMissing    <- missing(data)

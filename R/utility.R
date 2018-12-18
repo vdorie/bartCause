@@ -98,17 +98,25 @@ addCallArgument <- function(call, position, argument)
   call
 }
 
-addCallArguments <- function(call, argList)
+addCallArguments <- function(call, args, replace = TRUE)
 {
   fnFormals <- formals(eval(call[[1L]]))
   
-  for (i in seq_along(argList)) {
-    if (!is.null(names(argList)) && names(argList)[i] != "" && names(argList)[i] %not_in% names(fnFormals))
+  oldArgs <- names(args) != "" & names(args) %in% names(call)
+  if (replace == TRUE & any(oldArgs))
+    call[names(call) != "" & names(call) %in% names(args)] <- args[oldArgs]
+  args <- args[!oldArgs]
+  
+  if (is(args, "call"))
+    args <- args[-1L]
+
+  for (i in seq_along(args)) {
+    if (!is.null(names(args)) && names(args)[i] != "" && names(args)[i] %not_in% names(fnFormals))
       next
     
-    call[[length(call) + 1L]] <- argList[[i]]
-    if (!is.null(names(argList)) && names(argList)[i] != "")
-      names(call)[length(call)] <- names(argList)[i]
+    call[[length(call) + 1L]] <- args[[i]]
+    if (!is.null(names(args)) && names(args)[i] != "")
+      names(call)[length(call)] <- names(args)[i]
   }
   call
 }
@@ -211,5 +219,18 @@ addDimsToSubset <- function(e) {
   tryResult <- tryCatch(result <- eval(subDims(e, env), env), error = function(e) e)
   if (is(tryResult, "error")) browser()
   result
+}
+
+getArrayIndicesForOffset <- function(i, d)
+{
+  res <- rep(NA, length(d))
+  stride <- prod(d[-length(d)])
+  if (length(d) > 1L) for (j in seq.int(length(d), 2L)) {
+    res[j] <- (i - 1L) %/% stride + 1L
+    i <- (i - 1L) %% stride + 1L
+    stride <- stride %/% d[j - 1L]
+  }
+  res[1L] <- i
+  res
 }
 
