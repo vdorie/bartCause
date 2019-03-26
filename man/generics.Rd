@@ -31,6 +31,14 @@ refit(object, newresp, \dots)
                          commonSup.rule = c("none", "sd", "chisq"),
                          commonSup.cut  = c(NA_real_, 1, 0.05),
                          \dots)
+
+predict(object, newdata, \dots)
+
+\method{predict}{bartcFit}(object,
+                           newdata,
+                           value = c("y1", "y0", "indiv.diff", "p.score"),
+                           combineChains = TRUE,
+                           \dots)
 }
 \arguments{
   \item{object}{
@@ -49,6 +57,9 @@ refit(object, newresp, \dots)
   }
   \item{newresp}{
     Not presently used, but provided for compatibility with other definitions of the \code{refit} generic.
+  }
+  \item{newdata}{
+    Data corresponding to the confounders in a \code{\link{bartc}} fit.
   }
   \item{commonSup.rule, commonSup.cut}{As in \code{\link{bartc}}}
   \item{\dots}{
@@ -75,6 +86,9 @@ refit(object, newresp, \dots)
   
   \code{refit} exists to allow the same regressions to be used to calculate estimates under different
   common support rules. To refit those models on a subset, see the examples in \code{\link{bartc}}.
+  
+  \code{predict} allows the fitted model to be used to make predictions on an out-of-sample set.
+  Requires model to be fit with \code{keepTrees} equal to \code{TRUE}.
 }
 \value{
   For \code{fitted} and \code{extract}, a matrix, array, or vector depending on the dimensions of the

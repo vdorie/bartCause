@@ -105,7 +105,8 @@ bartc(response, treatment, confounders, data, subset, weights,
     parameters in a single fit, and will override other values. See \code{\link{glm}} and
     \code{\link{bart2}} for reference. For \code{method.trt == "bart.xval"}, any of the parameters accepted
     by both \code{\link{xbart}} and \code{\link{bart2}} can be passed as a list and the first value will be
-    used in the crossvalidation step and the second for the fit itself.
+    used in the crossvalidation step and the second for the fit itself. If \code{n.chains} is missing,
+    unlike in \code{\link{bart2}} a default of 10 is used.
   }
 }
 \details{
