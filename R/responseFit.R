@@ -113,8 +113,12 @@ getBartResponseFit <- function(response, treatment, confounders, data, subset, w
     
   bartCall$formula <- quote(responseData)
   bartCall$data    <- NULL
+  bartCall$verbose <- FALSE
+  if (!is.null(bartCall[["n.chains"]])) bartCall[["n.chains"]] <- 10L
   
-  bartFit <- eval(bartCall)
+  evalEnv <- new.env(parent = callingEnv)
+  evalEnv[["responseData"]] <- responseData
+  bartFit <- eval(bartCall, envir = evalEnv)
   
   weights <- if (weightsAreMissing) NULL else eval(matchedCall$weights, envir = data)
   if (!is.null(weights)) weights <- weights / sum(weights)

@@ -6,6 +6,7 @@ S3method(summary, bartcFit)
 S3method(print, bartcFit)
 S3method(print, bartcFit.summary)
 S3method(fitted, bartcFit)
+S3method(predict, bartcFit)
 S3method(extract, bartcFit)
 S3method(refit, bartcFit)
 

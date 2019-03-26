@@ -15,6 +15,29 @@ test_that("bartc fails with invalid inputs", {
   expect_error(bartc(y, z, x, testData, verbose = NA))
 })
 
+test_that("bartc matches manual fit", {  
+  set.seed(22)
+  bartcFit <- bartc(y, z, x, testData,
+                    method.rsp = "bart", method.trt = "bart", verbose = FALSE,
+                    n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L)
+  
+  set.seed(22)
+  fit.trt <- bart2(z ~ x, testData, verbose = FALSE,
+                   n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L)
+  p.score <- apply(pnorm(fit.trt$yhat.train), 2L, mean)
+  expect_equal(p.score, fitted(bartcFit, value = "p.score"))
+  
+  x.train <- cbind(testData$x, z = testData$z, ps = p.score)
+  x.test  <- cbind(testData$x, z = 1, ps = p.score)
+  x.test <- rbind(x.test, x.test)
+  x.test[seq.int(nrow(testData$x) + 1L, nrow(x.test)),"z"] <- 0
+  
+  fit.rsp <- bart2(x.train, testData$y, x.test, verbose = FALSE,
+                   n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L)
+  expect_equal(extract(bartcFit, value = "y0"),
+               t(fit.rsp$yhat.test[,seq.int(nrow(testData$x) + 1L, nrow(x.test))]))
+})
+
 test_that("bartc returns valid ouput with one chain", {
   n.obs <- length(testData$y)
   
@@ -146,3 +169,5 @@ test_that("bartc runs with missing data", {
                   n.samples = 10L, n.burn = 5L, n.trees = 25L, n.chains = 2L, verbose = FALSE),
             "bartcFit")
 })
+
+

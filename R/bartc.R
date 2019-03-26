@@ -35,7 +35,6 @@ bartc <- function(
     }
   }
   
-  verbose <- verbose
   givenCall <- if (keepCall) matchedCall else call("NULL")
   
   group.by <- eval(redirectCall(matchedCall, quoteInNamespace(getGroupBy)), envir = callingEnv)

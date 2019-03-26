@@ -46,6 +46,75 @@ fitted.bartcFit <-
   result[subset]
 }
 
+predict.bartcFit <-
+  function(object,
+           newdata,
+           value = c("y1", "y0", "indiv.diff", "p.score"),
+           combineChains = TRUE, ...)
+{
+  value <- value[1L]
+  if (value %not_in% eval(formals(predict.bartcFit)$value))
+    stop("value must be in '", paste0(eval(formals(predict.bartcFit)$value), collapse = "', '"), "'")
+  
+  x.new <- as.data.frame(newdata)
+  
+  if (value == "p.score") {
+    if (object$method.trt %in% c("given", "none"))
+      stop("predict(value = 'p.score', ...) requires method.trt to specify a model")
+    
+    if (object$method.trt == "glm")
+      p.score <- predict(object$fit.trt, x.new, type = "response", ...)
+    else {
+      if (is.null(object$fit.trt$fit))
+        stop("predict with method.trt = '", object$method.trt, "' requires treatment model to be fit with keepTrees == TRUE")
+      p.score <- pnorm(predict(object$fit.trt, x.new, ...))
+      if (length(dim(p.score)) > 2L) p.score <- aperm(p.score, c(3L, 1L, 2L))
+      if (combineChains) p.score <- flattenSamples(p.score)
+    }
+    return(p.score)
+  }
+  
+  if (object$method.rsp != "bart")
+    stop("predict(value = '", value, "', ...) requires method.rsp == 'bart'; other methods not designed to make individual predictions")
+  
+  if (is.null(object$fit.rsp$fit))
+    stop("predict with method.rsp = 'bart' requires response model to be fit with keepTrees == TRUE")
+  
+  
+  p.scoreName <- "ps"
+  while (paste0(p.scoreName, "ps") %in% colnames(object$data.rsp@x)) p.scoreName <- paste0(p.scoreName, "ps")
+  
+  p.scoreAsCovariate <- !is.null(object$p.score) && p.scoreName %in% colnames(object$data.rsp@x)
+  if (p.scoreAsCovariate && object$method.trt == "given")
+    stop("predict requires fitting propensity scores to use in response model, however no treatment model exists");
+    
+  if (p.scoreAsCovariate) {
+    if (object$method.trt == "glm")
+      p.score <- predict(object$fit.trt, x.new, type = "response", ...)
+    else {
+      if (is.null(object$fit.trt$fit))
+        stop("predict with method.trt = '", object$method.trt, "' and propensity scores as a covariate requires treatment model to be fit with keepTrees == TRUE")
+      p.score <- pnorm(predict(object$fit.trt, x.new, ...))
+    }
+    if (!is.null(dim(p.score))) p.score <- apply(p.score, length(dim(p.score)), mean)
+    x.new[[p.scoreName]] <- p.score
+  }
+  
+  result <- switch(value,
+    y1 = { x.new[[object$name.trt]] <- 1; predict(object$fit.rsp, x.new, ...) },
+    y0 = { x.new[[object$name.trt]] <- 0; predict(object$fit.rsp, x.new, ...) },
+    indiv.diff = {
+      x.new[[object$name.trt]] <- 1
+      mu.hat.1 <- predict(object$fit.rsp, x.new, ...)
+      x.new[[object$name.trt]] <- 0
+      mu.hat.1 - predict(object$fit.rsp, x.new, ...)
+    })
+  
+  if (length(dim(result)) > 2L) result <- aperm(result, c(3L, 1L, 2L))
+  
+  if (combineChains) flattenSamples(result) else result
+}
+
 extract.bartcFit <-
   function(object,
            value = c("est", "y", "y0", "y1", "indiv.diff", "p.score", "p.weights"),

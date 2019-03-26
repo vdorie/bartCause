@@ -26,7 +26,8 @@ getGLMTreatmentFit <- function(treatment, confounders, data, subset, weights, ..
     
     massign[glmCall, df] <- eval(literalCall, envir = dataEnv)
     
-    evalEnv <- sys.frame(sys.nframe())
+    evalEnv <- new.env(parent = callingEnv)
+    evalEnv[["df"]] <- df
   }
   extraArgs <- matchedCall[names(matchedCall) %not_in% names(glmCall) | names(matchedCall) == ""]
   
@@ -66,12 +67,14 @@ getBartTreatmentFit <- function(treatment, confounders, data, subset, weights, .
     
     massign[bartCall, df] <- eval(literalCall, envir = dataEnv)
     
-    evalEnv <- sys.frame(sys.nframe())
+    evalEnv <- new.env(parent = callingEnv)
+    evalEnv[["df"]] <- df
   }
   extraArgs <- matchedCall[names(matchedCall) %not_in% names(bartCall) | names(matchedCall) == ""]
   
   bartCall$verbose <- FALSE
   bartCall <- addCallArguments(bartCall, extraArgs)
+  if (!is.null(bartCall[["n.chains"]])) bartCall[["n.chains"]] <- 10L
   
   bartFit <- eval(bartCall, envir = evalEnv)
   x <- NULL ## R CMD check
@@ -112,7 +115,8 @@ getBartXValTreatmentFit <- function(treatment, confounders, data, subset, weight
     
     massign[xbartCall, df] <- eval(literalCall, envir = dataEnv)
     
-    evalEnv <- sys.frame(sys.nframe())
+    evalEnv <- new.env(parent = callingEnv)
+    evalEnv[["df"]] <- df
   }
   extraArgs <- matchedCall[names(matchedCall) %not_in% names(xbartCall) | names(matchedCall) == ""]
   dotsList <- list(...)
@@ -150,6 +154,7 @@ getBartXValTreatmentFit <- function(treatment, confounders, data, subset, weight
       else                                  dotsList[[parName]][xvalInd[i.dim]]
   }
   
+  if (!is.null(bartCall[["n.chains"]])) bartCall[["n.chains"]] <- 10L
   
   bartFit <- eval(bartCall, envir = evalEnv)
   x <- NULL ## R CMD check
