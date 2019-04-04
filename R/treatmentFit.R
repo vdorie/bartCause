@@ -74,7 +74,8 @@ getBartTreatmentFit <- function(treatment, confounders, data, subset, weights, .
   
   bartCall$verbose <- FALSE
   bartCall <- addCallArguments(bartCall, extraArgs)
-  if (!is.null(bartCall[["n.chains"]])) bartCall[["n.chains"]] <- 10L
+  if (is.null(bartCall[["n.chains"]])) bartCall[["n.chains"]] <- 10L
+  # if (is.null(bartCall[["k"]])) bartCall[["k"]] <- "chi(1.25, Inf)"
   
   bartFit <- eval(bartCall, envir = evalEnv)
   x <- NULL ## R CMD check
@@ -154,7 +155,7 @@ getBartXValTreatmentFit <- function(treatment, confounders, data, subset, weight
       else                                  dotsList[[parName]][xvalInd[i.dim]]
   }
   
-  if (!is.null(bartCall[["n.chains"]])) bartCall[["n.chains"]] <- 10L
+  if (is.null(bartCall[["n.chains"]])) bartCall[["n.chains"]] <- 10L
   
   bartFit <- eval(bartCall, envir = evalEnv)
   x <- NULL ## R CMD check

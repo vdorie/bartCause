@@ -91,14 +91,15 @@ predict(object, newdata, \dots)
   Requires model to be fit with \code{keepTrees} equal to \code{TRUE}.
 }
 \value{
-  For \code{fitted} and \code{extract}, a matrix, array, or vector depending on the dimensions of the
-  result and the number of chains. For the following, when \code{n.chains} is one the dimension is dropped.
+  For \code{fitted}, \code{extract}, and \code{predict}, a matrix, array, or vector depending on the
+  dimensions of the result and the number of chains. For the following, when \code{n.chains} is one
+  the dimension is dropped.
   
   \itemize{
     \item \code{"est"} - when \code{fitted}, a scalar; when \code{extract}, \code{n.samples x n.chains}
     \item \code{"y"}, \code{"y0"}, \code{"y1"}, \code{"indiv.diff"}, \code{"p.weights"} - when
           \code{fitted}, a vector of length equal to the number of observations (\code{n.obs}); when
-          \code{extract}, a matrix or array of dimensions \code{n.obs x n.samples x n.chains}.
+          \code{extract} or \code{predict}, a matrix or array of dimensions \code{n.obs x n.samples x n.chains}.
     \item \code{"p.score"} - depending on the fitting method, samples may or not be present. When samples
           are absent, a vector is returned for both functions. When present, the same as \code{"y"}.
   }

@@ -114,7 +114,7 @@ getBartResponseFit <- function(response, treatment, confounders, data, subset, w
   bartCall$formula <- quote(responseData)
   bartCall$data    <- NULL
   bartCall$verbose <- FALSE
-  if (!is.null(bartCall[["n.chains"]])) bartCall[["n.chains"]] <- 10L
+  if (is.null(bartCall[["n.chains"]])) bartCall[["n.chains"]] <- 10L
   
   evalEnv <- new.env(parent = callingEnv)
   evalEnv[["responseData"]] <- responseData

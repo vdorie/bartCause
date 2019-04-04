@@ -5,8 +5,8 @@ flattenSamples <- function(y) {
 
 bartc <- function(
   response, treatment, confounders, data, subset, weights,
-  method.rsp = c("bart", "p.weight", "tmle"),
-  method.trt = c("none", "glm", "bart", "bart.xval"),
+  method.rsp = c("bart", "bcf", "p.weight", "tmle"),
+  method.trt = c("bart", "glm", "none", "bart.xval"),
   estimand   = c("ate", "att", "atc"),
   group.by = NULL,
   commonSup.rule = c("none", "sd", "chisq"),
@@ -93,6 +93,7 @@ bartc <- function(
     warning("p.scoreAsCovariate == TRUE requires method.trt != 'none'")
   
   responseCall <- switch(method.rsp,
+    bcf      = redirectCall(matchedCall, quoteInNamespace(bcf)),
     bart     = redirectCall(matchedCall, quoteInNamespace(getBartResponseFit)),
     p.weight = redirectCall(matchedCall, quoteInNamespace(getPWeightResponseFit)),
     tmle     = redirectCall(matchedCall, quoteInNamespace(getTMLEResponseFit)))
@@ -143,7 +144,7 @@ bartc <- function(
                       name.trt, trt,
                       sd.obs, sd.cf, commonSup.sub, missingRows, fitPars,
                       call = givenCall)
-  result$n.chains <- if (!is.null(dim(fit.rsp$sigma))) nrow(fit.rsp$sigma) else 1L
+  result$n.chains <- if (length(dim(fit.rsp$yhat.train) > 2L)) dim(fit.rsp$yhat.train)[1L] else 1L
   
   class(result) <- "bartcFit"
   result
