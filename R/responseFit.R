@@ -158,7 +158,11 @@ getBartResponseFit <- function(response, treatment, confounders, data, subset, w
   
   samples.est <- NULL
   if (calculateEstimates) {
-    samples.indiv.diff <- (yhat.obs - yhat.cf) * ifelse(treatmentRows, 1, -1)
+    responseIsBinary <- is.null(bartFit[["sigma"]])
+    T <- if (responseIsBinary) pnorm else I
+    
+    samples.indiv.diff <- (T(yhat.obs) - T(yhat.cf)) * ifelse(treatmentRows, 1, -1)
+    rm(T)
     
     if (is.null(matchedCall$group.by)) {
       samples.est <- getBartEstimates(treatmentRows, weights, estimand, samples.indiv.diff, commonSup.sub)
