@@ -475,7 +475,8 @@ getTMLEResponseFit <-
       # trick model into thinking that we have samples
       mu <- tmleResult$psi
       sigma <- sqrt(tmleResult$var.psi)
-      samples.est <- rnorm(length(yhat.0), mu, sigma)
+      numSamples <- prod(dim(yhat.0)[-1L])
+      samples.est <- rnorm(numSamples, mu, sigma)
       samples.est <- sigma * (samples.est - mean(samples.est)) / sd(samples.est) + mu
     }
   } else {
@@ -501,7 +502,8 @@ getTMLEResponseFit <-
         
         mu <- tmleResult$psi
         sigma <- sqrt(tmleResult$var.psi)
-        samples.est <- rnorm(length(yhat.0), mu, sigma)
+        numSamples <- prod(dim(yhat.0)[-1L])
+        samples.est <- rnorm(numSamples, mu, sigma)
         samples.est <- sigma * (samples.est - mean(samples.est)) / sd(samples.est) + mu
         samples.est
       }
