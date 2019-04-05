@@ -103,10 +103,7 @@ bartc(response, treatment, confounders, data, subset, weights,
     Further arguments to the treatment and response model fitting algorithms. Arguments passed to the main
     function as \dots will be used in both models. \code{args.rsp} and \code{args.trt} can be used to set
     parameters in a single fit, and will override other values. See \code{\link{glm}} and
-    \code{\link{bart2}} for reference. For \code{method.trt == "bart.xval"}, any of the parameters accepted
-    by both \code{\link{xbart}} and \code{\link{bart2}} can be passed as a list and the first value will be
-    used in the crossvalidation step and the second for the fit itself. If \code{n.chains} is missing,
-    unlike in \code{\link{bart2}} a default of 10 is used.
+    \code{\link{bart2}} for reference.
   }
 }
 \details{
@@ -180,6 +177,20 @@ bartc(response, treatment, confounders, data, subset, weights,
       for \eqn{\alpha} is 0.05, and it is specified using the \code{commonSup.cut} parameter.
   }
   
+  \strong{Special Arguments}
+  
+  Some default arguments are unconvential or are passed in a unique fashion.
+  
+  \itemize{
+    \item If \code{n.chains} is missing, unlike in \code{\link{bart2}} a default of 10 is used.
+    \item For \code{method.trt == "bart.xval"}, any of the parameters accepted by both \code{\link{xbart}}
+       and \code{\link{bart2}} can be passed as a list in \code{args.trt} and the first value will be used
+       in the crossvalidation step and the second for the fit itself.
+    \item For \code{method.rsp == "tmle"}, a special \code{arg.trt} of \code{posteriorOfTMLE} determines
+       if the TMLE correction should be applied to each posterior sample (\code{TRUE}), or just the
+       posterior mean (\code{FALSE}).
+  }
+  
   \strong{Missing Data}
   
   Missingness is allowed only in the response. If some response values are \code{NA}, the BART models will be
@@ -189,7 +200,7 @@ bartc(response, treatment, confounders, data, subset, weights,
   with response method \code{"tmle"}.
 }
 \value{
-  \code{bartc} returns an object of class \code{artcFit}. Information about the object can be derived
+  \code{bartc} returns an object of class \code{bartcFit}. Information about the object can be derived
   by using methods \code{\link[=bartc-generics]{summary}}, \code{\link{plot_sigma}}, \code{\link{plot_est}},
   \code{\link{plot_indiv}}, and \code{\link{plot_support}}. Numerical quantities are recovered with the
   \code{\link[=bartc-generics]{fitted}} and \code{\link{extract}} generics.

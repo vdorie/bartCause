@@ -27,15 +27,12 @@ fitted.bartcFit <-
   weights <- object$data.rsp@weights
   if (!is.null(weights)) weights <- weights / sum(weights)
   
-  responseIsBinary <- is.null(object$fit.rsp[["sigma"]])
-  T <- if (responseIsBinary) pnorm else function(x) x
-  
   result <-
     switch(value,
-           y           = apply(flattenSamples(T(object$yhat.obs)), 1L, mean),
-           y0          = apply(flattenSamples(T(getBARTFitForSubset(object, !object$trt))), 1L, mean),
-           y1          = apply(flattenSamples(T(getBARTFitForSubset(object,  object$trt))), 1L, mean),
-           indiv.diff  = apply(flattenSamples((T(object$yhat.obs) - T(object$yhat.cf)) * ifelse(object$trt, 1, -1)), 1L, mean),
+           y           = apply(flattenSamples(object$yhat.obs), 1L, mean),
+           y0          = apply(flattenSamples(getBARTFitForSubset(object, !object$trt)), 1L, mean),
+           y1          = apply(flattenSamples(getBARTFitForSubset(object,  object$trt)), 1L, mean),
+           indiv.diff  = apply(flattenSamples((object$yhat.obs - object$yhat.cf) * ifelse(object$trt, 1, -1)), 1L, mean),
            p.score     = object$p.score,
            p.weights   = apply(flattenSamples(with(object, getPWeights(estimand, data.rsp@x[,name.trt], weights, if (!is.null(samples.p.score)) samples.p.score else p.score, fitPars$p.scoreBounds))), 1L, mean))
   
@@ -150,15 +147,12 @@ extract.bartcFit <-
   weights <- object$data.rsp@weights
   if (!is.null(weights)) weights <- weights / sum(weights)
   
-  responseIsBinary <- is.null(object$fit.rsp[["sigma"]])
-  T <- if (responseIsBinary) pnorm else function(x) x
-  
   result <-
     switch(value,
-           y           = T(object$yhat.obs),
-           y0          = T(getBARTFitForSubset(object, !object$trt)),
-           y1          = T(getBARTFitForSubset(object,  object$trt)),
-           indiv.diff  = (T(object$yhat.obs) - T(object$yhat.cf)) * ifelse(object$trt, 1, -1),
+           y           = object$yhat.obs,
+           y0          = getBARTFitForSubset(object, !object$trt),
+           y1          = getBARTFitForSubset(object,  object$trt),
+           indiv.diff  = (object$yhat.obs - object$yhat.cf) * ifelse(object$trt, 1, -1),
            p.score     = object$samples.p.score,
            p.weights   = with(object, getPWeights(estimand, data.rsp@x[,name.trt], weights, if (!is.null(samples.p.score)) samples.p.score else p.score, fitPars$p.scoreBounds)))
   
