@@ -313,7 +313,7 @@ getTMLEEstimates <- function(y, z, weights, estimand, yhat.0, yhat.1, p.score, y
   } else {
     if (is.null(dim(yhat.0))) { 
       res <- tmle::tmle(Y = y, A = z, W = matrix(0, length(y), 1L), Q = cbind(Q0W = yhat.0, Q1W = yhat.1), g1W = p.score)
-      return(res$estimates[[switch(estimand, ate = "ATE", att = "ATT", atc = "ATC")]]$psi)
+      return(res$estimates[[switch(estimand, ate = "ATE", att = "ATT", atc = "ATC")]][c("psi", "var.psi")])
     }
     yhat.0 <- flattenSamples(yhat.0)
     yhat.1 <- flattenSamples(yhat.1)
@@ -467,11 +467,16 @@ getTMLEResponseFit <-
       samples.est <- getTMLEEstimates(bartFit$y[commonSup.sub], trt[commonSup.sub], weights, estimand,
                                       yhat.0, yhat.1, p.score, yBounds, p.scoreBounds, depsilon, maxIter)
     } else {
-      samples.est <- getTMLEEstimates(bartFit$y[commonSup.sub], trt[commonSup.sub], weights, estimand,
-                                      apply(yhat.0, 1L, mean),
-                                      apply(yhat.1, 1L, mean),
-                                      if (!is.null(dim(p.score))) apply(p.score, 1L, mean) else p.score,
-                                      yBounds, p.scoreBounds, depsilon, maxIter)
+      tmleResult <- getTMLEEstimates(bartFit$y[commonSup.sub], trt[commonSup.sub], weights, estimand,
+                                     apply(yhat.0, 1L, mean),
+                                     apply(yhat.1, 1L, mean),
+                                     if (!is.null(dim(p.score))) apply(p.score, 1L, mean) else p.score,
+                                     yBounds, p.scoreBounds, depsilon, maxIter)
+      # trick model into thinking that we have samples
+      mu <- tmleResult$psi
+      sigma <- sqrt(tmleResult$var.psi)
+      samples.est <- rnorm(length(yhat.0), mu, sigma)
+      samples.est <- sigma * (samples.est - mean(samples.est)) / sd(samples.est) + mu
     }
   } else {
     samples.est <- lapply(levels(group.by), function(level) {
@@ -488,11 +493,17 @@ getTMLEResponseFit <-
         getTMLEEstimates(bartFit$y[levelRows], trt[levelRows], weights, estimand,
                          yhat.0, yhat.1, p.score, yBounds, p.scoreBounds, depsilon, maxIter)
       } else {
-        getTMLEEstimates(bartFit$y[levelRows], trt[levelRows], weights, estimand,
-                         apply(yhat.0, 1L, mean),
-                         apply(yhat.1, 1L, mean),
-                         if (!is.null(dim(p.score))) apply(p.score, 1L, mean) else p.score,
-                         yBounds, p.scoreBounds, depsilon, maxIter)
+        tmleResult <- getTMLEEstimates(bartFit$y[levelRows], trt[levelRows], weights, estimand,
+                                       apply(yhat.0, 1L, mean),
+                                       apply(yhat.1, 1L, mean),
+                                       if (!is.null(dim(p.score))) apply(p.score, 1L, mean) else p.score,
+                                       yBounds, p.scoreBounds, depsilon, maxIter)
+        
+        mu <- tmleResult$psi
+        sigma <- sqrt(tmleResult$var.psi)
+        samples.est <- rnorm(length(yhat.0), mu, sigma)
+        samples.est <- sigma * (samples.est - mean(samples.est)) / sd(samples.est) + mu
+        samples.est
       }
     })
     names(samples.est) <- levels(group.by)
