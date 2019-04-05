@@ -14,7 +14,7 @@ test_that("glm fit passes arguments to glm", {
 
 test_that("bart fit matches manual call", {
   set.seed(22)
-  res <- bartCause:::getBartTreatmentFit(z, x, testData, n.chains = 1L, n.threads = 1L, n.burn = 50, n.samples = 150, n.trees = 75L, k = 2)
+  res <- bartCause:::getBartTreatmentFit(z, x, testData, n.chains = 1L, n.threads = 1L, n.burn = 50, n.samples = 150, n.trees = 75L)
   set.seed(22)
   expect_equal(res$p.score, apply(pnorm(dbarts::bart2(z ~ x, testData, n.chains = 1L, n.threads = 1L, n.burn = 50, n.samples = 150, n.trees = 75L, verbose = FALSE)$yhat.train), 2L, mean))
 })

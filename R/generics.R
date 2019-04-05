@@ -28,7 +28,7 @@ fitted.bartcFit <-
   if (!is.null(weights)) weights <- weights / sum(weights)
   
   responseIsBinary <- is.null(object$fit.rsp[["sigma"]])
-  T <- if (responseIsBinary) pnorm else I
+  T <- if (responseIsBinary) pnorm else function(x) x
   
   result <-
     switch(value,
@@ -105,7 +105,7 @@ predict.bartcFit <-
   }
   
   responseIsBinary <- is.null(object$fit.rsp[["sigma"]])
-  T <- if (responseIsBinary) pnorm else I
+  T <- if (responseIsBinary) pnorm else function(x) x
   
   result <- switch(value,
     y1 = { x.new[[object$name.trt]] <- 1; T(predict(object$fit.rsp, x.new, ...)) },
@@ -151,7 +151,7 @@ extract.bartcFit <-
   if (!is.null(weights)) weights <- weights / sum(weights)
   
   responseIsBinary <- is.null(object$fit.rsp[["sigma"]])
-  T <- if (responseIsBinary) pnorm else I
+  T <- if (responseIsBinary) pnorm else function(x) x
   
   result <-
     switch(value,
@@ -210,7 +210,7 @@ refit.bartcFit <- function(object, newresp = NULL,
   if (!is.null(weights)) weights <- weights / sum(weights)
   
   responseIsBinary <- is.null(object$fit.rsp[["sigma"]])
-  T <- if (responseIsBinary) pnorm else I
+  T <- if (responseIsBinary) pnorm else function(x) x
   
   if (object$method.rsp == "bart") {
     samples.indiv.diff <- (T(object$yhat.obs) - T(object$yhat.cf)) * ifelse(treatmentRows, 1, -1)
