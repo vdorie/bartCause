@@ -170,4 +170,19 @@ test_that("bartc runs with missing data", {
             "bartcFit")
 })
 
+test_that("bartc model argument overrides work correctly", {
+  bartcFit <- bartc(y, z, x, testData,
+                    method.rsp = "bart", method.trt = "bart", verbose = FALSE,
+                    n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L,
+                    k = "chi(1, Inf)")
+  expect_true(!is.null(bartcFit$fit.trt$k))
+  expect_true(!is.null(bartcFit$fit.rsp$k))
+  
+  bartcFit <- bartc(y, z, x, testData,
+                    method.rsp = "bart", method.trt = "bart", verbose = FALSE,
+                    n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L,
+                    args.trt = list(k = "chi(1, Inf)"))
+  expect_true(!is.null(bartcFit$fit.trt$k))
+  expect_true( is.null(bartcFit$fit.rsp$k))
+})
 

@@ -20,18 +20,19 @@ bartc <- function(
   sysCall        <- sys.call()
   callingEnv <- parent.frame(1L)
   
-  if (any(names(matchedCall) %not_in% names(sysCall) & names(sysCall) != "")) {
-    # some dots arg can get eaten by R's argument matching algorithm, like 'k' for keepCall
-    mismatchedArgs <- which(names(matchedCall) %not_in% names(sysCall) & names(sysCall) != "")
-    if (any(names(sysCall)[mismatchedArgs] %in% names(formals(dbarts::bart2)))) {
-      mismatchedArgs <- mismatchedArgs[names(sysCall)[mismatchedArgs] %in% names(formals(dbarts::bart2))]
-      oldNames <- names(matchedCall)[mismatchedArgs]
-      newNames <- names(sysCall)[mismatchedArgs]
-      names(matchedCall)[mismatchedArgs] <- newNames
-      for (i in seq_along(oldNames)) {
-        oldValue <- get(oldNames[i])
-        assign(oldNames[i], eval(formals(bartc)[[oldNames[i]]]))
-      }
+  # some dots arg can get eaten by R's argument matching algorithm, like 'k' for keepCall
+  mismatchedArgs.sys <- names(sysCall) %not_in% names(matchedCall) & names(matchedCall) != "" &
+                        names(sysCall) %in% names(formals(dbarts::bart2))
+  if (any(mismatchedArgs.sys)) {
+    mismatchedArgs.mc  <- sapply(matchedCall, function(x)
+      any(sapply(which(mismatchedArgs.sys), function(j) x == sysCall[[j]])))
+    
+    oldNames <- names(matchedCall)[mismatchedArgs.mc]
+    newNames <- names(sysCall)[mismatchedArgs.sys]
+    names(matchedCall)[mismatchedArgs.mc] <- newNames
+    for (i in seq_along(oldNames)) {
+      oldValue <- get(oldNames[i])
+      assign(oldNames[i], eval(formals(bartc)[[oldNames[i]]]))
     }
   }
   
