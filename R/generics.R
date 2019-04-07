@@ -57,7 +57,10 @@ predict.bartcFit <-
   if (value %not_in% eval(formals(predict.bartcFit)$value))
     stop("value must be in '", paste0(eval(formals(predict.bartcFit)$value), collapse = "', '"), "'")
   
-  x.new <- as.data.frame(newdata)
+  x.new <- as.data.frame(if (is.null(dim(newdata)) && length(newdata) > 0L)
+                           matrix(newdata, ncol = length(newdata))
+                         else
+                           newdata)
   
   if (value == "p.score") {
     if (object$method.trt %in% c("given", "none"))

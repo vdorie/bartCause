@@ -19,6 +19,9 @@ test_that("predict gives sane results", {
                n.threads = 1L, n.trees = 10L, keepTrees = TRUE,
                verbose = FALSE)
   
+  # check predict for single row
+  expect_equal(length(predict(fit, x.new[1,], value = "y0")), n.samples * n.chains)
+  
   p.score <- predict(fit, x.new, value = "p.score")
   y1      <- predict(fit, x.new, value = "y1", combineChains = FALSE)
   y0      <- predict(fit, x.new, value = "y0", combineChains = TRUE)
