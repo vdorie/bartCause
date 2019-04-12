@@ -55,7 +55,7 @@ getEstimateSamples <- function(samples.indiv.diff, treatmentRows, weights, estim
 predict.bartcFit <-
   function(object,
            newdata,
-           value = c("mu.1", "mu,0", "icate", "p.score"),
+           value = c("mu.1", "mu.0", "icate", "p.score"),
            combineChains = TRUE, ...)
 {
   value <- value[1L]
@@ -150,7 +150,7 @@ fitted.bartcFit <-
   
   if (!is.null(object$group.by) && value %in% c("pate", "sate", "cate"))
     return(sapply(result, function(result.i) {
-      if (object$method.rsp %in% "tmle" && value == "pate")
+      if (object$method.rsp %in% c("tmle", "p.weight") && value == "pate")
         return(ifelse_3(is.null(dim(result.i)), length(dim(result.i)) == 2L,
                         result.i[1L], mean(result.i[,1L]), mean(result.i[,,1L])))
       
@@ -158,7 +158,7 @@ fitted.bartcFit <-
                apply(result.i, 1L, mean), mean(result.i), result.i)
     }))
   
-  if (object$method.rsp == "tmle" && value == "pate")
+  if (object$method.rsp %in% c("tmle", "p.weight") && value == "pate")
     return(ifelse_3(is.null(dim(result)), length(dim(result)) == 2L,
                     result[1L], mean(result[,1L]), mean(result[,,1L])))
   

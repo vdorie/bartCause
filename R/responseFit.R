@@ -145,13 +145,19 @@ getPWeightEstimates <- function(y, z, weights, estimand, mu.hat.0, mu.hat.1, p.s
   m <- min(y, na.rm = TRUE)
   M <- max(y, na.rm = TRUE)
   
-  ## map mu.hat to (0, 1)
-  mu.hat.0 <- boundValues((boundValues(mu.hat.0, c(m, M)) - m) / (M - m), yBounds)
-  mu.hat.1 <- boundValues((boundValues(mu.hat.1, c(m, M)) - m) / (M - m), yBounds)
+  r <- range(y)
+  r <- r + 0.1 * c(-abs(r[1L]), abs(r[2L]))
+  y.st <- boundValues(y, r)
+  r.st <- range(y.st)
+  y.st <- (y.st - min(r.st)) / diff(r.st)
   
   origDims <- dim(mu.hat.0)
   
-  cite <- flattenSamples(mu.hat.1) - flattenSamples(mu.hat.0)
+  ## map mu.hat to (0, 1)
+  mu.hat.0 <- flattenSamples(boundValues((boundValues(mu.hat.0, c(m, M)) - m) / (M - m), yBounds))
+  mu.hat.1 <- flattenSamples(boundValues((boundValues(mu.hat.1, c(m, M)) - m) / (M - m), yBounds))
+  
+  icate <- mu.hat.1 - mu.hat.0
   
   p.score <- boundValues(p.score, p.scoreBounds)
   
@@ -162,14 +168,38 @@ getPWeightEstimates <- function(y, z, weights, estimand, mu.hat.0, mu.hat.1, p.s
     p.score <- flattenSamples(p.score)
   }
     
-  getPWeightEstimate <- getPWeightFunction(estimand, weights, cite, p.score)
+  getPWeightEstimate <- getPWeightFunction(estimand, weights, icate, p.score)
+  tmleFuncs <- getTMLEFunctions(estimand, weights)
+  mu.hat.1.deriv <- tmleFuncs$mu.hat.1.deriv
+  mu.hat.0.deriv <- tmleFuncs$mu.hat.0.deriv
+  if (!is.null(weights)) {
+    icBody <- switch(estimand,
+      att = quote((length(y) * weights * a.weight * (y - mu.hat) + z * t(t(icate) - psi)) / sum(p.score * weights)),
+      atc = quote((length(y) * weights * a.weight * (y - mu.hat) + (1 - z) * t(t(icate) - psi)) / sum((1 - p.score) * weights)),
+      ate = quote(length(y) * weights * a.weight * (y - mu.hat) + t(t(icate) - psi)))
+  } else {
+    icBody <- switch(estimand,
+      att = quote((a.weight * (y - mu.hat) + z * t(t(icate) - psi)) / mean(z)),
+      atc = quote((a.weight * (y - mu.hat) + (1 - z) * t(t(icate) - psi)) / mean(1 - z)),
+      ate = quote(a.weight * (y - mu.hat) + t(t(icate) - psi)))
+  }
+  getIC <- function(y, mu.hat, icate, psi, a.weight) { }
+  body(getIC) <- icBody
   
-  result <- getPWeightEstimate(z, weights, cite, p.score) * (M - m)
+  mu.hat <- mu.hat.1 * z + mu.hat.0 * (1 - z)
+  
+  psi <- getPWeightEstimate(z, weights, icate, p.score)
+    
+  a.weight <- z * mu.hat.1.deriv(z, weights, p.score) + (1 - z) * mu.hat.0.deriv(z, weights, p.score)
+  ic <- getIC(y.st, mu.hat, icate, psi, a.weight)
+  
+  se <- apply(ic, 2L, sd) / sqrt(length(y))
+  result <- c(psi * (M - m), sd(ic) / sqrt(length(y)))
   
   if (!is.null(origDims) && length(origDims) > 2L)
-    matrix(result, origDims[2L], origDims[3L])
+    array(c(psi * (M - m), se), c(origDims[2L], origDims[3L], 2L), dimnames = list(NULL, NULL, c("est", "se")))
   else 
-    result
+    matrix(c(psi * (M - m), se), length(psi), 2L, dimnames = list(NULL, c("est", "se")))
 }
 
 getPWeightResponseFit <-
@@ -324,14 +354,14 @@ getTMLEEstimates <- function(y, z, weights, estimand, mu.hat.0, mu.hat.1, p.scor
     mu.hat.0 <- plogis(mu.hat.0 + epsilon["H0W"] / (1 - p.score.st))
     mu.hat.1 <- plogis(mu.hat.1 + epsilon["H1W"] / p.score.st)
     
-    cite <- mu.hat.1 - mu.hat.0
-    muhat <- mu.hat.1 * z + mu.hat.0 * (1 - z)
+    icate <- mu.hat.1 - mu.hat.0
+    mu.hat <- mu.hat.1 * z + mu.hat.0 * (1 - z)
     
-    psi <- getPWeightEstimate(z, weights, cite, p.score)
+    psi <- getPWeightEstimate(z, weights, icate, p.score)
     psi.prev <- psi
     
     a.weight <- z * mu.hat.1.deriv(z, weights, p.score) + (1 - z) * mu.hat.0.deriv(z, weights, p.score)
-    ic <- getIC(y.st, mu.hat, cite, psi, a.weight)
+    ic.prev <- ic <- getIC(y.st, mu.hat, icate, psi, a.weight)
     
     if (mean(ic) > 0) depsilon <- -depsilon
     
@@ -343,31 +373,36 @@ getTMLEEstimates <- function(y, z, weights, estimand, mu.hat.0, mu.hat.1, p.scor
     while (loss.prev > loss && iter < maxIter)
     {
       p.score.prev <- p.score
-      p.score <- boundValues(plogis(qlogis(p.score.prev) - depsilon * p.score.deriv(z, weights, p.score.prev, cite, psi.prev)), p.scoreBounds)
+      p.score <- boundValues(plogis(qlogis(p.score.prev) - depsilon * p.score.deriv(z, weights, p.score.prev, icate, psi.prev)), p.scoreBounds)
       
       mu.hat.0.prev <- mu.hat.0
       mu.hat.1.prev <- mu.hat.1
       mu.hat.0 <- boundValues(plogis(qlogis(mu.hat.0.prev) - depsilon * mu.hat.0.deriv(z, weights, p.score.prev)), yBounds)
       mu.hat.1 <- boundValues(plogis(qlogis(mu.hat.1.prev) - depsilon * mu.hat.1.deriv(z, weights, p.score.prev)), yBounds)
-      cite <- mu.hat.1 - mu.hat.0
+      icate <- mu.hat.1 - mu.hat.0
       mu.hat <- mu.hat.1 * z + mu.hat.0 * (1 - z)
       
       psi.prev <- psi
-      psi <- getPWeightEstimate(z, weights, cite, p.score)
+      psi <- getPWeightEstimate(z, weights, icate, p.score)
       
       loss.prev <- loss
       loss <- calcLoss(y.st, z, mu.hat, p.score, weights)
       
-      ## ic <- getIC(y, mu.hat, cite, psi, a.weight)
+      ic.prev <- ic
+      ic <- getIC(y.st, mu.hat, icate, psi, a.weight)
       
       if (is.nan(loss) || is.infinite(loss) || is.na(loss)) loss <- Inf
     
       iter <- iter + 1L
     }
     
-    if (is.infinite(loss) || loss.prev < loss) psi.prev else psi
+    if (is.infinite(loss) || loss.prev < loss)
+      c(psi.prev, sd(ic.prev) / sqrt(length(y.st)))
+    else
+      c(psi, sd(ic) / sqrt(length(y.st)))
   })
   
+  browser()
   if (!is.null(origDims) && length(origDims) > 2L)
     matrix(result, origDims[2L], origDims[3L]) * (max(r.st) - min(r.st))
   else

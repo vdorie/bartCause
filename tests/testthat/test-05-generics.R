@@ -64,6 +64,8 @@ test_that("extract matches manual fit", {
 })
 
 test_that("generics work for p.weights", {
+  oldWarnLevel <- options()$warn
+  options(warn = -1L)
   pfit <- bartc(y, z, x, testData, method.trt = "bart", method.rsp = "p.weight",
                 estimand = "att", group.by = g, n.samples = 50L,
                 n.burn = 25L, n.threads = 1L, verbose = FALSE)
@@ -90,6 +92,7 @@ test_that("generics work for p.weights", {
 
     expect_equal(pfit.sum$est$estimate[i], mean(apply((icate * p.weights[g.sel[[i]],]), 2L, mean) * (M - m)))
   }
+  options(warn = oldWarnLevel)
   
   expect_equal(apply(p.weights, 1L, mean), fitted(pfit, "p.weights", sample = "all"))
 })
@@ -97,15 +100,17 @@ test_that("generics work for p.weights", {
 test_that("summary object contain correct information", {
   sum <- summary(fit)
   
-  expect_true(sum$call == parse(text = 'bartc(response = y, treatment = z, confounders = x, data = testData, method.trt = "glm", group.by = g, n.samples = 50L, n.burn = 25L, n.thread = 1L, verbose = FALSE)')[[1L]])
+  testCall <- testCall <- parse(text = 'bartc(response = y, treatment = z, confounders = x, data = testData, method.trt = "glm", group.by = g, verbose = FALSE, n.samples = 50L, n.burn = 25L, n.chains = 4L, n.threads = 1L)')[[1L]]
+  
+  expect_true(length(testCall) == length(sum$call) && sum$call == testCall)
   expect_equal(sum$method.rsp, "bart")
   expect_equal(sum$method.trt, "glm")
-  expect_equal(sum$ci.style, eval(formals(bartCause:::summary.bartcFit)$ci.style)[1L])
-  expect_equal(sum$ci.level, eval(formals(bartCause:::summary.bartcFit)$ci.level))
+  expect_equal(sum$ci.info$ci.style, eval(formals(bartCause:::summary.bartcFit)$ci.style)[1L])
+  expect_equal(sum$ci.info$ci.level, eval(formals(bartCause:::summary.bartcFit)$ci.level))
   expect_equal(sum$numObservations, length(testData$y))
   expect_equal(sum$numSamples, 50L * 4L)
   expect_equal(sum$n.chains, 4L)
-  expect_equal(sum$estimates$estimate, unname(fitted(fit, "est")))
+  expect_equal(sum$estimates$estimate, unname(fitted(fit, "cate")))
 })
 
 test_that("summary works with confidence interval styles", {

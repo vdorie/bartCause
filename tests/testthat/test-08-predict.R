@@ -20,17 +20,17 @@ test_that("predict gives sane results", {
                verbose = FALSE)
   
   # check predict for single row
-  expect_equal(length(predict(fit, x.new[1,], value = "y0")), n.samples * n.chains)
+  expect_equal(length(predict(fit, x.new[1,], value = "mu.0")), n.samples * n.chains)
   
   p.score <- predict(fit, x.new, value = "p.score")
-  y1      <- predict(fit, x.new, value = "y1", combineChains = FALSE)
-  y0      <- predict(fit, x.new, value = "y0", combineChains = TRUE)
-  ite     <- predict(fit, x.new, value = "indiv.diff", combineChains = TRUE)
+  mu.1    <- predict(fit, x.new, value = "mu.1", combineChains = FALSE)
+  mu.0    <- predict(fit, x.new, value = "mu.0", combineChains = TRUE)
+  icate   <- predict(fit, x.new, value = "icate", combineChains = TRUE)
   
   expect_true(is.null(dim(p.score)))
-  expect_equal(dim(y1), c(n.test, n.chains, n.samples))
-  expect_equal(dim(y0), c(n.test, n.chains * n.samples))
-  expect_equal(as.vector(ite), as.vector(y1) - as.vector(y0))
+  expect_equal(dim(mu.1), c(n.test, n.chains, n.samples))
+  expect_equal(dim(mu.0), c(n.test, n.chains * n.samples))
+  expect_equal(as.vector(icate), as.vector(mu.1) - as.vector(mu.0))
 })
 
 test_that("predict results matches training data", {
@@ -42,19 +42,19 @@ test_that("predict results matches training data", {
                args.trt = list(k = 1.5), verbose = FALSE)
   
   p.score <- extract(fit, value = "p.score")
-  y1      <- extract(fit, value = "y1")
-  y0      <- extract(fit, value = "y0")
-  ite     <- extract(fit, value = "indiv.diff")
+  mu.1    <- extract(fit, value = "mu.1")
+  mu.0    <- extract(fit, value = "mu.0")
+  icate   <- extract(fit, value = "icate")
   
   p.score.new <- predict(fit, x, value = "p.score")
-  y1.new      <- predict(fit, x, value = "y1")
-  y0.new      <- predict(fit, x, value = "y0")
-  ite.new     <- predict(fit, x, value = "indiv.diff")
+  mu.1.new    <- predict(fit, x, value = "mu.1")
+  mu.0.new    <- predict(fit, x, value = "mu.0")
+  icate.new   <- predict(fit, x, value = "icate")
   
   expect_equal(p.score, p.score.new)
-  expect_equal(y0, y0.new)
-  expect_equal(y1, y1.new)
-  expect_equal(ite, ite.new)
+  expect_equal(mu.0, mu.0.new)
+  expect_equal(mu.1, mu.1.new)
+  expect_equal(icate, icate.new)
 })
 
 rm(n.train, n.test, x, y, z, x.new)
