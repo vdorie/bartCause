@@ -1,56 +1,61 @@
-getBARTFitForSubset <- function(object, observedSubset) {
-  z <- ifelse(observedSubset, 1, 0)
-  object$yhat.obs * z + object$yhat.cf * (1 - z)
-}
-
-fitted.bartcFit <-
-  function(object,
-           value = c("est", "y", "y0", "y1", "indiv.diff", "p.score", "p.weights"),
-           sample = c("inferential", "all"),
-           ...)
+averageDifferences <- function(samples.indiv.diff, treatmentRows, weights, estimand, commonSup.sub)
 {
-  if (!is.character(value) || value[1L] %not_in% eval(formals(fitted.bartcFit)$value))
-    stop("value must be in '", paste0(eval(formals(fitted.bartcFit)$value), collapse = "', '"), "'")
-  value <- value[1L]
+  x <- NULL ## R CMD check
   
-  if (!is.character(sample) || sample[1L] %not_in% eval(formals(fitted.bartcFit)$sample))
-    stop("sample must be in '", paste0(eval(formals(fitted.bartcFit)$sample), collapse = "', '"), "'")
-  sample <- sample[1L]
+  if (!is.character(estimand) || estimand[1L] %not_in% c("ate", "att", "atc"))
+    stop("estimand must be one of 'ate', 'att', or 'atc'")
+  estimand <- estimand[1L]
   
-  if (value == "p.weights" && is.null(object$p.score))
-    stop("p.score cannot be NULL to extract p.weights")
-  
-  
-  if (value == "est")
-    return(if (!is.null(object$group.by)) sapply(object$samples.est, mean) else mean(object$samples.est))
-  
-  weights <- object$data.rsp@weights
-  if (!is.null(weights)) weights <- weights / sum(weights)
-  
-  result <-
-    switch(value,
-           y           = apply(flattenSamples(object$yhat.obs), 1L, mean),
-           y0          = apply(flattenSamples(getBARTFitForSubset(object, !object$trt)), 1L, mean),
-           y1          = apply(flattenSamples(getBARTFitForSubset(object,  object$trt)), 1L, mean),
-           indiv.diff  = apply(flattenSamples((object$yhat.obs - object$yhat.cf) * ifelse(object$trt, 1, -1)), 1L, mean),
-           p.score     = object$p.score,
-           p.weights   = apply(flattenSamples(with(object, getPWeights(estimand, data.rsp@x[,name.trt], weights, if (!is.null(samples.p.score)) samples.p.score else p.score, fitPars$p.scoreBounds))), 1L, mean))
-  
-  if (is.null(result)) return(NULL)
-  
-  subset <- rep_len(TRUE, length(result))
-  if (sample == "inferential") {
-    if (object$estimand == "att") subset <- object$trt
-    else if (object$estimand == "atc") subset <- !object$trt
+  origDims <- dim(samples.indiv.diff)
+    
+  if (!is.null(weights)) {
+    weights <- rep_len(weights, origDims[1L])
+    weights <- weights / sum(weights)
   }
   
-  result[subset]
+  result <- 
+    if (length(origDims) > 2L) {
+      apply(evalx(if (is.null(weights)) samples.indiv.diff else samples.indiv.diff * weights,
+                  switch(estimand,
+                         att = x[ treatmentRows & commonSup.sub,,],
+                         atc = x[!treatmentRows & commonSup.sub,,],
+                         ate = x[commonSup.sub,,])),
+            c(2L, 3L), mean)
+    } else {
+      apply(evalx(if (is.null(weights)) samples.indiv.diff else samples.indiv.diff * weights,
+                  switch(estimand,
+                         att = x[ treatmentRows & commonSup.sub,],
+                         atc = x[!treatmentRows & commonSup.sub,],
+                         ate = x[commonSup.sub,])),
+            2L, mean)
+    }
+  
+  if (!is.null(origDims) && length(origDims) > 2L)
+    matrix(result, origDims[2L], origDims[3L])
+  else 
+    result
+}
+
+getEstimateSamples <- function(samples.indiv.diff, treatmentRows, weights, estimand, group.by, commonSup.sub) {
+  if (is.null(group.by)) {
+    samples.est <- averageDifferences(samples.indiv.diff, treatmentRows, weights, estimand, commonSup.sub)
+  } else {
+    samples.est <- lapply(levels(group.by), function(level) {
+      levelRows <- group.by == level
+      if (!is.null(weights)) weights <- weights[levelRows]
+      
+      averageDifferences(if (length(dim(samples.indiv.diff)) > 2L) samples.indiv.diff[levelRows,,] else samples.indiv.diff[levelRows,],
+                         treatmentRows[levelRows], weights, estimand, commonSup.sub[levelRows])
+    })
+    names(samples.est) <- levels(group.by)
+  }
+  samples.est
 }
 
 predict.bartcFit <-
   function(object,
            newdata,
-           value = c("y1", "y0", "indiv.diff", "p.score"),
+           value = c("mu.1", "mu,0", "icate", "p.score"),
            combineChains = TRUE, ...)
 {
   value <- value[1L]
@@ -108,9 +113,9 @@ predict.bartcFit <-
   T <- if (responseIsBinary) pnorm else function(x) x
   
   result <- switch(value,
-    y1 = { x.new[[object$name.trt]] <- 1; T(predict(object$fit.rsp, x.new, ...)) },
-    y0 = { x.new[[object$name.trt]] <- 0; T(predict(object$fit.rsp, x.new, ...)) },
-    indiv.diff = {
+    mu.1 = { x.new[[object$name.trt]] <- 1; T(predict(object$fit.rsp, x.new, ...)) },
+    mu.0 = { x.new[[object$name.trt]] <- 0; T(predict(object$fit.rsp, x.new, ...)) },
+    icate = {
       x.new[[object$name.trt]] <- 1
       mu.hat.1 <- predict(object$fit.rsp, x.new, ...)
       x.new[[object$name.trt]] <- 0
@@ -122,42 +127,133 @@ predict.bartcFit <-
   if (combineChains) flattenSamples(result) else result
 }
 
+fitted.bartcFit <-
+  function(object, 
+           value = c("pate", "sate", "cate", "mu", "mu.0", "mu.1", "y.0", "y.1", "icate", "ite", "p.score", "p.weights"),
+           sample = c("inferential", "all"),
+           ...)
+{
+  if (!is.character(value) || value[1L] %not_in% eval(formals(fitted.bartcFit)$value))
+    stop("value must be in '", paste0(eval(formals(fitted.bartcFit)$value), collapse = "', '"), "'")
+  value <- value[1L]
+  
+  if (!is.character(sample) || sample[1L] %not_in% eval(formals(fitted.bartcFit)$sample))
+    stop("sample must be in '", paste0(eval(formals(fitted.bartcFit)$sample), collapse = "', '"), "'")
+  sample <- sample[1L]
+  
+  if (value == "p.weights" && is.null(object$p.score))
+    stop("p.score cannot be NULL to obtain fitted p.weights")
+  
+  if (value == "p.score") return(object$p.score)
+  
+  result <- extract(object, value, sample, ...)
+  
+  if (!is.null(object$group.by) && value %in% c("pate", "sate", "cate"))
+    return(sapply(result, function(result.i) {
+      if (object$method.rsp %in% "tmle" && value == "pate")
+        return(ifelse_3(is.null(dim(result.i)), length(dim(result.i)) == 2L,
+                        result.i[1L], mean(result.i[,1L]), mean(result.i[,,1L])))
+      
+      ifelse_3(!is.null(dim(result.i)), value != "p.score",
+               apply(result.i, 1L, mean), mean(result.i), result.i)
+    }))
+  
+  if (object$method.rsp == "tmle" && value == "pate")
+    return(ifelse_3(is.null(dim(result)), length(dim(result)) == 2L,
+                    result[1L], mean(result[,1L]), mean(result[,,1L])))
+  
+  ifelse_3(!is.null(dim(result)), value != "p.score",
+           apply(result, 1L, mean), mean(result), result)
+}
+
 extract.bartcFit <-
   function(object,
-           value = c("est", "y", "y0", "y1", "indiv.diff", "p.score", "p.weights"),
+           value = c("pate", "sate", "cate", "mu", "mu.0", "mu.1", "y.0", "y.1", "icate", "ite", "p.score", "p.weights"),
            sample = c("inferential", "all"),
            combineChains = TRUE,
            ...)
 {
-  value <- value[1L]
-  if (value %not_in% eval(formals(extract.bartcFit)$value))
+  if (!is.character(value) || value[1L] %not_in% eval(formals(extract.bartcFit)$value))
     stop("value must be in '", paste0(eval(formals(extract.bartcFit)$value), collapse = "', '"), "'")
+  value <- value[1L]
   
-  sample <- sample[1L]
-  if (sample %not_in% eval(formals(extract.bartcFit)$sample))
+  if (!is.character(sample) || sample[1L] %not_in% eval(formals(extract.bartcFit)$sample))
     stop("sample must be in '", paste0(eval(formals(extract.bartcFit)$sample), collapse = "', '"), "'")
+  sample <- sample[1L]
   
   if (value == "p.weights" && is.null(object$p.score))
     stop("p.score cannot be NULL to extract p.weights")
   
-  if (value == "est") {
-    if (!is.null(object$group.by))
-      return(if (combineChains) lapply(object$samples.est, as.vector) else object$samples.est)
-    else
-      return(if (combineChains) as.vector(object$samples.est) else object$samples.est)
+  if (object$method.rsp %in% c("p.weight", "tmle")) {
+    if (value %in% c("sate", "cate"))
+      stop("method '", object$method.rsp, "' does not produce estimates of ", value)
+    if (value %in% c("mu", "mu.0", "mu.1", "y.0", "y.1"))
+      warning("for method '", object$method.rsp, "' value '", value, "' does not have a clear interpretation")
+    
+    if (value == "pate") return(object$est)
   }
   
   weights <- object$data.rsp@weights
   if (!is.null(weights)) weights <- weights / sum(weights)
   
+  oldSeed <- .GlobalEnv$.Random.seed
+  .GlobalEnv$.Random.seed <- object$seed
+  
+  n.obs     <- length(object$data.rsp@y)
+  n.samples <- tail(dim(object$mu.hat.cf), 1L)
+  n.chains  <- object$n.chains
+  trtSign <- ifelse(object$trt == 1, 1, -1)
+  
+  responseIsBinary <- is.null(object$fit.rsp[["sigma"]])
+  
+  if (value %in% c("pate", "sate", "y.0", "y.1", "ite")) {
+    y.cf <- with(object,
+      if (responseIsBinary)
+        rbinom(length(mu.hat.cf), 1L, mu.hat.cf)
+      else
+        t(t(flattenSamples(mu.hat.cf)) + rnorm(n.obs * length(fit.rsp$sigma), 0, fit.rsp$sigma))
+    )
+    if (object$n.chains > 1L) y.cf <- array(y.cf, c(n.obs, n.chains, n.samples))
+  }
+  if (value == "pate") {
+    y.obs <- with(object,
+      if (responseIsBinary)
+        rbinom(length(mu.hat.obs), 1L, mu.hat.obs)
+      else
+        t(t(flattenSamples(mu.hat.obs)) + rnorm(n.obs * length(fit.rsp$sigma), 0, fit.rsp$sigma))
+    )
+    if (object$n.chains > 1L) y.obs <- array(y.obs, c(n.obs, n.chains, n.samples))
+  }
+  .GlobalEnv$.Random.seed <- oldSeed
+  
+  if (value %in% c("pate", "sate", "cate")) {
+    
+    samples.indiv.diff <-
+      with(object, switch(value,
+                          pate = y.obs - y.cf,
+                          sate = mu.hat.obs - y.cf,
+                          cate = mu.hat.obs - mu.hat.cf)) * trtSign
+    
+    result <- with(object,
+      getEstimateSamples(samples.indiv.diff, trt > 0, weights, estimand, group.by, commonSup.sub))
+    
+    if (!is.null(object$group.by))
+      return(if (combineChains) lapply(result, as.vector) else result)
+    else
+      return(if (combineChains) as.vector(result) else result)
+  }
+  
   result <-
-    switch(value,
-           y           = object$yhat.obs,
-           y0          = getBARTFitForSubset(object, !object$trt),
-           y1          = getBARTFitForSubset(object,  object$trt),
-           indiv.diff  = (object$yhat.obs - object$yhat.cf) * ifelse(object$trt, 1, -1),
+    with(object, switch(value,
+           mu          = mu.hat.obs,
+           mu.1        = mu.hat.obs * trt       + mu.hat.cf * (1 - trt),
+           mu.0        = mu.hat.obs * (1 - trt) + mu.hat.cf * trt,
+           y.1         = mu.hat.obs * trt       +      y.cf * (1 - trt),
+           y.0         = mu.hat.obs * (1 - trt) +      y.cf * trt,
+           ite         = (mu.hat.obs -      y.cf) * trtSign,
+           icate       = (mu.hat.obs - mu.hat.cf) * trtSign,
            p.score     = object$samples.p.score,
-           p.weights   = with(object, getPWeights(estimand, data.rsp@x[,name.trt], weights, if (!is.null(samples.p.score)) samples.p.score else p.score, fitPars$p.scoreBounds)))
+           p.weights   = getPWeights(estimand, trt, weights, if (!is.null(samples.p.score)) samples.p.score else p.score, fitPars$p.scoreBounds)))
   
   if (is.null(result)) return(NULL)
   

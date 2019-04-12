@@ -1,41 +1,3 @@
-getBartEstimates <- function(treatmentRows, weights, estimand, indiv.diff, commonSup.sub)
-{
-  x <- NULL ## R CMD check
-  
-  if (!is.character(estimand) || estimand[1L] %not_in% c("ate", "att", "atc"))
-    stop("estimand must be one of 'ate', 'att', or 'atc'")
-  estimand <- estimand[1L]
-  
-  origDims <- dim(indiv.diff)
-    
-  if (!is.null(weights)) {
-    weights <- rep_len(weights, origDims[1L])
-    weights <- weights / sum(weights)
-  }
-  
-  result <- 
-    if (length(origDims) > 2L) {
-      apply(evalx(if (is.null(weights)) indiv.diff else indiv.diff * weights,
-                  switch(estimand,
-                         att = x[ treatmentRows & commonSup.sub,,],
-                         atc = x[!treatmentRows & commonSup.sub,,],
-                         ate = x[commonSup.sub,,])),
-            c(2L, 3L), mean)
-    } else {
-      apply(evalx(if (is.null(weights)) indiv.diff else indiv.diff * weights,
-                  switch(estimand,
-                         att = x[ treatmentRows & commonSup.sub,],
-                         atc = x[!treatmentRows & commonSup.sub,],
-                         ate = x[commonSup.sub,])),
-            2L, mean)
-    }
-  
-  if (!is.null(origDims) && length(origDims) > 2L)
-    matrix(result, origDims[2L], origDims[3L])
-  else 
-    result
-}
-
 getBartResponseFit <- function(response, treatment, confounders, data, subset, weights, estimand, group.by,
                                commonSup.rule, commonSup.cut, p.score, use.rbart, calculateEstimates = TRUE, ...)
 {
@@ -135,50 +97,32 @@ getBartResponseFit <- function(response, treatment, confounders, data, subset, w
   treatmentRows <- trt > 0
     
   if (length(dim(bartFit$yhat.train)) > 2L) {
-    yhat.train <- T(aperm(bartFit$yhat.train, c(3L, 1L, 2L)))
-    yhat.test  <- T(aperm(bartFit$yhat.test, c(3L, 1L, 2L)))
+    mu.hat.train <- T(aperm(bartFit$yhat.train, c(3L, 1L, 2L)))
+    mu.hat.test  <- T(aperm(bartFit$yhat.test, c(3L, 1L, 2L)))
   } else {
-    yhat.train <- T(t(bartFit$yhat.train))
-    yhat.test  <- T(t(bartFit$yhat.test))
+    mu.hat.train <- T(t(bartFit$yhat.train))
+    mu.hat.test  <- T(t(bartFit$yhat.test))
   }
   
   if (is.null(missingData)) {
-    yhat.obs <- yhat.train
-    yhat.cf  <- yhat.test      
+    mu.hat.obs <- mu.hat.train
+    mu.hat.cf  <- mu.hat.test      
   } else {
-    yhat.obs <- array(0, c(n, dim(yhat.train)[-1L]))
-    addDimsToSubset(yhat.obs[!missingRows] <- yhat.train)
-    addDimsToSubset(yhat.obs[ missingRows] <- yhat.test[seq.int(n + 1L, n + n.mis),drop = FALSE])
+    mu.hat.obs <- array(0, c(n, dim(mu.hat.train)[-1L]))
+    addDimsToSubset(mu.hat.obs[!missingRows] <- mu.hat.train)
+    addDimsToSubset(mu.hat.obs[ missingRows] <- mu.hat.test[seq.int(n + 1L, n + n.mis),drop = FALSE])
     
-    addDimsToSubset(yhat.cf <- yhat.test[seq_len(n)])
+    addDimsToSubset(mu.hat.cf <- mu.hat.test[seq_len(n)])
   }
   
-  sd.obs <- apply(yhat.obs, 1L, sd)
-  sd.cf  <- apply(yhat.cf,  1L, sd)
+  sd.obs <- apply(mu.hat.obs, 1L, sd)
+  sd.cf  <- apply(mu.hat.cf,  1L, sd)
   
   commonSup.sub <- getCommonSupportSubset(sd.obs, sd.cf, commonSup.rule, commonSup.cut, trt, missingRows)
   
-  samples.est <- NULL
-  if (calculateEstimates) {
-    samples.indiv.diff <- (yhat.obs - yhat.cf) * ifelse(treatmentRows, 1, -1)
-    
-    if (is.null(matchedCall$group.by)) {
-      samples.est <- getBartEstimates(treatmentRows, weights, estimand, samples.indiv.diff, commonSup.sub)
-    } else {
-      samples.est <- lapply(levels(group.by), function(level) {
-        levelRows <- group.by == level
-        if (!is.null(weights)) weights <- weights[levelRows]
-        
-        getBartEstimates(treatmentRows[levelRows], weights, estimand,
-                         if (length(dim(bartFit$yhat.train)) > 2L) samples.indiv.diff[levelRows,,] else samples.indiv.diff[levelRows,],
-                         commonSup.sub[levelRows])
-      })
-      names(samples.est) <- levels(group.by)
-    }
-  }
   if (is.null(bartFit[["y"]])) bartFit[["y"]] <- responseData@y
   
-  namedList(fit = bartFit, data = responseData, yhat.obs, yhat.cf, samples.est, name.trt = treatmentName, trt, sd.obs, sd.cf, commonSup.sub, missingRows, fitPars = NULL)
+  namedList(fit = bartFit, data = responseData, mu.hat.obs, mu.hat.cf, name.trt = treatmentName, trt, sd.obs, sd.cf, commonSup.sub, missingRows, est = NULL, fitPars = NULL)
 }
 
 boundValues <- function(x, bounds){
@@ -187,7 +131,7 @@ boundValues <- function(x, bounds){
   x
 }
 
-getPWeightEstimates <- function(y, z, weights, estimand, yhat.0, yhat.1, p.score, yBounds, p.scoreBounds)
+getPWeightEstimates <- function(y, z, weights, estimand, mu.hat.0, mu.hat.1, p.score, yBounds, p.scoreBounds)
 {
   if (!is.character(estimand) || estimand[1L] %not_in% c("ate", "att", "atc"))
     stop("estimand must be one of 'ate', 'att', or 'atc'")
@@ -201,13 +145,13 @@ getPWeightEstimates <- function(y, z, weights, estimand, yhat.0, yhat.1, p.score
   m <- min(y, na.rm = TRUE)
   M <- max(y, na.rm = TRUE)
   
-  ## map yhat to (0, 1)
-  yhat.0 <- boundValues((boundValues(yhat.0, c(m, M)) - m) / (M - m), yBounds)
-  yhat.1 <- boundValues((boundValues(yhat.1, c(m, M)) - m) / (M - m), yBounds)
+  ## map mu.hat to (0, 1)
+  mu.hat.0 <- boundValues((boundValues(mu.hat.0, c(m, M)) - m) / (M - m), yBounds)
+  mu.hat.1 <- boundValues((boundValues(mu.hat.1, c(m, M)) - m) / (M - m), yBounds)
   
-  origDims <- dim(yhat.0)
+  origDims <- dim(mu.hat.0)
   
-  indiv.diff <- flattenSamples(yhat.1) - flattenSamples(yhat.0)
+  cite <- flattenSamples(mu.hat.1) - flattenSamples(mu.hat.0)
   
   p.score <- boundValues(p.score, p.scoreBounds)
   
@@ -218,9 +162,9 @@ getPWeightEstimates <- function(y, z, weights, estimand, yhat.0, yhat.1, p.score
     p.score <- flattenSamples(p.score)
   }
     
-  getPWeightEstimate <- getPWeightFunction(estimand, weights, indiv.diff, p.score)
+  getPWeightEstimate <- getPWeightFunction(estimand, weights, cite, p.score)
   
-  result <- getPWeightEstimate(z, weights, indiv.diff, p.score) * (M - m)
+  result <- getPWeightEstimate(z, weights, cite, p.score) * (M - m)
   
   if (!is.null(origDims) && length(origDims) > 2L)
     matrix(result, origDims[2L], origDims[3L])
@@ -251,47 +195,48 @@ getPWeightResponseFit <-
   bartCall <- redirectCall(matchedCall, quoteInNamespace(getBartResponseFit))
   bartCall$calculateEstimates <- FALSE
   
-  bartFit <- responseData <- yhat.obs <- yhat.cf <- name.trt <- trt <- sd.obs <- sd.cf <- commonSup.sub <- missingRows <- NULL
-  massign[bartFit, responseData, yhat.obs, yhat.cf,, name.trt, trt, sd.obs, sd.cf, commonSup.sub,missingRows] <- eval(bartCall, envir = callingEnv)
+  fit <- data <- mu.hat.obs <- mu.hat.cf <- name.trt <- trt <- sd.obs <- sd.cf <- commonSup.sub <- missingRows <- NULL
+  #massign[bartFit, responseData, mu.hat.obs, mu.hat.cf, name.trt, trt, sd.obs, sd.cf, commonSup.sub, missingRows,,] <- eval(bartCall, envir = callingEnv)
+  assignAll(eval(bartCall, envir = callingEnv))
   
   treatmentRows <- trt > 0
   
-  yhat.1 <- yhat.obs * trt       + yhat.cf * (1 - trt)
-  yhat.0 <- yhat.obs * (1 - trt) + yhat.cf * trt
+  mu.hat.1 <- mu.hat.obs * trt       + mu.hat.cf * (1 - trt)
+  mu.hat.0 <- mu.hat.obs * (1 - trt) + mu.hat.cf * trt
   
   p.score <- if (!is.null(matchedCall$samples.p.score) && !is.null(samples.p.score)) samples.p.score else p.score
   
     
   if (is.null(matchedCall$group.by)) {
     if (any(commonSup.sub != TRUE)) {
-      addDimsToSubset(yhat.0 <- yhat.0[commonSup.sub, drop = FALSE])
-      addDimsToSubset(yhat.1 <- yhat.1[commonSup.sub, drop = FALSE])
+      addDimsToSubset(mu.hat.0 <- mu.hat.0[commonSup.sub, drop = FALSE])
+      addDimsToSubset(mu.hat.1 <- mu.hat.1[commonSup.sub, drop = FALSE])
            
       p.score <- addDimsToSubset(p.score[commonSup.sub, drop = FALSE])
       
       if (!is.null(weights)) weights <- weights[commonSup.sub]
     }
       
-    samples.est <- getPWeightEstimates(bartFit$y[commonSup.sub], trt[commonSup.sub], weights, estimand, yhat.0, yhat.1, p.score, yBounds, p.scoreBounds)
+    est <- getPWeightEstimates(fit$y[commonSup.sub], trt[commonSup.sub], weights, estimand, mu.hat.0, mu.hat.1, p.score, yBounds, p.scoreBounds)
   } else {
-    samples.est <- lapply(levels(group.by), function(level) {
+    est <- lapply(levels(group.by), function(level) {
       levelRows <- group.by == level & commonSup.sub
       
-      addDimsToSubset(yhat.0 <- yhat.0[levelRows, drop = FALSE])
-      addDimsToSubset(yhat.1 <- yhat.1[levelRows, drop = FALSE])
+      addDimsToSubset(mu.hat.0 <- mu.hat.0[levelRows, drop = FALSE])
+      addDimsToSubset(mu.hat.1 <- mu.hat.1[levelRows, drop = FALSE])
       addDimsToSubset(p.score <- p.score[levelRows, drop = FALSE])
       
       if (!is.null(weights)) weights <- weights[levelRows]
       
-      getPWeightEstimates(bartFit$y[levelRows], trt[levelRows], weights, estimand, yhat.0, yhat.1, p.score, yBounds, p.scoreBounds)
+      getPWeightEstimates(fit$y[levelRows], trt[levelRows], weights, estimand, mu.hat.0, mu.hat.1, p.score, yBounds, p.scoreBounds)
     })
-    names(samples.est) <- levels(group.by)
+    names(est) <- levels(group.by)
   }
   
-  namedList(fit = bartFit, data = responseData, yhat.obs, yhat.cf, samples.est, name.trt, trt, sd.obs, sd.cf, commonSup.sub, missingRows, fitPars = namedList(yBounds, p.scoreBounds))
+  namedList(fit, data, mu.hat.obs, mu.hat.cf, name.trt, trt, sd.obs, sd.cf, commonSup.sub, missingRows, est, fitPars = namedList(yBounds, p.scoreBounds))
 }
 
-getTMLEEstimates <- function(y, z, weights, estimand, yhat.0, yhat.1, p.score, yBounds, p.scoreBounds, depsilon, maxIter)
+getTMLEEstimates <- function(y, z, weights, estimand, mu.hat.0, mu.hat.1, p.score, yBounds, p.scoreBounds, depsilon, maxIter)
 {
   if (!is.character(estimand) || estimand[1L] %not_in% c("ate", "att", "atc"))
     stop("estimand must be one of 'ate', 'att', or 'atc'")
@@ -302,8 +247,8 @@ getTMLEEstimates <- function(y, z, weights, estimand, yhat.0, yhat.1, p.score, y
     y <- y[completeRows]
     z <- z[completeRows]
     if (!is.null(weights)) weights <- weights[completeRows]
-    addDimsToSubset(yhat.0 <- yhat.0[completeRows, drop = FALSE])
-    addDimsToSubset(yhat.1 <- yhat.1[completeRows, drop = FALSE])
+    addDimsToSubset(mu.hat.0 <- mu.hat.0[completeRows, drop = FALSE])
+    addDimsToSubset(mu.hat.1 <- mu.hat.1[completeRows, drop = FALSE])
     addDimsToSubset(p.score <- p.score[completeRows, drop = FALSE])
   }
   
@@ -311,50 +256,61 @@ getTMLEEstimates <- function(y, z, weights, estimand, yhat.0, yhat.1, p.score, y
     weights <- rep_len(weights, length(y))
     weights <- weights / sum(weights)
   } else {
-    if (is.null(dim(yhat.0))) { 
-      res <- tmle::tmle(Y = y, A = z, W = matrix(0, length(y), 1L), Q = cbind(Q0W = yhat.0, Q1W = yhat.1), g1W = p.score)
-      return(res$estimates[[switch(estimand, ate = "ATE", att = "ATT", atc = "ATC")]][c("psi", "var.psi")])
+    if (is.null(dim(mu.hat.0))) { 
+      result <- tmle::tmle(Y = y, A = z, W = matrix(0, length(y), 1L), Q = cbind(Q0W = mu.hat.0, Q1W = mu.hat.1), g1W = p.score)
+      result <- unlist(result$estimates[[switch(estimand, ate = "ATE", att = "ATT", atc = "ATC")]][c("psi", "var.psi")])
+      names(result) <- c("est", "se")
+      result["se"] <- sqrt(result["se"])
+      result
+    } else {
+      p.score <- boundValues(flattenSamples(p.score), p.scoreBounds)
+      W <- matrix(0, length(y), 1L)
+      Q <- aperm(array(c(flattenSamples(mu.hat.0), flattenSamples(mu.hat.1)),
+                       c(length(y), prod(dim(mu.hat.0)[-1L]), 2L), dimnames = list(NULL, NULL, c("Q0W", "Q1W"))),
+                 c(1L, 3L, 2L))
+      
+      result <- t(sapply(seq_len(dim(Q)[3L]), function(i) {
+        res <- tmle::tmle(Y = y, A = z, W = W, Q = Q[,,i], g1W = if (!is.null(dim(p.score))) p.score[,i] else p.score)
+        unlist(res$estimates[[switch(estimand, ate = "ATE", att = "ATT", atc = "ATC")]][c("psi", "var.psi")])
+      }))
+      result[,2L] <- sqrt(result[,2L])
+      if (length(dim(mu.hat.0)) > 2L) {
+        result <- array(result, c(dim(mu.hat.0)[-1L], 2L), dimnames = list(NULL, NULL, c("est", "se")))
+      } else {
+        colnames(result) <- c("est", "se")
+      }
     }
-    yhat.0 <- flattenSamples(yhat.0)
-    yhat.1 <- flattenSamples(yhat.1)
-    p.score <- boundValues(flattenSamples(p.score), p.scoreBounds)
-    
-    return(sapply(seq_len(ncol(yhat.0)), function(i) {
-      res <- tmle::tmle(Y = y, A = z, W = matrix(0, length(y), 1L), Q = cbind(Q0W = yhat.0[,i], Q1W = yhat.1[,i]), g1W = if (!is.null(dim(p.score))) p.score[,i] else p.score)
-      res$estimates[[switch(estimand, ate = "ATE", att = "ATT", atc = "ATC")]]$psi
-    }))
+    return(result)
   }
   
   r <- range(y)
   r <- r + 0.1 * c(-abs(r[1L]), abs(r[2L]))
   y.st <- boundValues(y, r)
-  yhat.0.st <- boundValues(yhat.0, r)
-  yhat.1.st <- boundValues(yhat.1, r)
+  mu.hat.0.st <- boundValues(mu.hat.0, r)
+  mu.hat.1.st <- boundValues(mu.hat.1, r)
   r.st <- range(y.st)
   
   y.st <- (y.st - min(r.st)) / diff(r.st)
-  yhat.0.st <- qlogis(boundValues((yhat.0.st - min(r.st)) / diff(r.st), yBounds))
-  yhat.1.st <- qlogis(boundValues((yhat.1.st - min(r.st)) / diff(r.st), yBounds))
+  mu.hat.0.st <- qlogis(boundValues((mu.hat.0.st - min(r.st)) / diff(r.st), yBounds))
+  mu.hat.1.st <- qlogis(boundValues((mu.hat.1.st - min(r.st)) / diff(r.st), yBounds))
   
   
-  yhat.0.samp <- flattenSamples(yhat.0.st)
-  yhat.1.samp <- flattenSamples(yhat.1.st)
+  mu.hat.0.samp <- flattenSamples(mu.hat.0.st)
+  mu.hat.1.samp <- flattenSamples(mu.hat.1.st)
   
   p.score.samp <- boundValues(flattenSamples(p.score), p.scoreBounds)
   
-  origDims <- dim(yhat.0)
-  
+  origDims <- dim(mu.hat.0)
   
   getPWeightEstimate <- getPWeightFunction(estimand, weights, numeric(), numeric())
   
-  getYhat0Deriv <- getYhat1Deriv <- getPScoreDeriv <- getIC <- calcLoss <- NULL
-  massign[getYhat0Deriv, getYhat1Deriv, getPScoreDeriv, getIC, calcLoss] <-
-    getTMLEFunctions(estimand, weights)
+  getmu.hat.0Deriv <- getmu.hat.1Deriv <- getPScoreDeriv <- getIC <- calcLoss <- NULL
+  assignAll(getTMLEFunctions(estimand, weights))
   
-  result <- sapply(seq_len(ncol(yhat.0.samp)), function(i) {
-    yhat.0 <- yhat.0.samp[,i]
-    yhat.1 <- yhat.1.samp[,i]
-    yhat <- yhat.1 * z + yhat.0 * (1 - z)
+  result <- sapply(seq_len(ncol(mu.hat.0.samp)), function(i) {
+    mu.hat.0 <- mu.hat.0.samp[,i]
+    mu.hat.1 <- mu.hat.1.samp[,i]
+    mu.hat <- mu.hat.1 * z + mu.hat.0 * (1 - z)
     
     p.score <- if (!is.null(dim(p.score.samp))) p.score.samp[,i] else p.score.samp
     p.score.st <- boundValues(p.score, p.scoreBounds)
@@ -362,47 +318,47 @@ getTMLEEstimates <- function(y, z, weights, estimand, yhat.0, yhat.1, p.score, y
     H1W <- z / p.score.st
     H0W <- (1 - z) / (1 - p.score.st)
     
-    suppressWarnings(epsilon <- coef(glm(y.st ~ -1 + offset(yhat) + H0W + H1W, family = binomial)))
+    suppressWarnings(epsilon <- coef(glm(y.st ~ -1 + offset(mu.hat) + H0W + H1W, family = binomial)))
     epsilon[is.na(epsilon)] <- 0 
   
-    yhat.0 <- plogis(yhat.0 + epsilon["H0W"] / (1 - p.score.st))
-    yhat.1 <- plogis(yhat.1 + epsilon["H1W"] / p.score.st)
+    mu.hat.0 <- plogis(mu.hat.0 + epsilon["H0W"] / (1 - p.score.st))
+    mu.hat.1 <- plogis(mu.hat.1 + epsilon["H1W"] / p.score.st)
     
-    indiv.diff <- yhat.1 - yhat.0
-    yhat <- yhat.1 * z + yhat.0 * (1 - z)
+    cite <- mu.hat.1 - mu.hat.0
+    muhat <- mu.hat.1 * z + mu.hat.0 * (1 - z)
     
-    psi <- getPWeightEstimate(z, weights, indiv.diff, p.score)
+    psi <- getPWeightEstimate(z, weights, cite, p.score)
     psi.prev <- psi
     
-    a.weight <- z * getYhat1Deriv(z, weights, p.score) + (1 - z) * getYhat0Deriv(z, weights, p.score)
-    ic <- getIC(y.st, yhat, indiv.diff, psi, a.weight)
+    a.weight <- z * mu.hat.1.deriv(z, weights, p.score) + (1 - z) * mu.hat.0.deriv(z, weights, p.score)
+    ic <- getIC(y.st, mu.hat, cite, psi, a.weight)
     
     if (mean(ic) > 0) depsilon <- -depsilon
     
     loss.prev <- Inf
-    loss <- calcLoss(y.st, z, yhat, p.score, weights)
+    loss <- calcLoss(y.st, z, mu.hat, p.score, weights)
     if (is.nan(loss) || is.na(loss) || is.infinite(loss)) return(psi)
       
     iter <- 0L
     while (loss.prev > loss && iter < maxIter)
     {
       p.score.prev <- p.score
-      p.score <- boundValues(plogis(qlogis(p.score.prev) - depsilon * getPScoreDeriv(z, weights, p.score.prev, indiv.diff, psi.prev)), p.scoreBounds)
+      p.score <- boundValues(plogis(qlogis(p.score.prev) - depsilon * p.score.deriv(z, weights, p.score.prev, cite, psi.prev)), p.scoreBounds)
       
-      yhat.0.prev <- yhat.0
-      yhat.1.prev <- yhat.1
-      yhat.0 <- boundValues(plogis(qlogis(yhat.0.prev) - depsilon * getYhat0Deriv(z, weights, p.score.prev)), yBounds)
-      yhat.1 <- boundValues(plogis(qlogis(yhat.1.prev) - depsilon * getYhat1Deriv(z, weights, p.score.prev)), yBounds)
-      indiv.diff <- yhat.1 - yhat.0
-      yhat <- yhat.1 * z + yhat.0 * (1 - z)
+      mu.hat.0.prev <- mu.hat.0
+      mu.hat.1.prev <- mu.hat.1
+      mu.hat.0 <- boundValues(plogis(qlogis(mu.hat.0.prev) - depsilon * mu.hat.0.deriv(z, weights, p.score.prev)), yBounds)
+      mu.hat.1 <- boundValues(plogis(qlogis(mu.hat.1.prev) - depsilon * mu.hat.1.deriv(z, weights, p.score.prev)), yBounds)
+      cite <- mu.hat.1 - mu.hat.0
+      mu.hat <- mu.hat.1 * z + mu.hat.0 * (1 - z)
       
       psi.prev <- psi
-      psi <- getPWeightEstimate(z, weights, indiv.diff, p.score)
+      psi <- getPWeightEstimate(z, weights, cite, p.score)
       
       loss.prev <- loss
-      loss <- calcLoss(y.st, z, yhat, p.score, weights)
+      loss <- calcLoss(y.st, z, mu.hat, p.score, weights)
       
-      ## ic <- getIC(y, yhat, indiv.diff, psi, a.weight)
+      ## ic <- getIC(y, mu.hat, cite, psi, a.weight)
       
       if (is.nan(loss) || is.infinite(loss) || is.na(loss)) loss <- Inf
     
@@ -441,13 +397,13 @@ getTMLEResponseFit <-
   bartCall <- redirectCall(matchedCall, quoteInNamespace(getBartResponseFit))
   bartCall$calculateEstimates <- FALSE
   
-  bartFit <- responseData <- yhat.obs <- yhat.cf <- name.trt <- trt <- sd.obs <- sd.cf <- commonSup.sub <- missingRows <- NULL
-  massign[bartFit, responseData, yhat.obs, yhat.cf,, name.trt, trt, sd.obs, sd.cf, commonSup.sub, missingRows] <- eval(bartCall, envir = callingEnv)
+  fit <- data <- mu.hat.obs <- mu.hat.cf <- name.trt <- trt <- sd.obs <- sd.cf <- commonSup.sub <- missingRows <- NULL
+  assignAll(eval(bartCall, envir = callingEnv))
   
   treatmentRows <- trt > 0
   
-  yhat.1 <- yhat.obs * trt       + yhat.cf * (1 - trt)
-  yhat.0 <- yhat.obs * (1 - trt) + yhat.cf * trt
+  mu.hat.1 <- mu.hat.obs * trt       + mu.hat.cf * (1 - trt)
+  mu.hat.0 <- mu.hat.obs * (1 - trt) + mu.hat.cf * trt
    
   p.score <- if (!is.null(matchedCall$samples.p.score) && !is.null(samples.p.score)) samples.p.score else p.score
   
@@ -455,8 +411,8 @@ getTMLEResponseFit <-
   
   if (is.null(matchedCall$group.by)) {
     if (any(commonSup.sub != TRUE)) {
-      addDimsToSubset(yhat.0 <- yhat.0[commonSup.sub, drop = FALSE])
-      addDimsToSubset(yhat.1 <- yhat.1[commonSup.sub, drop = FALSE])
+      addDimsToSubset(mu.hat.0 <- mu.hat.0[commonSup.sub, drop = FALSE])
+      addDimsToSubset(mu.hat.1 <- mu.hat.1[commonSup.sub, drop = FALSE])
       
       addDimsToSubset(p.score <- p.score[commonSup.sub, drop = FALSE])
       
@@ -464,52 +420,40 @@ getTMLEResponseFit <-
     }
     
     if (posteriorOfTMLE) {
-      samples.est <- getTMLEEstimates(bartFit$y[commonSup.sub], trt[commonSup.sub], weights, estimand,
-                                      yhat.0, yhat.1, p.score, yBounds, p.scoreBounds, depsilon, maxIter)
+      est <- getTMLEEstimates(fit$y[commonSup.sub], trt[commonSup.sub], weights, estimand,
+                              mu.hat.0, mu.hat.1, p.score, yBounds, p.scoreBounds, depsilon, maxIter)
     } else {
-      tmleResult <- getTMLEEstimates(bartFit$y[commonSup.sub], trt[commonSup.sub], weights, estimand,
-                                     apply(yhat.0, 1L, mean),
-                                     apply(yhat.1, 1L, mean),
-                                     if (!is.null(dim(p.score))) apply(p.score, 1L, mean) else p.score,
-                                     yBounds, p.scoreBounds, depsilon, maxIter)
-      # trick model into thinking that we have samples
-      mu <- tmleResult$psi
-      sigma <- sqrt(tmleResult$var.psi)
-      numSamples <- prod(dim(yhat.0)[-1L])
-      samples.est <- rnorm(numSamples, mu, sigma)
-      samples.est <- sigma * (samples.est - mean(samples.est)) / sd(samples.est) + mu
+      est <- getTMLEEstimates(fit$y[commonSup.sub], trt[commonSup.sub], weights, estimand,
+                              apply(mu.hat.0, 1L, mean),
+                              apply(mu.hat.1, 1L, mean),
+                              if (!is.null(dim(p.score))) apply(p.score, 1L, mean) else p.score,
+                              yBounds, p.scoreBounds, depsilon, maxIter)
     }
   } else {
-    samples.est <- lapply(levels(group.by), function(level) {
+    est <- lapply(levels(group.by), function(level) {
       levelRows <- group.by == level & commonSup.sub
       
-      addDimsToSubset(yhat.0 <- yhat.0[levelRows, drop = FALSE])
-      addDimsToSubset(yhat.1 <- yhat.1[levelRows, drop = FALSE])
+      addDimsToSubset(mu.hat.0 <- mu.hat.0[levelRows, drop = FALSE])
+      addDimsToSubset(mu.hat.1 <- mu.hat.1[levelRows, drop = FALSE])
       
       addDimsToSubset(p.score <- p.score[levelRows, drop = FALSE])
       
       if (!is.null(weights)) weights <- weights[levelRows]
       
       if (posteriorOfTMLE) {
-        getTMLEEstimates(bartFit$y[levelRows], trt[levelRows], weights, estimand,
-                         yhat.0, yhat.1, p.score, yBounds, p.scoreBounds, depsilon, maxIter)
+        getTMLEEstimates(fit$y[levelRows], trt[levelRows], weights, estimand,
+                         mu.hat.0, mu.hat.1, p.score, yBounds, p.scoreBounds, depsilon, maxIter)
       } else {
-        tmleResult <- getTMLEEstimates(bartFit$y[levelRows], trt[levelRows], weights, estimand,
-                                       apply(yhat.0, 1L, mean),
-                                       apply(yhat.1, 1L, mean),
-                                       if (!is.null(dim(p.score))) apply(p.score, 1L, mean) else p.score,
-                                       yBounds, p.scoreBounds, depsilon, maxIter)
-        
-        mu <- tmleResult$psi
-        sigma <- sqrt(tmleResult$var.psi)
-        numSamples <- prod(dim(yhat.0)[-1L])
-        samples.est <- rnorm(numSamples, mu, sigma)
-        samples.est <- sigma * (samples.est - mean(samples.est)) / sd(samples.est) + mu
-        samples.est
+        est <- getTMLEEstimates(fit$y[levelRows], trt[levelRows], weights, estimand,
+                                apply(mu.hat.0, 1L, mean),
+                                apply(mu.hat.1, 1L, mean),
+                                if (!is.null(dim(p.score))) apply(p.score, 1L, mean) else p.score,
+                                yBounds, p.scoreBounds, depsilon, maxIter)
       }
     })
-    names(samples.est) <- levels(group.by)
+    names(est) <- levels(group.by)
   }
 
-  namedList(fit = bartFit, data = responseData, yhat.obs, yhat.cf, samples.est, name.trt, trt, sd.obs, sd.cf, commonSup.sub, missingRows, fitPars = namedList(yBounds, p.scoreBounds, depsilon, maxIter))
+  namedList(fit, data , mu.hat.obs, mu.hat.cf, name.trt, trt, sd.obs, sd.cf, commonSup.sub,
+            missingRows, est, fitPars = namedList(yBounds, p.scoreBounds, depsilon, maxIter))
 }

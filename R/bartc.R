@@ -5,7 +5,7 @@ flattenSamples <- function(y) {
 
 bartc <- function(
   response, treatment, confounders, data, subset, weights,
-  method.rsp = c("bart", "bcf", "p.weight", "tmle"),
+  method.rsp = c("bart", "tmle", "bcf", "p.weight"),
   method.trt = c("bart", "glm", "none", "bart.xval"),
   estimand   = c("ate", "att", "atc"),
   group.by = NULL,
@@ -132,20 +132,20 @@ bartc <- function(
   
   if (verbose) cat("fitting response model via method '", method.rsp, "'\n", sep = "")
   
-  fit.rsp <- data.rsp <- yhat.obs <- yhat.cf <- samples.est <- name.trt <- trt <- sd.obs <-
-    sd.cf <- commonSup.sub <- missingRows <- fitPars <- NULL
-  massign[fit.rsp, data.rsp, yhat.obs, yhat.cf, samples.est, name.trt,
-          trt, sd.obs, sd.cf, commonSup.sub, missingRows, fitPars] <-
-    eval(responseCall, envir = evalEnv)
+  fit <- data <- mu.hat.obs <- mu.hat.cf <- name.trt <- trt <- sd.obs <-
+    sd.cf <- commonSup.sub <- missingRows <- est <- fitPars <- NULL
+  assignAll(eval(responseCall, envir = evalEnv))
   
-  
-  result <- namedList(fit.rsp, data.rsp, fit.trt, yhat.obs, yhat.cf, samples.est, p.score, samples.p.score,
+  result <- namedList(fit.rsp = fit, data.rsp = data, fit.trt, mu.hat.obs, mu.hat.cf, p.score, samples.p.score,
                       method.rsp, method.trt, estimand, group.by,
                       commonSup.rule, commonSup.cut,
                       name.trt, trt,
-                      sd.obs, sd.cf, commonSup.sub, missingRows, fitPars,
+                      sd.obs, sd.cf, commonSup.sub, missingRows, est, fitPars,
                       call = givenCall)
-  result$n.chains <- if (length(dim(fit.rsp$yhat.train) > 2L)) dim(fit.rsp$yhat.train)[1L] else 1L
+  result$n.chains <- if (length(dim(fit$yhat.train) > 2L)) dim(fit$yhat.train)[1L] else 1L
+  
+  if (!exists(".Random.seed", .GlobalEnv)) runif(1)
+  result$seed <- .Random.seed
   
   class(result) <- "bartcFit"
   result

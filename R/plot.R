@@ -30,7 +30,8 @@ plot_est <- function(x, main = paste("Traceplot", x$estimand), xlab = "iteration
                      lty = 1:x$n.chains, col = NULL, ...) {
   if (!is(x, "bartcFit")) stop("plot.set requires an object of class 'bartcFit'")
   
-  samples <- extract(x, "est", combineChains = FALSE)
+  estType <- if (x$method.rsp %in% c("tmle", "p.weight")) "pate" else "cate"
+  samples <-  extract(x, estType, combineChains = FALSE)
   if (!is.list(samples)) samples <- list(samples)
   
   if (is.null(col)) { col <- if (is.null(x$group.by)) 1 else seq_len(nlevels(x$group.by)) }
@@ -57,7 +58,7 @@ plot_indiv <- function(x, main = "Histogram Individual Effects", xlab = "treatme
 {
   if (!is(x, "bartcFit")) stop("plot.indiv requires an object of class 'bartcFit'")
   
-  samples <- extract(x, "indiv.diff", combineChains = TRUE)
+  samples <- extract(x, "icate", combineChains = TRUE)
   
   hist(apply(samples, 1L, mean), main = main, xlab = xlab, breaks = breaks, ...)
 }
@@ -98,7 +99,7 @@ plot_support <- function(x, main = "Common Support Scatterplot",
       if (is.null(callingEnv$treeVars)) {
         if (!requireNamespace("rpart", quietly = TRUE))
           stop("tree plots require the package 'rpart'; please install it to use this feature", call. = FALSE)
-        df <- data.frame(.y = fitted(x, "indiv.diff", sample = "all"), x$data.rsp@x)
+        df <- data.frame(.y = fitted(x, "icate", sample = "all"), x$data.rsp@x)
         tree <- rpart::rpart(.y ~ ., df, ...)
         contCols <- apply(x$data.rsp@x, 2L, function(col) length(unique(col)) > 2L)
         callingEnv$treeVars <- tree$variable.importance[names(tree$variable.importance) %in% names(which(contCols))]
@@ -120,15 +121,15 @@ plot_support <- function(x, main = "Common Support Scatterplot",
     } else if (var == "y") {
       val <- x$data.rsp@y
       if (is.null(lab)) lab <- "y"
-    } else if (var == "y0") {
-      val <- fitted(x, "y0", sample = "all")
-      if (is.null(lab)) lab <- expression(hat(y)(0))
-    } else if (var == "y1") {
-      val <- fitted(x, "y1", sample = "all")
-      if (is.null(lab)) lab <- expression(hat(y)(1))
-    } else if (var == "indiv.diff") {
-      val <- fitted(x, "indiv.diff", sample = "all")
-      if (is.null(lab)) lab <- expression(hat(y)(1) - hat(y)(0))
+    } else if (var == "mu.0") {
+      val <- fitted(x, "mu.0", sample = "all")
+      if (is.null(lab)) lab <- expression(hat(mu)(0))
+    } else if (var == "mu.1") {
+      val <- fitted(x, "mu.1", sample = "all")
+      if (is.null(lab)) lab <- expression(hat(mu)(1))
+    } else if (var == "icate") {
+      val <- fitted(x, "icate", sample = "all")
+      if (is.null(lab)) lab <- expression(hat(mu)(1) - hat(mu)(0))
     } else if (var == "p.weights") {
       if (x$method.rsp != "p.weight") stop("'p.weights' only valid for response method 'p.weight'")
       val <- fitted(x, "p.weights", sample = "all")

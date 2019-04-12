@@ -99,6 +99,9 @@ massign <- structure(NA, class = "lval")
   x
 }
 
+# adds names to arguments so that
+#   unpack[a,b] = unpack[a = a, b = b] = unpack[b = b, a = a] = unpack[b,a]
+# while massign[a,b] != massign[b,a]
 unpack <- structure(NA, class = "named_lval")
 
 "[<-.named_lval" <- function(x, ..., value) {
@@ -115,3 +118,16 @@ unpack <- structure(NA, class = "named_lval")
   #cat("calling ", as.character(mc), "\n")
   eval(mc, parent.frame(1L))
 }
+
+assignAll <- function(...)
+{
+  callingEnv <- parent.frame(1L)
+  dotsList <- list(...)
+  for (i in seq_along(dotsList)) {
+    x.i <- dotsList[[i]]
+    for (j in seq_along(x.i)) {
+      assign(names(x.i)[j], x.i[[j]], callingEnv)
+    }
+  }
+}
+

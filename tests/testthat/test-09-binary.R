@@ -21,7 +21,7 @@ test_that("binary outcome model matches manual", {
   
   fit.rsp <- bart2(x.train, testData$y, x.test, verbose = FALSE,
                    n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L)
-  expect_equal(extract(bartcFit, value = "y0"),
+  expect_equal(extract(bartcFit, value = "mu.0"),
                t(pnorm(fit.rsp$yhat.test)[,seq.int(nrow(testData$x) + 1L, nrow(x.test))]))
 })
 

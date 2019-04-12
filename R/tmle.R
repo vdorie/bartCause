@@ -14,42 +14,42 @@ getPWeights <- function(estimand, z, weights, p.score, p.scoreBounds)
   }
 }
 
-getPWeightFunction <- function(estimand, weights, indiv.diff, p.score)
+getPWeightFunction <- function(estimand, weights, cite, p.score)
 {
   fnBody <- if (!is.null(weights)) {
     if (!is.null(dim(p.score))) {
       switch(estimand,
-             att = quote(apply(indiv.diff * p.score * weights, 2L, sum) / apply(p.score * weights, 2L, sum)),
-             atc = quote(apply(indiv.diff * (1 - p.score) * weights, 2L, sum) / apply((1 - p.score) * weights, 2L, sum)),
-             ate = quote(apply(indiv.diff * weights, 2L, sum)))
+             att = quote(apply(cite * p.score * weights, 2L, sum) / apply(p.score * weights, 2L, sum)),
+             atc = quote(apply(cite * (1 - p.score) * weights, 2L, sum) / apply((1 - p.score) * weights, 2L, sum)),
+             ate = quote(apply(cite * weights, 2L, sum)))
     } else {
-      if (!is.null(dim(indiv.diff))) {
+      if (!is.null(dim(cite))) {
         switch(estimand,
-               att = quote(apply(indiv.diff * p.score * weights, 2L, sum) / sum(p.score * weights)),
-               atc = quote(apply(indiv.diff * (1 - p.score) * weights, 2L, sum) / sum((1 - p.score) * weights)),
-               ate = quote(apply(indiv.diff * weights, 2L, sum)))
+               att = quote(apply(cite * p.score * weights, 2L, sum) / sum(p.score * weights)),
+               atc = quote(apply(cite * (1 - p.score) * weights, 2L, sum) / sum((1 - p.score) * weights)),
+               ate = quote(apply(cite * weights, 2L, sum)))
       } else {
         switch(estimand,
-               att = quote(sum(indiv.diff * p.score * weights) / sum(p.score * weights)),
-               atc = quote(sum(indiv.diff * (1 - p.score) * weights) / sum((1 - p.score) * weights)),
-               ate = quote(sum(indiv.diff * weights)))
+               att = quote(sum(cite * p.score * weights) / sum(p.score * weights)),
+               atc = quote(sum(cite * (1 - p.score) * weights) / sum((1 - p.score) * weights)),
+               ate = quote(sum(cite * weights)))
       }
     }
   } else {
-    if (!is.null(dim(indiv.diff))) {
+    if (!is.null(dim(cite))) {
       switch(estimand,
-             att = quote(apply(indiv.diff * p.score, 2L, mean) / mean(z)),
-             atc = quote(apply(indiv.diff * (1 - p.score), 2L, mean)  / mean(1 - z)),
-             ate = quote(apply(indiv.diff, 2L, mean)))
+             att = quote(apply(cite * p.score, 2L, mean) / mean(z)),
+             atc = quote(apply(cite * (1 - p.score), 2L, mean)  / mean(1 - z)),
+             ate = quote(apply(cite, 2L, mean)))
     } else {
       switch(estimand,
-             att = quote(mean(indiv.diff * p.score) / mean(z)),
-             atc = quote(mean(indiv.diff * (1 - p.score)) / mean(1 - z)),
-             ate = quote(mean(indiv.diff)))
+             att = quote(mean(cite * p.score) / mean(z)),
+             atc = quote(mean(cite * (1 - p.score)) / mean(1 - z)),
+             ate = quote(mean(cite)))
     }
   }
   
-  result <- function(z, weights, indiv.diff, p.score) NULL
+  result <- function(z, weights, cite, p.score) NULL
   body(result) <- fnBody
   environment(result) <- parent.frame(1L)
   
@@ -82,66 +82,50 @@ getTMLEFunctions <- function(estimand, weights) {
     result
   }
   ## for R CMD check
-  a.weight <- indiv.diff <- p.score <- psi <- x <- y <- yhat <- z <- NULL
+  a.weight <- cite <- p.score <- psi <- x <- y <- mu.hat <- z <- NULL
   if (!is.null(weights)) {
     if (estimand == "att") {
-      #yhat0Body <- quote(-(p.score / (1 - p.score)) / sum(p.score * weights))
-      #yhat1Body <- quote(1 / sum(p.score * weights))
-      #p.scoreBody <- quote((indiv.diff - psi) / sum(p.score * weights))
-      #icBody <- quote(length(y) * weights * a.weight * (y - yhat) + z * (indiv.diff - psi) / sum(p.score * weights))
-      yhat0Body <- quote(-p.score / (1 - p.score))
-      yhat1Body <- quote(1)
-      p.scoreBody <- quote(indiv.diff - psi)
-      icBody <- quote((length(y) * weights * a.weight * (y - yhat) + z * (indiv.diff - psi)) / sum(p.score * weights))
+      mu.hat.0Body <- quote(-p.score / (1 - p.score))
+      mu.hat.1Body <- quote(1)
+      p.scoreBody <- quote(cite - psi)
+      icBody <- quote((length(y) * weights * a.weight * (y - mu.hat) + z * (cite - psi)) / sum(p.score * weights))
     } else if (estimand == "atc") {
-      #yhat0Body <- quote(1 / sum((1 - p.score) * weights))
-      #yhat1Body <- quote(-((1 - p.score) / p.score) / sum((1 - p.score) * weights))
-      #p.scoreBody <- quote((indiv.diff - psi) / sum((1 - p.score) * weights))
-      #icBody <- quote(length(y) * weights * a.weight * (y - yhat) + (1 - z) * (indiv.diff - psi) / sum((1 - p.score) * weights))
-      yhat0Body <- quote(1)
-      yhat1Body <- quote(-(1 - p.score) / p.score)
-      p.scoreBody <- quote(indiv.diff - psi)
-      icBody <- quote((length(y) * weights * a.weight * (y - yhat) + (1 - z) * (indiv.diff - psi)) / sum((1 - p.score) * weights))
+      mu.hat.0Body <- quote(1)
+      mu.hat.1Body <- quote(-(1 - p.score) / p.score)
+      p.scoreBody <- quote(cite - psi)
+      icBody <- quote((length(y) * weights * a.weight * (y - mu.hat) + (1 - z) * (cite - psi)) / sum((1 - p.score) * weights))
     } else if (estimand == "ate") {
-      yhat0Body <- quote(1 - p.score / (1 - p.score))
-      yhat1Body <- quote(1 - (1 - p.score) / p.score)
-      p.scoreBody <- quote(indiv.diff - psi)
-      icBody <- quote(length(y) * weights * a.weight * (y - yhat) + (indiv.diff - psi))
+      mu.hat.0Body <- quote(1 - p.score / (1 - p.score))
+      mu.hat.1Body <- quote(1 - (1 - p.score) / p.score)
+      p.scoreBody <- quote(cite - psi)
+      icBody <- quote(length(y) * weights * a.weight * (y - mu.hat) + (cite - psi))
     }
-    calcLossBody <- quote(-mean(weights * (y * log(yhat) + (1 - y) * log(1 - yhat) + z * log(p.score) + (1 - z) * log(1 - p.score))))
+    calcLossBody <- quote(-mean(weights * (y * log(mu.hat) + (1 - y) * log(1 - mu.hat) + z * log(p.score) + (1 - z) * log(1 - p.score))))
   } else {
     if (estimand == "att") {
-      #yhat0Body <- quote(-(p.score / (1 - p.score)) / mean(z))
-      #yhat1Body <- quote(1 / mean(z))
-      #p.scoreBody <- quote((indiv.diff - psi) / mean(z))
-      #icBody <- quote(a.weight * (y - yhat) + z * (indiv.diff - psi) / mean(z))
-      yhat0Body <- quote(-p.score / (1 - p.score))
-      yhat1Body <- quote(1)
-      p.scoreBody <- quote(indiv.diff - psi)
-      icBody <- quote((a.weight * (y - yhat) + z * (indiv.diff - psi)) / mean(z))
+      mu.hat.0Body <- quote(-p.score / (1 - p.score))
+      mu.hat.1Body <- quote(1)
+      p.scoreBody <- quote(cite - psi)
+      icBody <- quote((a.weight * (y - mu.hat) + z * (cite - psi)) / mean(z))
     } else if (estimand == "atc") {
-      #yhat0Body <- quote(1 / mean(1 - z))
-      #yhat1Body <- quote(-((1 - p.score) / p.score) / mean(1 - z))
-      #p.scoreBody <- quote((indiv.diff - psi) / mean(1 - z))
-      #icBody <- quote(a.weight * (y - yhat) + (1 - z) * (indiv.diff - psi) / mean(1 - z))
-      yhat0Body <- quote(1)
-      yhat1Body <- quote(-(1 - p.score) / p.score)
-      p.scoreBody <- quote(indiv.diff - psi)
-      icBody <- quote((a.weight * (y - yhat) + (1 - z) * (indiv.diff - psi)) / mean(1 - z))
+      mu.hat.0Body <- quote(1)
+      mu.hat.1Body <- quote(-(1 - p.score) / p.score)
+      p.scoreBody <- quote(cite - psi)
+      icBody <- quote((a.weight * (y - mu.hat) + (1 - z) * (cite - psi)) / mean(1 - z))
     } else if (estimand == "ate") {
-      yhat0Body <- quote(1 - p.score / (1 - p.score))
-      yhat1Body <- quote(1 - (1 - p.score) / p.score)
-      p.scoreBody <- quote(indiv.diff - psi)
-      icBody <- quote(a.weight * (y - yhat) + (indiv.diff - psi))
+      mu.hat.0Body <- quote(1 - p.score / (1 - p.score))
+      mu.hat.1Body <- quote(1 - (1 - p.score) / p.score)
+      p.scoreBody <- quote(cite - psi)
+      icBody <- quote(a.weight * (y - mu.hat) + (cite - psi))
     }
-    calcLossBody <- quote(-mean(y * log(yhat) + (1 - y) * log(1 - yhat) + z * log(p.score) + (1 - z) * log(1 - p.score)))
+    calcLossBody <- quote(-mean(y * log(mu.hat) + (1 - y) * log(1 - mu.hat) + z * log(p.score) + (1 - z) * log(1 - p.score)))
   }
   
-  getYhat0Deriv  <- createFunctionWithBody(yhat0Body, z, weights, p.score)
-  getYhat1Deriv  <- createFunctionWithBody(yhat1Body, z, weights, p.score)
-  getPScoreDeriv <- createFunctionWithBody(p.scoreBody, z, weights, p.score, indiv.diff, psi)
-  getIC          <- createFunctionWithBody(icBody, y, yhat, indiv.diff, psi, a.weight)
-  calcLoss       <- createFunctionWithBody(calcLossBody, y, z, yhat, p.score, weights)
+  mu.hat.0.deriv <- createFunctionWithBody(mu.hat.0Body, z, weights, p.score)
+  mu.hat.1.deriv <- createFunctionWithBody(mu.hat.1Body, z, weights, p.score)
+  p.score.deriv  <- createFunctionWithBody(p.scoreBody, z, weights, p.score, cite, psi)
+  getIC          <- createFunctionWithBody(icBody, y, mu.hat, cite, psi, a.weight)
+  calcLoss       <- createFunctionWithBody(calcLossBody, y, z, mu.hat, p.score, weights)
   
-  namedList(getYhat0Deriv, getYhat1Deriv, getPScoreDeriv, getIC, calcLoss)
+  namedList(mu.hat.0.deriv, mu.hat.1.deriv, p.score.deriv, getIC, calcLoss)
 }
