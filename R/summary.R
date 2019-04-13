@@ -70,7 +70,7 @@ getPATEEstimate.bart.var.exp <- function(samples.icate, weights)
     
     cate.samples <- apply(weights * samples.icate, 2L, sum)
     var.between.samples <- var(cate.samples)
-    variance.samples <- apply(weights * t(t(samples) - cate.samples)^2, 2L, sum) * (n.obs / ((n.obs - 1) * n.samples))
+    variance.samples <- apply(weights * t(t(samples.icate) - cate.samples)^2, 2L, sum) * (n.obs / ((n.obs - 1) * n.samples))
   } else {
     est <- mean(samples.icate)
     
@@ -153,7 +153,9 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
   # this is annoyingly complicated in order to handle grouped data
   if (target == "pate") {
     if (object$method.rsp %in% c("tmle", "p.weight")) {
-      if ((!is.list(object$est) && is.null(dim(object$est))) || is.null(dim(object$est[[1L]]))) {
+      if ((!is.list(object$est) && is.null(dim(object$est))) ||
+          ( is.list(object$est) && is.null(dim(object$est[[1L]]))))
+      {
         getATEEstimate <- getPATEEstimate.tmle.nosamp
         getATEInterval <- getPATEIntervalFunction.tmle.nosamp(ci.style)
       } else {
@@ -225,6 +227,8 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
         weights <- weights / sum(weights)
       }
       
+      # go through and subset variables that are grouped, sometimes in lists
+      # sometimes in vectors
       for (varName in c("samples.tmle", "samples.cate", "samples.pate"))
         if (varName %in% estimateVariables || varName %in% intervalVariables)
           assign(varName, get(varName)[[i]])
