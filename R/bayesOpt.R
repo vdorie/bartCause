@@ -71,7 +71,7 @@ getMinInRegion <- function(lh, rh, coef)
     if (!is.na(lh)) return(rh)
     return(0.5)
   }
-  if (anyNA(coef)) return(lh)
+  if (anyNA(coef)) return(if (runif(1L) < 0.5) lh else rh)
   
   f.l <- sum(lh^(0:3) * coef)
   f.r <- sum(rh^(0:3) * coef)
@@ -131,6 +131,21 @@ bayesOptimize <- function(f, x.0, n.iter = 50L, tau = 10, theta = 1, sigma.sq = 
   
   x <- x.0
   f.x <- f(x.0)
+  if (any(is.infinite(f.x) || is.na(f.x))) {
+    x <- x[is.finite(f.x) && !is.na(f.x)]
+    f.x <- f.x[is.finite(f.x) && !is.na(f.x)]
+  }
+  if (length(x) <= 2L) {
+    x.new <- seq(min(x.0), max(x.0), length.out = 5L) 
+    x <- c(x, x.new)
+    f.x <- c(f.x, f(x.new))
+    x <- x[is.finite(f.x) && !is.na(f.x)]
+    f.x <- f.x[is.finite(f.x) && !is.na(f.x)]
+    
+    f.x <- f.x[order(x)]
+    x   <- sort(x)
+    if (length(x) <= 2L) stop("cannot find valid starting points for optimizer")
+  }
   mu    <- mean(f.x)
   sigma <- sd(f.x)
   
@@ -159,7 +174,6 @@ bayesOptimize <- function(f, x.0, n.iter = 50L, tau = 10, theta = 1, sigma.sq = 
       coef <- c(f.p[1L] - 3 * coef[2L] * x.j^2 - 2 * coef[1L] * x.j, coef)
       coef <- c(post.mean(x.j, GP) - sum(x.j^(1:3) * coef), coef)
       
-      if (anyNA(coef)) browser()
       x.prop[j] <- getMinInRegion(x.j, x.uni[j + 1], coef)
       
       muSigma <- post.mean.var(x.prop[j], GP)
@@ -237,9 +251,9 @@ bayesOptimize <- function(f, x.0, n.iter = 50L, tau = 10, theta = 1, sigma.sq = 
     x <- x[o]
     f.x <- f.x[o]
     
-    if (any(is.infinite(f.x))) {
-      x <- x[is.finite(f.x)]
-      f.x <- f.x[is.finite(f.x)]
+    if (any(is.infinite(f.x) || is.na(f.x))) {
+      x <- x[is.finite(f.x) && !is.na(f.x)]
+      f.x <- f.x[is.finite(f.x) && !is.na(f.x)]
     }
     
     if (i <= 5L) {
