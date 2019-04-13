@@ -237,6 +237,11 @@ bayesOptimize <- function(f, x.0, n.iter = 50L, tau = 10, theta = 1, sigma.sq = 
     x <- x[o]
     f.x <- f.x[o]
     
+    if (any(is.infinite(f.x))) {
+      x <- x[is.finite(f.x)]
+      f.x <- f.x[is.finite(f.x)]
+    }
+    
     if (i <= 5L) {
       mu <- mean(f.x)
       sigma <- sd(f.x)
