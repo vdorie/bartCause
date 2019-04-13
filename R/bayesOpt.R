@@ -255,6 +255,7 @@ bayesOptimize <- function(f, x.0, n.iter = 50L, tau = 10, theta = 1, sigma.sq = 
     }
     
     if (anyNA(x)) {
+      browser()
       f.x <- f.x[!is.na(x)]
       x   <- x[!is.na(x)]
     }
@@ -293,5 +294,8 @@ bayesOptimize <- function(f, x.0, n.iter = 50L, tau = 10, theta = 1, sigma.sq = 
     legend("topright", c("ei", "mu", "curv", "sig"), pch = 20, col = 2:5, bty = "n")
   }
   
-  x[which.min(post.mean(x, GP))]
+  res <- x[which.min(post.mean(x, GP))[1L]]
+  if (length(res) != 1L || anyNA(res))
+    stop("result NA somehow")
+  res
 }
