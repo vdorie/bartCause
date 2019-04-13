@@ -84,17 +84,13 @@ getBartResponseFit <- function(response, treatment, confounders, data, subset, w
   
   responseIsBinary <- length(unique(responseData@y)) == 2L
   
-  if (crossvalidateBinary && responseIsBinary) {
-    cat("crossvalidatin\n")
+  if (crossvalidateBinary && responseIsBinary)
     bartCall <- optimizeBARTCall(bartCall, evalEnv)
-  }
+  
   
   bartFit <- eval(bartCall, envir = evalEnv)
   
   T <- if (responseIsBinary) pnorm else function(x) x
-  
-  weights <- if (weightsAreMissing) NULL else eval(matchedCall$weights, envir = data)
-  if (!is.null(weights)) weights <- weights / sum(weights)
   
   if (is.null(missingData)) {
     trt <- responseData@x[,treatmentName]
@@ -275,7 +271,7 @@ getPWeightResponseFit <-
   namedList(fit, data, mu.hat.obs, mu.hat.cf, name.trt, trt, sd.obs, sd.cf, commonSup.sub, missingRows, est, fitPars = namedList(yBounds, p.scoreBounds))
 }
 
-getTMLEEstimates <- function(y, z, weights, estimand, mu.hat.0, mu.hat.1, p.score, yBounds, p.scoreBounds, depsilon, maxIter)
+getTMLEEstimates <- function(y, z, weights, estimand, mu.hat.0, mu.hat.1, p.score, yBounds, p.scoreBounds, depsilon, maxIter, n.threads)
 {
   if (!is.character(estimand) || estimand[1L] %not_in% c("ate", "att", "atc"))
     stop("estimand must be one of 'ate', 'att', or 'atc'")
@@ -308,10 +304,39 @@ getTMLEEstimates <- function(y, z, weights, estimand, mu.hat.0, mu.hat.1, p.scor
                        c(length(y), prod(dim(mu.hat.0)[-1L]), 2L), dimnames = list(NULL, NULL, c("Q0W", "Q1W"))),
                  c(1L, 3L, 2L))
       
-      result <- t(sapply(seq_len(dim(Q)[3L]), function(i) {
-        res <- tmle::tmle(Y = y, A = z, W = W, Q = Q[,,i], g1W = if (!is.null(dim(p.score))) p.score[,i] else p.score)
-        unlist(res$estimates[[switch(estimand, ate = "ATE", att = "ATT", atc = "ATC")]][c("psi", "var.psi")])
-      }))
+      if (n.threads == 1L) {
+        result <- t(sapply(seq_len(dim(Q)[3L]), function(i) {
+          res <- tmle::tmle(Y = y, A = z, W = W, Q = Q[,,i], g1W = if (!is.null(dim(p.score))) p.score[,i] else p.score)
+          unlist(res$estimates[[switch(estimand, ate = "ATE", att = "ATT", atc = "ATC")]][c("psi", "var.psi")])
+        }))
+      } else {
+        cluster <- makeCluster(n.threads)
+        
+        clusterExport(cluster, c("y", "z", "W", "estimand"), sys.frame(sys.nframe()))
+        
+        numSamples <- dim(Q)[3L]
+        numSamplesPerThread <- numSamples %/% n.threads + if (numSamples %% n.threads != 0L) 1L else 0L
+        numFullThreads <- n.threads + numSamples - numSamplesPerThread * n.threads
+        
+        data.list <- lapply(seq_len(n.threads), function(i) {
+          start <- 1L + if (i <= numFullThreads) (i - 1L) * numSamplesPerThread else numFullThreads * numSamplesPerThread + (i - numFullThreads - 1L) * (numSamplesPerThread - 1L)
+          ind <- seq.int(start, length.out = numSamplesPerThread - if (i <= numFullThreads) 0L else 1L)
+          list(Q = Q[,,ind,drop = FALSE], p.score = if (!is.null(dim(p.score))) p.score[,ind,drop = FALSE] else p.score)
+        })
+        
+        tryResult <- tryCatch(results.list <- clusterApply(cluster, data.list, function(x) {
+          Q <- x$Q
+          p.score <- x$p.score
+          sapply(seq_len(dim(Q)[3L]), function(i) {
+            res <- tmle::tmle(Y = y, A = z, W = W, Q = Q[,,i], g1W = if (!is.null(dim(p.score))) p.score[,i] else p.score)
+            unlist(res$estimates[[switch(estimand, ate = "ATE", att = "ATT", atc = "ATC")]][c("psi", "var.psi")])
+          })
+        }), error = I)
+    
+        stopCluster(cluster)
+        
+        result <- t(matrix(unlist(results.list), 2L, numSamples))
+      }
       result[,2L] <- sqrt(result[,2L])
       if (length(dim(mu.hat.0)) > 2L) {
         result <- array(result, c(dim(mu.hat.0)[-1L], 2L), dimnames = list(NULL, NULL, c("est", "se")))
@@ -346,7 +371,7 @@ getTMLEEstimates <- function(y, z, weights, estimand, mu.hat.0, mu.hat.1, p.scor
   getmu.hat.0Deriv <- getmu.hat.1Deriv <- getPScoreDeriv <- getIC <- calcLoss <- NULL
   assignAll(getTMLEFunctions(estimand, weights))
   
-  result <- sapply(seq_len(ncol(mu.hat.0.samp)), function(i) {
+  result <- t(sapply(seq_len(ncol(mu.hat.0.samp)), function(i) {
     mu.hat.0 <- mu.hat.0.samp[,i]
     mu.hat.1 <- mu.hat.1.samp[,i]
     mu.hat <- mu.hat.1 * z + mu.hat.0 * (1 - z)
@@ -409,13 +434,16 @@ getTMLEEstimates <- function(y, z, weights, estimand, mu.hat.0, mu.hat.1, p.scor
       c(psi.prev, sd(ic.prev) / sqrt(length(y.st)))
     else
       c(psi, sd(ic) / sqrt(length(y.st)))
-  })
+  }))
   
-  browser()
+  result[,1L] <- result[,1L] * (max(r.st) - min(r.st))
+  colnames(result) <- c("est", "se")
+
+  
   if (!is.null(origDims) && length(origDims) > 2L)
-    matrix(result, origDims[2L], origDims[3L]) * (max(r.st) - min(r.st))
-  else
-    result * (max(r.st) - min(r.st))
+    result <- array(result, c(origDims[2L], origDims[3L], 2L), dimnames = list(NULL, NULL, c("est", "se")))
+  
+  result
 }
 
 getTMLEResponseFit <-
@@ -464,14 +492,16 @@ getTMLEResponseFit <-
     }
     
     if (posteriorOfTMLE) {
+      n.threads <- if ("n.threads" %in% names(list(...))) list(...)[["n.threads"]] else dbarts::guessNumCores()
       est <- getTMLEEstimates(fit$y[commonSup.sub], trt[commonSup.sub], weights, estimand,
-                              mu.hat.0, mu.hat.1, p.score, yBounds, p.scoreBounds, depsilon, maxIter)
+                              mu.hat.0, mu.hat.1, p.score, yBounds, p.scoreBounds, depsilon, maxIter,
+                              n.threads = n.threads)
     } else {
       est <- getTMLEEstimates(fit$y[commonSup.sub], trt[commonSup.sub], weights, estimand,
                               apply(mu.hat.0, 1L, mean),
                               apply(mu.hat.1, 1L, mean),
                               if (!is.null(dim(p.score))) apply(p.score, 1L, mean) else p.score,
-                              yBounds, p.scoreBounds, depsilon, maxIter)
+                              yBounds, p.scoreBounds, depsilon, maxIter, n.threads = 1L)
     }
   } else {
     est <- lapply(levels(group.by), function(level) {

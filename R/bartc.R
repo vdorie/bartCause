@@ -99,6 +99,10 @@ bartc <- function(
     p.weight = redirectCall(matchedCall, quoteInNamespace(getPWeightResponseFit)),
     tmle     = redirectCall(matchedCall, quoteInNamespace(getTMLEResponseFit)))
   
+  argsToAdd <- names(matchedCall) %in% names(formals(getBartResponseFit)) & names(matchedCall) %not_in% names(responseCall)
+  if (any(argsToAdd)) for (argName in names(matchedCall)[argsToAdd])
+    responseCall[[argName]] <- matchedCall[[argName]]
+  
   if (!is.null(matchedCall$commonSup.rule)) {
      if (is.null(matchedCall$commonSup.cut))
        commonSup.cut <- eval(formals(bartCause::bartc)$commonSup.cut)[match(commonSup.rule, eval(formals(bartCause::bartc)$commonSup.rule))]

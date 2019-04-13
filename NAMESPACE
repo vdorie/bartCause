@@ -20,3 +20,5 @@ importFrom(stats, quantile, setNames, coef)
 
 importFrom(graphics, abline, hist, lines, plot)
 importFrom(graphics, legend, mtext, par, points)
+
+importFrom(parallel, makeCluster, clusterExport, clusterEvalQ, clusterApply, stopCluster)

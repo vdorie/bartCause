@@ -12,7 +12,8 @@ Imports:
   tmle,
   methods,
   stats,
-  graphics
+  graphics,
+  parallel
 Suggests:
   testthat (>= 0.9-0),
   rpart
