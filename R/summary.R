@@ -87,7 +87,6 @@ getPATEEstimate.bart.ppd <- function(samples.cate, weights, sigma, samples.obs, 
 {
   est <- mean(samples.cate)
   
-  browser()
   sd <- sqrt(var(samples.cate) +
     if (!is.null(sigma))
       2 * mean(sigma^2) / numObservations
@@ -96,7 +95,7 @@ getPATEEstimate.bart.ppd <- function(samples.cate, weights, sigma, samples.obs, 
       if (!is.null(weights))
         mean(apply(weights * samples.var, 2L, sum) / numObservations)
       else
-        mean(apply(samples.var, 1L, mean) / numObservations)
+        mean(apply(samples.var, 2L, mean) / numObservations)
     })
   c(estimate = est, sd = sd)
 }
@@ -196,7 +195,8 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
            samples.sate  = extract(object, "sate"),
            sigma         = object$fit.rsp$sigma,
            samples.obs   = flattenSamples(object$mu.hat.obs),
-           samples.cf    = flattenSamples(object$mu.hat.cf)
+           samples.cf    = flattenSamples(object$mu.hat.cf),
+           numObservations = numObservations
     ))
     estimateCall[[i + 1L]] <- parse(text = varName)[[1L]]
   }
