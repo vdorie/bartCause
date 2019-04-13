@@ -242,8 +242,6 @@ bayesOptimize <- function(f, x.0, n.iter = 50L, tau = 10, theta = 1, sigma.sq = 
     
     x.new <- x.prop[i.new]
     
-    x.plot <- seq(min(x.0), max(x.0), length.out = 101)
-    
     x <- c(x, x.new)
     f.x <- c(f.x, f(x.new))
     
@@ -251,9 +249,14 @@ bayesOptimize <- function(f, x.0, n.iter = 50L, tau = 10, theta = 1, sigma.sq = 
     x <- x[o]
     f.x <- f.x[o]
     
-    if (any(is.infinite(f.x) || is.na(f.x))) {
+    if (any(is.infinite(f.x) | is.na(f.x))) {
       x <- x[is.finite(f.x) && !is.na(f.x)]
       f.x <- f.x[is.finite(f.x) && !is.na(f.x)]
+    }
+    
+    if (anyNA(x)) {
+      f.x <- f.x[!is.na(x)]
+      x   <- x[!is.na(x)]
     }
     
     if (i <= 5L) {
