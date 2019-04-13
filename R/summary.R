@@ -1,7 +1,7 @@
 getPATEEstimate.tmle.nosamp <- function(samples.tmle)
 {
-  est <- samples[["est"]]
-  sd  <- samples[["se"]]
+  est <- samples.tmle[["est"]]
+  sd  <- samples.tmle[["se"]]
   
   c(estimate = est, sd = sd)
 }
@@ -365,7 +365,8 @@ print.bartcFit <- function(x, digits = max(3L, getOption("digits") - 3L), ...)
   if (!is.null(x$call))
     cat("Call:\n", paste0(deparse(x$call), collapse = "\n  "), "\n\n", sep = "")
   
-  cat("Treatment effect (", x$estimand, ", cate): ", format(fitted(x, "cate"), digits = digits), "\n", sep = "", ...)
+  target <- if (x$method.rsp %in% c("p.weight", "tmle")) "pate" else "cate"
+  cat("Treatment effect (", x$estimand, ", ", target, "): ", format(fitted(x, target), digits = digits), "\n", sep = "", ...)
   
   invisible(x)
 }

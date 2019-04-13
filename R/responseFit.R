@@ -1,5 +1,5 @@
 getBartResponseFit <- function(response, treatment, confounders, data, subset, weights, estimand, group.by,
-                               commonSup.rule, commonSup.cut, p.score, use.rbart, calculateEstimates = TRUE, ...)
+                               commonSup.rule, commonSup.cut, p.score, use.rbart, crossvalidateBinary = FALSE, calculateEstimates = TRUE, ...)
 {
   treatmentIsMissing    <- missing(treatment)
   responseIsMissing     <- missing(response)
@@ -80,8 +80,17 @@ getBartResponseFit <- function(response, treatment, confounders, data, subset, w
   
   evalEnv <- new.env(parent = callingEnv)
   evalEnv[["responseData"]] <- responseData
+  
+  
+  responseIsBinary <- length(unique(responseData@y)) == 2L
+  
+  if (crossvalidateBinary && responseIsBinary) {
+    cat("crossvalidatin\n")
+    bartCall <- optimizeBARTCall(bartCall, evalEnv)
+  }
+  
   bartFit <- eval(bartCall, envir = evalEnv)
-  responseIsBinary <- is.null(bartFit[["sigma"]])
+  
   T <- if (responseIsBinary) pnorm else function(x) x
   
   weights <- if (weightsAreMissing) NULL else eval(matchedCall$weights, envir = data)

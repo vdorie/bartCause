@@ -5,14 +5,15 @@ flattenSamples <- function(y) {
 
 bartc <- function(
   response, treatment, confounders, data, subset, weights,
-  method.rsp = c("bart", "tmle", "bcf", "p.weight"),
-  method.trt = c("bart", "glm", "none", "bart.xval"),
+  method.rsp = c("bart", "tmle", "p.weight"),
+  method.trt = c("bart", "glm", "none"),
   estimand   = c("ate", "att", "atc"),
   group.by = NULL,
   commonSup.rule = c("none", "sd", "chisq"),
   commonSup.cut  = c(NA_real_, 1, 0.05),
   args.rsp = list(), args.trt = list(),
   p.scoreAsCovariate = TRUE, use.rbart = FALSE,
+  crossvalidateBinary = FALSE,
   keepCall = TRUE, verbose = TRUE, ...
 )
 {
@@ -69,7 +70,6 @@ bartc <- function(
     treatmentCall <- switch(method.trt,
       glm       = redirectCall(matchedCall, quoteInNamespace(getGLMTreatmentFit)),
       bart      = redirectCall(matchedCall, quoteInNamespace(getBartTreatmentFit)),
-      bart.xval = redirectCall(matchedCall, quoteInNamespace(getBartXValTreatmentFit)),
       none      = NULL)
     if (!is.null(args.trt) && length(args.trt) > 0L)
       treatmentCall[names(matchedCall[["args.trt"]])[-1L]] <- matchedCall[["args.trt"]][-1L]
@@ -94,7 +94,7 @@ bartc <- function(
     warning("p.scoreAsCovariate == TRUE requires method.trt != 'none'")
   
   responseCall <- switch(method.rsp,
-    bcf      = redirectCall(matchedCall, quoteInNamespace(bcf)),
+    #bcf      = redirectCall(matchedCall, quoteInNamespace(bcf)),
     bart     = redirectCall(matchedCall, quoteInNamespace(getBartResponseFit)),
     p.weight = redirectCall(matchedCall, quoteInNamespace(getPWeightResponseFit)),
     tmle     = redirectCall(matchedCall, quoteInNamespace(getTMLEResponseFit)))
