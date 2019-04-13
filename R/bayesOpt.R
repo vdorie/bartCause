@@ -66,8 +66,18 @@ optimizeBARTCall <- function(bartCall, env)
 getMinInRegion <- function(lh, rh, coef)
 {
   # ax^3 + bx^2 + cx + d
+  if (is.na(lh) || is.na(rh)) {
+    if (!is.na(rh)) return(lh)
+    if (!is.na(lh)) return(rh)
+    return(0.5)
+  }
+  f.l <- sum(lh^(0:3) * coef)
+  f.r <- sum(rh^(0:3) * coef)
+  if (anyNA(coef)) return(if (f.l < f.r) lh else rh)
+  
   a <- coef[4L]; b <- coef[3L]; c <- coef[2L]; d <- coef[1L]
-  if (a != 0) {
+  
+  if (!is.na(a) != 0) {
     disc <- 4 * (b^2 - 3 * a * c)
     if (disc < 0) return(0.5 * (lh + rh))
     roots <- (-2 * b + c(-1, 1) * sqrt(disc)) / (6 * a)
@@ -75,12 +85,12 @@ getMinInRegion <- function(lh, rh, coef)
     if (any(validRoots))
       mean(roots[validRoots])
     else
-      0.5 * (lh + rh)
+      { if (f.l < f.r) lh else rh }
   } else if (b != 0) {
-    browser()
-    -coef[1] / (2 * coef[3])
+    root <- -coef[1] / (2 * coef[3])
+    if (root > lh && root < rh) root else { if (f.l < f.r) lh else rh }
   } else {
-    if (coef[2] <= 0) lh else rh
+    { if (f.l < f.r) lh else rh }
   }
 }
 
@@ -97,14 +107,15 @@ bayesOptimize <- function(f, x.0, n.iter = 50L, tau = 10, theta = 1, sigma.sq = 
     result <- theta^2 * cbind(ifelse(t < x, (t + tau) * (x + tau) - 0.5 * (t + tau)^2, 0.5 * (x + tau)^2),
                               ifelse(t < x, x - t, 0),
                               ifelse(t < x, -1, 0))
-    as.vector(crossprod(solve(GP$K.l, result), GP$K.ly))
+    as.vector(crossprod(result, GP$v))
   }
   post.mean <- function(x.new, GP)
-    as.vector(crossprod(solve(GP$K.l, covFunc(GP$x, x.new)), GP$K.ly))
+  #  as.vector(crossprod(solve(GP$K.l, covFunc(GP$x, x.new)), GP$K.ly))
+    as.vector(crossprod(covFunc(GP$x, x.new), GP$v))
   post.var <- function(x.new, GP)
     covFunc(x.new) - crossprod(solve(GP$K.l, covFunc(GP$x, x.new)))
   post.mean.var <- function(x.new, GP) {
-    L.invKxt <- solve(GP$K.l, covFunc(x, x.new))
+    L.invKxt <- solve(GP$K.l, covFunc(GP$x, x.new))
     list(mu    = as.vector(crossprod(L.invKxt, GP$K.ly)),
          Sigma = covFunc(x.new) - crossprod(L.invKxt))
   }
@@ -130,21 +141,26 @@ bayesOptimize <- function(f, x.0, n.iter = 50L, tau = 10, theta = 1, sigma.sq = 
       K <- covFunc(x) + diag(sigma.sq, length(x))
       K.l <- t(chol(K))
       K.ly <- solve(K.l, f.x.p)
+      v <- solve(t(K.l), K.ly)
     })
     
-    n.prop  <- length(x) - 1L
+    x.uni <- unique(x)
+    n.prop  <- length(x.uni) - 1L
     x.prop  <- rep(NA, n.prop)
+    
     mu.prop <- rep(NA, n.prop)
     curv.prop <- rep(NA, n.prop) # curvature
     sigma.prop <- rep(NA, n.prop)
+    
     for (j in seq_len(n.prop)) {
-      x.j <- x[j]
+      x.j <- x.uni[j]
       f.p <- getDerivatives(x.j, GP)
       coef <- c(0.5 * (f.p[2L] - f.p[3L] * x.j), f.p[3L] / 6)
       coef <- c(f.p[1L] - 3 * coef[2L] * x.j^2 - 2 * coef[1L] * x.j, coef)
       coef <- c(post.mean(x.j, GP) - sum(x.j^(1:3) * coef), coef)
       
-      x.prop[j] <- getMinInRegion(x.j, x[j + 1], coef)
+      if (anyNA(coef)) browser()
+      x.prop[j] <- getMinInRegion(x.j, x.uni[j + 1], coef)
       
       muSigma <- post.mean.var(x.prop[j], GP)
       mu.prop[j] <- muSigma$mu
@@ -153,7 +169,29 @@ bayesOptimize <- function(f, x.0, n.iter = 50L, tau = 10, theta = 1, sigma.sq = 
       f.p.prop <- getDerivatives(x.prop[j], GP)
       curv.prop[j] <- f.p.prop[2L] / (1 + f.p.prop[1L]^2)^1.5
     }
-   
+    
+    # make sure end points can be considered
+    if (x.prop[1L] != x.uni[1L]) {
+      x.prop <- c(x.uni[1L], x.prop)
+      n.prop <- n.prop + 1L
+      
+      muSigma <- post.mean.var(x.prop[1L], GP)
+      mu.prop <- c(muSigma$mu, mu.prop)
+      sigma.prop <- c(sqrt(muSigma$Sigma[1L]), sigma.prop)
+      f.p <- getDerivatives(x.prop[1L], GP)
+      curv.prop <- c(f.p[2L] / (1 + f.p[1L]^2)^1.5, curv.prop)
+    }
+    if (x.prop[length(x.prop)] != x.uni[length(x.uni)]) {
+      x.prop <- c(x.prop, x.uni[length(x.uni)])
+      n.prop <- n.prop + 1L
+      
+      muSigma <- post.mean.var(x.prop[n.prop], GP)
+      mu.prop <- c(mu.prop, muSigma$mu)
+      sigma.prop <- c(sigma.prop, sqrt(muSigma$Sigma[1L]))
+      f.p <- getDerivatives(x.prop[n.prop], GP)
+      curv.prop <- c(curv.prop, f.p[2L] / (1 + f.p[1L]^2)^1.5)
+    }
+       
     eta <- min(mu.prop)
     ei <- rep(NA, n.prop) # expected improvement
     for (j in seq_along(x.prop))
@@ -189,6 +227,8 @@ bayesOptimize <- function(f, x.0, n.iter = 50L, tau = 10, theta = 1, sigma.sq = 
     i.new <- c(i.new, i.sigma)
     
     x.new <- x.prop[i.new]
+    
+    x.plot <- seq(min(x.0), max(x.0), length.out = 101)
     
     x <- c(x, x.new)
     f.x <- c(f.x, f(x.new))
