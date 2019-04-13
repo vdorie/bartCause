@@ -515,14 +515,16 @@ getTMLEResponseFit <-
       if (!is.null(weights)) weights <- weights[levelRows]
       
       if (posteriorOfTMLE) {
+        n.threads <- if ("n.threads" %in% names(list(...))) list(...)[["n.threads"]] else dbarts::guessNumCores()
         getTMLEEstimates(fit$y[levelRows], trt[levelRows], weights, estimand,
-                         mu.hat.0, mu.hat.1, p.score, yBounds, p.scoreBounds, depsilon, maxIter)
+                         mu.hat.0, mu.hat.1, p.score, yBounds, p.scoreBounds, depsilon, maxIter,
+                         n.threads = n.threads)
       } else {
         est <- getTMLEEstimates(fit$y[levelRows], trt[levelRows], weights, estimand,
                                 apply(mu.hat.0, 1L, mean),
                                 apply(mu.hat.1, 1L, mean),
                                 if (!is.null(dim(p.score))) apply(p.score, 1L, mean) else p.score,
-                                yBounds, p.scoreBounds, depsilon, maxIter)
+                                yBounds, p.scoreBounds, depsilon, maxIter, n.threads = 1L)
       }
     })
     names(est) <- levels(group.by)

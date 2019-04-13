@@ -13,24 +13,24 @@ test_that("naive bart matches old", {
 test_that("bart on p.score matches old", {
   set.seed(22)
   fit <- bartc(y, z, x, testData,
-               method.rsp = "bart", method.trt = "bart.xval", estimand = "att", verbose = FALSE,
+               method.rsp = "bart", method.trt = "bart", estimand = "att", verbose = FALSE,
                n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L, n.trees = 5L, n.reps = 5L)
-  expect_equal(fitted(fit, "cate"), 0.216224889131285)
+  expect_equal(fitted(fit, "cate"), -0.292368476106707)
 })
 
 test_that("bart w/p.weighting matches old", {
   set.seed(22)
   fit <- bartc(y, z, x, testData,
-               method.rsp = "p.weight", method.trt = "bart.xval", estimand = "att", verbose = FALSE,
+               method.rsp = "p.weight", method.trt = "bart", estimand = "att", verbose = FALSE,
                n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L, n.trees = 5L, n.reps = 5L)
-  expect_equal(fitted(fit, "pate"), 0.195646445418943)
+  expect_equal(fitted(fit, "pate"), -0.245729972409719)
 })
 
 test_that("bart w/TMLE matches old", {
   set.seed(22)
   fit <- bartc(y, z, x, testData,
-               method.rsp = "tmle", method.trt = "bart.xval", estimand = "att", verbose = FALSE,
+               method.rsp = "tmle", method.trt = "bart", estimand = "att", verbose = FALSE,
                n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L, n.trees = 5L, n.reps = 5L)
-  expect_equal(fitted(fit, "pate"), 0.21118043658438)
+  expect_equal(fitted(fit, "pate"), 0.775833381080805)
 })
 

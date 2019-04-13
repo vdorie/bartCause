@@ -25,9 +25,10 @@ test_that("bart fit adds extra defaults", {
   expect_equal(dim(res$samples), c(nrow(testData$x), 10L, 12L))
 })
 
-test_that("xbart fit matches manual call", {
+# commenting this out until more control over how long the crossvalidation runs is baked in
+if (FALSE) test_that("xbart fit matches manual call", {
   set.seed(22)
-  res <- bartCause:::getBartXValTreatmentFit(z, x, testData, n.chains = 1L, n.threads = 1L, n.burn = 25, n.samples = 75, n.trees = 25L, n.reps = 10L)
+  res <- bartCause:::getBartTreatmentFit(z, x, testData, n.chains = 1L, n.threads = 1L, n.burn = 25, n.samples = 75, n.trees = 25L, crossvalidateBinary = TRUE)
   set.seed(22)
   k <- c(0.5, 1, 2, 4, 8)
   xVal <- dbarts::xbart(z ~ x, testData, k = k, n.threads = 1L, n.burn = 25, n.samples = 75, n.trees = 25L, n.reps = 10L, verbose = FALSE)
@@ -37,8 +38,3 @@ test_that("xbart fit matches manual call", {
   rm(k, xVal)
 })
 
-test_that("xbart fit passes on extra args", {
-  res <- bartCause:::getBartXValTreatmentFit(z, x, testData, n.chains = 1L, n.threads = 1L, n.burn = 10L,
-                                             n.samples = list(15, 8), n.trees = c(25L, 30L), n.reps = 10L)
-  expect_equal(ncol(res$samples), 8L)
-})

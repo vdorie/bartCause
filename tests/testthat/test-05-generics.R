@@ -113,9 +113,15 @@ test_that("summary object contain correct information", {
   expect_equal(sum$estimates$estimate, unname(fitted(fit, "cate")))
 })
 
-test_that("summary works with confidence interval styles", {
+test_that("summary works with different styles", {
   expect_is(summary(fit, ci.style = "norm"),  "bartcFit.summary")
   expect_is(summary(fit, ci.style = "quant"), "bartcFit.summary")
   expect_is(summary(fit, ci.style = "hpd"),   "bartcFit.summary")
+  expect_is(summary(fit, pate.style = "ppd"), "bartcFit.summary")
+  
+  fit <- bartc(y, z, x, testData, method.trt = "glm", method.rsp = "tmle", group.by = g, n.samples = 50L,
+             n.burn = 25L, n.chains = 4L, n.threads = 1L, verbose = FALSE)
+  expect_is(summary(fit), "bartcFit.summary")
+  expect_is(summary(fit, pate.style = "ppd"), "bartcFit.summary")
 })
 
