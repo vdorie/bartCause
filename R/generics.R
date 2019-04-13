@@ -151,16 +151,14 @@ fitted.bartcFit <-
   if (!is.null(object$group.by) && value %in% c("pate", "sate", "cate"))
     return(sapply(result, function(result.i) {
       if (object$method.rsp %in% c("tmle", "p.weight") && value == "pate")
-        return(ifelse_3(is.null(dim(result.i)), length(dim(result.i)) == 2L,
-                        result.i[1L], mean(result.i[,1L]), mean(result.i[,,1L])))
+        return(mean(result.i))
       
       ifelse_3(!is.null(dim(result.i)), value != "p.score",
                apply(result.i, 1L, mean), mean(result.i), result.i)
     }))
   
   if (object$method.rsp %in% c("tmle", "p.weight") && value == "pate")
-    return(ifelse_3(is.null(dim(result)), length(dim(result)) == 2L,
-                    result[1L], mean(result[,1L]), mean(result[,,1L])))
+    return(mean(result))
   
   ifelse_3(!is.null(dim(result)), value != "p.score",
            apply(result, 1L, mean), mean(result), result)
@@ -190,7 +188,15 @@ extract.bartcFit <-
     if (value %in% c("mu", "mu.0", "mu.1", "y.0", "y.1"))
       warning("for method '", object$method.rsp, "' value '", value, "' does not have a clear interpretation")
     
-    if (value == "pate") return(object$est)
+    if (value == "pate") {
+      result <- object$est
+      return(
+        if (is.null(object$group.by))
+          ifelse_3(is.null(dim(result)), length(dim(result)) == 2L, result["est"], result[,"est"], result[,,"est"])
+        else lapply(result, function(result.i)
+          ifelse_3(is.null(dim(result.i)), length(dim(result.i)) == 2L, result.i["est"], result.i[,"est"], result.i[,,"est"]))
+      )
+    }
   }
   
   weights <- object$data.rsp@weights

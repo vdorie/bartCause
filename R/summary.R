@@ -1,7 +1,7 @@
 getPATEEstimate.tmle.nosamp <- function(samples.tmle)
 {
   est <- samples[["est"]]
-  sd  <- samples[["sd"]]
+  sd  <- samples[["se"]]
   
   c(estimate = est, sd = sd)
 }
@@ -153,8 +153,8 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
   # this is annoyingly complicated in order to handle grouped data
   if (target == "pate") {
     if (object$method.rsp %in% c("tmle", "p.weight")) {
-      if ((!is.list(object$est) && is.null(dim(object$est))) ||
-          ( is.list(object$est) && is.null(dim(object$est[[1L]]))))
+      if (( is.null(object$group.by) && is.null(dim(object$est))) ||
+          (!is.null(object$group.by) && is.null(dim(object$est[[1L]]))))
       {
         getATEEstimate <- getPATEEstimate.tmle.nosamp
         getATEInterval <- getPATEIntervalFunction.tmle.nosamp(ci.style)
