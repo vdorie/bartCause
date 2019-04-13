@@ -71,10 +71,10 @@ getMinInRegion <- function(lh, rh, coef)
     if (!is.na(lh)) return(rh)
     return(0.5)
   }
+  if (anyNA(coef)) return(lh)
+  
   f.l <- sum(lh^(0:3) * coef)
   f.r <- sum(rh^(0:3) * coef)
-  if (anyNA(coef)) return(if (f.l < f.r) lh else rh)
-  
   a <- coef[4L]; b <- coef[3L]; c <- coef[2L]; d <- coef[1L]
   
   if (!is.na(a) != 0) {
