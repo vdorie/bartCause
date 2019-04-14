@@ -250,8 +250,8 @@ bayesOptimize <- function(f, x.0, n.iter = 50L, tau = 10, theta = 1, sigma.sq = 
     f.x <- f.x[o]
     
     if (any(is.infinite(f.x) | is.na(f.x))) {
-      x <- x[is.finite(f.x) && !is.na(f.x)]
-      f.x <- f.x[is.finite(f.x) && !is.na(f.x)]
+      x <- x[is.finite(f.x) & !is.na(f.x)]
+      f.x <- f.x[is.finite(f.x) & !is.na(f.x)]
     }
     
     if (anyNA(x)) {
@@ -266,15 +266,16 @@ bayesOptimize <- function(f, x.0, n.iter = 50L, tau = 10, theta = 1, sigma.sq = 
     }
   }
   
-  if (plot) {
-    f.x.p <- (f.x - mu) / sigma
-    GP <- within(list(), {
-      x <- x
-      K <- covFunc(x) + diag(sigma.sq, length(x))
-      K.l <- t(chol(K))
-      K.ly <- solve(K.l, f.x.p)
-    })
-    
+  f.x.p <- (f.x - mu) / sigma
+  GP <- within(list(), {
+    x <- x
+    K <- covFunc(x) + diag(sigma.sq, length(x))
+    K.l <- t(chol(K))
+    K.ly <- solve(K.l, f.x.p)
+    v <- solve(t(K.l), K.ly)
+  })
+  
+  if (plot) {    
     x.plot <- seq(min(x.0), max(x.0), length.out = 101)
     temp <- post.mean.var(x.plot, GP)
     mu.hat <- temp$mu
@@ -294,7 +295,8 @@ bayesOptimize <- function(f, x.0, n.iter = 50L, tau = 10, theta = 1, sigma.sq = 
     legend("topright", c("ei", "mu", "curv", "sig"), pch = 20, col = 2:5, bty = "n")
   }
   
-  res <- x[which.min(post.mean(x, GP))[1L]]
+  x.uni <- unique(x)
+  res <- x.uni[which.min(post.mean(x.uni, GP))[1L]]
   if (length(res) != 1L || anyNA(res))
     stop("result NA somehow")
   res
