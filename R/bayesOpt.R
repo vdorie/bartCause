@@ -132,14 +132,14 @@ bayesOptimize <- function(f, x.0, n.iter = 50L, tau = 10, theta = 1, sigma.sq = 
   x <- x.0
   f.x <- f(x.0)
   if (any(is.infinite(f.x) | is.na(f.x))) {
-    x <- x[is.finite(f.x) & !is.na(f.x)]
+    x   <-   x[is.finite(f.x) & !is.na(f.x)]
     f.x <- f.x[is.finite(f.x) & !is.na(f.x)]
   }
   if (length(x) <= 2L) {
     x.new <- seq(min(x.0), max(x.0), length.out = 5L) 
     x <- c(x, x.new)
     f.x <- c(f.x, f(x.new))
-    x <- x[is.finite(f.x) & !is.na(f.x)]
+    x   <-   x[is.finite(f.x) & !is.na(f.x)]
     f.x <- f.x[is.finite(f.x) & !is.na(f.x)]
     
     f.x <- f.x[order(x)]
@@ -250,14 +250,8 @@ bayesOptimize <- function(f, x.0, n.iter = 50L, tau = 10, theta = 1, sigma.sq = 
     f.x <- f.x[o]
     
     if (any(is.infinite(f.x) | is.na(f.x))) {
-      x <- x[is.finite(f.x) & !is.na(f.x)]
+      x   <-   x[is.finite(f.x) & !is.na(f.x)]
       f.x <- f.x[is.finite(f.x) & !is.na(f.x)]
-    }
-    
-    if (anyNA(x)) {
-      browser()
-      f.x <- f.x[!is.na(x)]
-      x   <- x[!is.na(x)]
     }
     
     if (i <= 5L) {
@@ -298,6 +292,7 @@ bayesOptimize <- function(f, x.0, n.iter = 50L, tau = 10, theta = 1, sigma.sq = 
   x.uni <- unique(x)
   res <- x.uni[which.min(post.mean(x.uni, GP))[1L]]
   if (length(res) != 1L || anyNA(res))
-    stop("result NA somehow")
+    #stop("result NA somehow")
+    browser()
   res
 }
