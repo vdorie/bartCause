@@ -131,16 +131,16 @@ bayesOptimize <- function(f, x.0, n.iter = 50L, tau = 10, theta = 1, sigma.sq = 
   
   x <- x.0
   f.x <- f(x.0)
-  if (any(is.infinite(f.x) || is.na(f.x))) {
-    x <- x[is.finite(f.x) && !is.na(f.x)]
-    f.x <- f.x[is.finite(f.x) && !is.na(f.x)]
+  if (any(is.infinite(f.x) | is.na(f.x))) {
+    x <- x[is.finite(f.x) & !is.na(f.x)]
+    f.x <- f.x[is.finite(f.x) & !is.na(f.x)]
   }
   if (length(x) <= 2L) {
     x.new <- seq(min(x.0), max(x.0), length.out = 5L) 
     x <- c(x, x.new)
     f.x <- c(f.x, f(x.new))
-    x <- x[is.finite(f.x) && !is.na(f.x)]
-    f.x <- f.x[is.finite(f.x) && !is.na(f.x)]
+    x <- x[is.finite(f.x) & !is.na(f.x)]
+    f.x <- f.x[is.finite(f.x) & !is.na(f.x)]
     
     f.x <- f.x[order(x)]
     x   <- sort(x)
