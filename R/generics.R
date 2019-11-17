@@ -267,8 +267,8 @@ extract.bartcFit <-
   
   subset <- rep_len(TRUE, dim(result)[1L])
   if (sample == "inferential") {
-    if (object$estimand == "att") subset <- object$trt
-    else if (object$estimand == "atc") subset <- !object$trt
+    if (object$estimand == "att") subset <- object$trt > 0
+    else if (object$estimand == "atc") subset <- object$trt <= 0
   }
   
   if (length(dim(result)) > 2L)

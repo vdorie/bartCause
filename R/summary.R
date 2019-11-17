@@ -168,10 +168,10 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
     }
   } else if (target == "sate") {
     getATEEstimate <- getSATEEstimate.bart
-    getATEInterval <- getSATEIntervalFunction.bart
+    getATEInterval <- getSATEIntervalFunction.bart(ci.style)
   } else if (target == "cate") {
     getATEEstimate <- getCATEEstimate.bart
-    getATEInterval <- getCATEIntervalFunction.bart
+    getATEInterval <- getCATEIntervalFunction.bart(ci.style)
   }
   
   estimateVariables <- names(formals(getATEEstimate))
@@ -183,8 +183,8 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
   weights <- object$data.rsp@weights
   inferentialSubset <- switch(object$estimand,
                               ate = rep(TRUE, length(object$data.rsp@y)),
-                              att = object$trt == 1,
-                              atc = object$trt != 1)
+                              att = object$trt >  0,
+                              atc = object$trt <= 0)
   numObservations <- sum(inferentialSubset)
   
   # load whatever we might need
@@ -254,7 +254,7 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
 summary.bartcFit <- function(object,
                              target = c("pate", "sate", "cate"),
                              ci.style = c("norm", "quant", "hpd"), ci.level = 0.95,
-                             pate.style = c("var.exp", "ppd"),
+                             pate.style = c("ppd", "var.exp"),
                              ...)
 {
   if (!is.character(target) || target[1L] %not_in% eval(formals(summary.bartcFit)$target))
