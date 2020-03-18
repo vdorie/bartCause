@@ -47,7 +47,8 @@ optimizeBARTCall <- function(bartCall, env)
   
   wrapper <- function(k) {
     xbartCall[["k"]] <- diff(kRange) * k + min(kRange)
-    eval(xbartCall)[1L,]
+    res <- eval(xbartCall)
+    list(Score = if (!is.null(dim(res))) res[1L,] else res)
   }
   evalEnv <- new.env(parent = env)
   environment(wrapper) <- evalEnv

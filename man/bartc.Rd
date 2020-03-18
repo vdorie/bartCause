@@ -14,7 +14,7 @@ bartc(response, treatment, confounders, data, subset, weights,
       commonSup.rule = c("none", "sd", "chisq"),
       commonSup.cut  = c(NA_real_, 1, 0.05),
       args.rsp = list(), args.trt = list(),
-      p.scoreAsCovariate = TRUE, use.rbart = FALSE,
+      p.scoreAsCovariate = TRUE, use.ranef = TRUE, group.effects = FALSE,
       keepCall = TRUE, verbose = TRUE,
       \dots)
 }
@@ -88,9 +88,16 @@ bartc(response, treatment, confounders, data, subset, weights,
     A logical such that when \code{TRUE}, the propensity score is added to the response model as a
     covariate.
   }
-  \item{use.rbart}{
-    Logical specifying the use of \code{\link[=rbart_vi]{rbart}} for when \code{group.by} is supplied.
-    When \code{TRUE}, the grouping variable is added as a random intercept to the response model.
+  \item{use.ranef}{
+    Logical specifying if \code{group.by} variable - when present - should be included as a "random" or
+    "fixed" effect. If true, \code{\link[=rbart_vi]{rbart}} will be used for BART models. Using
+    random effects for treatment assignment mechanisms of type \code{"glm"} require that the
+    \code{\link{lme4}} package be available.
+  }
+  \item{group.effects}{
+    Logical specifying if effects should be calculated within groups if the \code{group.by} variable
+    is provided. Response methods of \code{"tmle"} and \code{"p.weight"} are such that if group effects
+    are calculated, then the population effect is not provided.
   }
   \item{keepCall}{
     A logical such that when \code{FALSE}, the call to \code{bartc} is not kept. This can reduce the 

@@ -19,163 +19,172 @@ test_that("bartc matches manual fit", {
   set.seed(22)
   bartcFit <- bartc(y, z, x, testData,
                     method.rsp = "bart", method.trt = "bart", verbose = FALSE,
-                    n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L)
+                    n.burn = 3L,, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L)
   
   set.seed(22)
-  fit.trt <- bart2(z ~ x, testData, verbose = FALSE,
-                   n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L)
+  fit.trt <- dbarts::bart2(z ~ x, testData, verbose = FALSE,
+                           n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L)
   p.score <- apply(pnorm(fit.trt$yhat.train), 2L, mean)
-  expect_equal(p.score, fitted(bartcFit, value = "p.score"))
+  expect_equal(p.score, fitted(bartcFit, type = "p.score"))
   
   x.train <- cbind(testData$x, z = testData$z, ps = p.score)
   x.test  <- cbind(testData$x, z = 1, ps = p.score)
   x.test <- rbind(x.test, x.test)
   x.test[seq.int(nrow(testData$x) + 1L, nrow(x.test)),"z"] <- 0
   
-  fit.rsp <- bart2(x.train, testData$y, x.test, verbose = FALSE,
-                   n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L)
-  expect_equal(extract(bartcFit, value = "mu.0"),
-               t(fit.rsp$yhat.test[,seq.int(nrow(testData$x) + 1L, nrow(x.test))]))
+  fit.rsp <- dbarts::bart2(x.train, testData$y, x.test, verbose = FALSE,
+                           n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L)
+  expect_equal(extract(bartcFit, type = "mu.0"),
+               fit.rsp$yhat.test[,seq.int(nrow(testData$x) + 1L, nrow(x.test))])
 })
 
 test_that("bartc returns valid ouput with one chain", {
   n.obs <- length(testData$y)
   
-  fit <- bartc(y, z, x, testData, method.trt = "glm", method.rsp = "bart",
-               n.samples = 200L, n.burn = 100L, n.chains = 1L, verbose = FALSE)
+  fit <- bartc(y, z, x, testData, method.trt = "glm", method.rsp = "bart", verbose = FALSE,
+               n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L)
   expect_is(fit, "bartcFit")
-  expect_equal(dim(fit$mu.hat.obs), c(n.obs, 200L))
-  expect_equal(dim(fit$mu.hat.cf), c(n.obs, 200L))
+  expect_equal(dim(fit$mu.hat.obs), c(13L, n.obs))
+  expect_equal(dim(fit$mu.hat.cf), c(13L, n.obs))
   expect_equal(length(fit$p.score), n.obs)
   expect_true(is.null(fit$samples.p.score))
   
-  fit <- bartc(y, z, x, testData, method.trt = "bart", method.rsp = "bart",
-               n.samples = 200L, n.burn = 100L, n.chains = 1L, verbose = FALSE)
+  fit <- bartc(y, z, x, testData, method.trt = "bart", method.rsp = "bart", verbose = FALSE,
+               n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L)
   
   expect_is(fit, "bartcFit")
-  expect_equal(dim(fit$mu.hat.obs), c(n.obs, 200L))
-  expect_equal(dim(fit$mu.hat.cf), c(n.obs, 200L))
+  expect_equal(dim(fit$mu.hat.obs), c(13L, n.obs))
+  expect_equal(dim(fit$mu.hat.cf), c(13L, n.obs))
   expect_equal(length(fit$p.score), n.obs)
-  expect_equal(dim(fit$samples.p.score), c(n.obs, 200L))
+  expect_equal(dim(fit$samples.p.score), c(13L, n.obs))
 })
 
 test_that("bartc returns valid ouput with two chains", {
   n.obs <- length(testData$y)
   
-  fit <- bartc(y, z, x, testData, method.trt = "glm", method.rsp = "bart",
-               n.samples = 100L, n.burn = 50L, n.chains = 2L, verbose = FALSE)
+  fit <- bartc(y, z, x, testData, method.trt = "glm", method.rsp = "bart", verbose = FALSE,
+               n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L)
   expect_is(fit, "bartcFit")
-  expect_equal(dim(fit$mu.hat.obs), c(n.obs, 2L, 100L))
-  expect_equal(dim(fit$mu.hat.cf), c(n.obs, 2L, 100L))
+  expect_equal(dim(fit$mu.hat.obs), c(2L, 13L, n.obs))
+  expect_equal(dim(fit$mu.hat.cf), c(2L, 13L, n.obs))
   expect_equal(length(fit$p.score), n.obs)
   expect_true(is.null(fit$samples.p.score))
   
-  fit <- bartc(y, z, x, testData, method.trt = "bart", method.rsp = "bart",
-               n.samples = 100L, n.burn = 50L, n.chains = 2L, verbose = FALSE)
+  fit <- bartc(y, z, x, testData, method.trt = "bart", method.rsp = "bart", verbose = FALSE,
+               n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L)
   
   expect_is(fit, "bartcFit")
-  expect_equal(dim(fit$mu.hat.obs), c(n.obs, 2L, 100L))
-  expect_equal(dim(fit$mu.hat.cf), c(n.obs, 2L, 100L))
+  expect_equal(dim(fit$mu.hat.obs), c(2L, 13L, n.obs))
+  expect_equal(dim(fit$mu.hat.cf), c(2L, 13L, n.obs))
   expect_equal(length(fit$p.score), n.obs)
-  expect_equal(dim(fit$samples.p.score), c(n.obs, 2L, 100L))
+  expect_equal(dim(fit$samples.p.score), c(2L, 13L, n.obs))
 })
 
 test_that("bartc runs with all treatment settings and one chain", {
-  expect_is(bartc(y, z, x, testData, method.trt = "glm", method.rsp = "bart",
-                  n.samples = 20L, n.burn = 10L, n.trees = 25L, n.chains = 1L, verbose = FALSE),
+  expect_is(bartc(y, z, x, testData, method.trt = "glm", method.rsp = "bart", verbose = FALSE,
+                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L),
             "bartcFit")
-  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "bart",
-                  n.samples = 20L, n.burn = 10L, n.trees = 25L, n.chains = 1L, verbose = FALSE),
-            "bartcFit")
-  if (FALSE) expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "bart", crossvalidateBinary = TRUE,
-                  n.samples = 20L, n.burn = 10L, n.trees = 25L, n.chains = 1L, n.threads = 2L, verbose = FALSE),
+  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "bart", verbose = FALSE,
+                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L),
             "bartcFit")
 })
 
 test_that("bartc runs with all treatment settings and two chains", {
-  expect_is(bartc(y, z, x, testData, method.trt = "glm", method.rsp = "bart",
-                  n.samples = 10L, n.burn = 5L, n.trees = 25L, n.chains = 2L, verbose = FALSE),
+  expect_is(bartc(y, z, x, testData, method.trt = "glm", method.rsp = "bart", verbose = FALSE,
+                  n.samples = 3L, n.burn = 5L, n.trees = 25L, n.chains = 2L),
             "bartcFit")
-  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "bart",
-                  n.samples = 10L, n.burn = 5L, n.trees = 25L, n.chains = 2L, verbose = FALSE),
-            "bartcFit")
-  if (FALSE) expect_is(bartc(y, z, x, testData, method.trt = "bart.xval", method.rsp = "bart", crossvalidateBinary = TRUE,
-                  n.samples = 10L, n.burn = 5L, n.trees = 25L, n.chains = 2L, n.threads = 2L, verbose = FALSE),
+  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "bart", verbose = FALSE,
+                  n.samples = 3L, n.burn = 5L, n.trees = 25L, n.chains = 2L),
             "bartcFit")
 })
 
 test_that("bartc runs with all response settings and one chain", {
-  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "bart",
-                  n.samples = 20L, n.burn = 10L, n.trees = 25L, n.chains = 1L, verbose = FALSE),
+  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "bart", verbose = FALSE,
+                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L),
             "bartcFit")
-  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "p.weight",
-                  n.samples = 20L, n.burn = 10L, n.trees = 25L, n.chains = 1L, verbose = FALSE),
+  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "p.weight", verbose = FALSE,
+                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L),
             "bartcFit")
-  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "tmle",
-                  n.samples = 20L, n.burn = 10L, n.trees = 25L, n.chains = 1L, verbose = FALSE),
+  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "tmle", verbose = FALSE,
+                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L),
             "bartcFit")
 })
 
 test_that("bartc runs with all response settings and two chains", {
-  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "bart",
-                  n.samples = 10L, n.burn = 5L, n.trees = 25L, n.chains = 2L, verbose = FALSE),
+  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "bart", verbose = FALSE,
+                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L),
             "bartcFit")
-  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "p.weight",
-                  n.samples = 10L, n.burn = 5L, n.trees = 25L, n.chains = 2L, verbose = FALSE),
+  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "p.weight", verbose = FALSE,
+                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L),
             "bartcFit")
-  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "tmle",
-                  n.samples = 10L, n.burn = 5L, n.trees = 25L, n.chains = 2L, verbose = FALSE),
+  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "tmle", verbose = FALSE,
+                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L),
             "bartcFit")
 })
 
+source(system.file("common", "groupedData.R", package = "bartCause"))
+
 test_that("bartc runs with all response settings and group.by set", {
-  testData$g <- sample(3L, nrow(testData$x), replace = TRUE)
-  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "bart", group.by = g,
-                  n.samples = 10L, n.burn = 5L, n.trees = 25L, n.chains = 2L, verbose = FALSE),
+  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "bart", verbose = FALSE,
+                  group.by = g, group.effects = TRUE,
+                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L),
             "bartcFit")
-  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "p.weight", group.by = g,
-                  n.samples = 10L, n.burn = 5L, n.trees = 25L, n.chains = 2L, verbose = FALSE),
+  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "p.weight", verbose = FALSE,
+                  group.by = g, group.effects = TRUE,
+                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L),
             "bartcFit")
-  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "tmle", group.by = g,
-                  n.samples = 10L, n.burn = 5L, n.trees = 25L, n.chains = 2L, verbose = FALSE, maxIter = 10),
+  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "tmle", verbose = FALSE,
+                  group.by = g, group.effects = TRUE,
+                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L, maxIter = 5L),
             "bartcFit")
   
-  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "bart", group.by = g, use.rbart = TRUE,
-                  n.samples = 10L, n.burn = 5L, n.trees = 25L, n.chains = 2L, verbose = FALSE),
+  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "bart", verbose = FALSE,
+                  group.by = g, group.effects = TRUE,
+                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L),
             "bartcFit")
-  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "p.weight", group.by = g, use.rbart = TRUE,
-                  n.samples = 10L, n.burn = 5L, n.trees = 25L, n.chains = 2L, verbose = FALSE),
+  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "p.weight", verbose = FALSE,
+                  group.by = g, group.effects = TRUE,
+                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L),
             "bartcFit")
-  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "tmle", group.by = g, use.rbart = TRUE,
-                  n.samples = 10L, n.burn = 5L, n.trees = 25L, n.chains = 2L, verbose = FALSE, maxIter = 10),
+  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "tmle", verbose = FALSE,
+                  group.by = g, group.effects = TRUE,
+                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L, maxIter = 5L),
+            "bartcFit")
+  
+  # check a bart/bart with fixed effects
+  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "bart", verbose = FALSE,
+                  group.by = g, group.effects = FALSE, use.ranef = FALSE,
+                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L),
             "bartcFit")
 })
 
 test_that("bartc runs with missing data", {
-  testData$g <- sample(3L, nrow(testData$x), replace = TRUE)
   testData$y[seq_len(10L)] <- NA
-  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "bart", group.by = g,
-                  n.samples = 10L, n.burn = 5L, n.trees = 25L, n.chains = 2L, verbose = FALSE),
+  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "bart", verbose = FALSE,
+                  group.by = g, group.effects = TRUE,
+                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L),
             "bartcFit")
-  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "p.weight", group.by = g,
-                  n.samples = 10L, n.burn = 5L, n.trees = 25L, n.chains = 2L, verbose = FALSE),
+  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "p.weight", verbose = FALSE,
+                  group.by = g, group.effects = TRUE,
+                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L),
             "bartcFit")
-  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "tmle", group.by = g,
-                  n.samples = 10L, n.burn = 5L, n.trees = 25L, n.chains = 2L, verbose = FALSE),
+  expect_is(bartc(y, z, x, testData, method.trt = "bart", method.rsp = "tmle", verbose = FALSE,
+                  group.by = g, group.effects = TRUE,
+                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L, maxIter = 5L),
             "bartcFit")
 })
 
 test_that("bartc model argument overrides work correctly", {
   bartcFit <- bartc(y, z, x, testData,
                     method.rsp = "bart", method.trt = "bart", verbose = FALSE,
-                    n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L,
+                    n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L,
                     k = "chi(1, Inf)")
   expect_true(!is.null(bartcFit$fit.trt$k))
   expect_true(!is.null(bartcFit$fit.rsp$k))
   
   bartcFit <- bartc(y, z, x, testData,
                     method.rsp = "bart", method.trt = "bart", verbose = FALSE,
-                    n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L,
+                    n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L,
                     args.trt = list(k = "chi(1, Inf)"))
   expect_true(!is.null(bartcFit$fit.trt$k))
   expect_true( is.null(bartcFit$fit.rsp$k))

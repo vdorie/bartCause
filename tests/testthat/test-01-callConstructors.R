@@ -1,6 +1,6 @@
 context("bartc input")
 
-source(system.file("common", "linearData.R", package = "bartCause"))
+source(system.file("common", "groupedData.R", package = "bartCause"))
 
 test_that("treatment call with data as list argument returns valid output", {
   res <- bartCause:::getTreatmentDataCall(stats::glm, z, x, testData)
@@ -10,10 +10,26 @@ test_that("treatment call with data as list argument returns valid output", {
   currentEnv <- sys.frame(sys.nframe())
   expect_identical(res$env, currentEnv)
   expect_identical(environment(res$call[[2L]]), currentEnv)
+  
+  
+  res <- bartCause:::getTreatmentDataCall(stats::glm, z, x, testData, group.by = g, use.ranef = FALSE)
+  expect_equal(res$call, parse(text = "stats::glm(z ~ x + g, data = testData)")[[1L]])
+  expect_identical(res$env, currentEnv)
+  expect_identical(environment(res$call[[2L]]), currentEnv)
+  
+  res <- bartCause:::getTreatmentDataCall(stats::glm, z, x, testData, group.by = g, use.ranef = TRUE, use.lmer = FALSE)
+  expect_equal(res$call, parse(text = "stats::glm(z ~ x, data = testData)")[[1L]])
+  expect_identical(res$env, currentEnv)
+  expect_identical(environment(res$call[[2L]]), currentEnv)
+  
+  res <- bartCause:::getTreatmentDataCall(stats::glm, z, x, testData, group.by = g, use.ranef = TRUE, use.lmer = TRUE)
+  expect_equal(res$call, parse(text = "stats::glm(z ~ x + (1 | g), data = testData)")[[1L]])
+  expect_identical(res$env, currentEnv)
+  expect_identical(environment(res$call[[2L]]), currentEnv)
 })
 
 test_that("treatment call with data as data.frame argument returns valid output", {
-  df <- with(testData, data.frame(x, z, y, p.score))
+  df <- with(testData, data.frame(x, z, y, p.score, g))
   res <- bartCause:::getTreatmentDataCall(stats::glm, z, X1 + X2 + X3, df)
   expect_true(res$call == parse(text = "stats::glm(z ~ X1 + X2 + X3, data = df)")[[1L]])
   
@@ -21,7 +37,21 @@ test_that("treatment call with data as data.frame argument returns valid output"
   expect_identical(res$env, currentEnv)
   expect_identical(environment(res$call[[2L]]), currentEnv)
   
-  rm(df)
+  
+  res <- bartCause:::getTreatmentDataCall(stats::glm, z, X1 + X2 + X3, df, group.by = g, use.ranef = FALSE)
+  expect_equal(res$call, parse(text = "stats::glm(z ~ X1 + X2 + X3 + g, data = df)")[[1L]])
+  expect_identical(res$env, currentEnv)
+  expect_identical(environment(res$call[[2L]]), currentEnv)
+  
+  res <- bartCause:::getTreatmentDataCall(stats::glm, z, X1 + X2 + X3, df, group.by = g, use.ranef = TRUE, use.lmer = FALSE)
+  expect_equal(res$call, parse(text = "stats::glm(z ~ X1 + X2 + X3, data = df)")[[1L]])
+  expect_identical(res$env, currentEnv)
+  expect_identical(environment(res$call[[2L]]), currentEnv)
+  
+  res <- bartCause:::getTreatmentDataCall(stats::glm, z, X1 + X2 + X3, df, group.by = g, use.ranef = TRUE, use.lmer = TRUE)
+  expect_equal(res$call, parse(text = "stats::glm(z ~ X1 + X2 + X3 + (1 | g), data = df)")[[1L]])
+  expect_identical(res$env, currentEnv)
+  expect_identical(environment(res$call[[2L]]), currentEnv)
 })
 
 test_that("treatment call with literal arguments retuns valid output", {
@@ -40,6 +70,18 @@ test_that("treatment call with literal arguments retuns valid output", {
   expect_true(res$call == parse(text = "stats::glm(zz ~ x1 + x2 + z, data = df)")[[1L]])
   
   colnames(testData$x) <- NULL
+  
+  res <- bartCause:::getTreatmentLiteralCall(stats::glm, testData$z, testData$x, group.by = testData$g, use.ranef = FALSE)
+  expect_equal(res$call, parse(text = "stats::glm(z ~ V1 + V2 + V3 + g, data = df)")[[1L]])
+  expect_true(all(colnames(res$df) %in% c("z", "V1", "V2", "V3", "g")))
+  
+  res <- bartCause:::getTreatmentLiteralCall(stats::glm, testData$z, testData$x, group.by = testData$g, use.ranef = TRUE, use.lmer = FALSE)
+  expect_equal(res$call, parse(text = "stats::glm(z ~ V1 + V2 + V3, data = df)")[[1L]])
+  expect_true(all(colnames(res$df) %in% c("z", "V1", "V2", "V3", "g")))
+  
+  res <- bartCause:::getTreatmentLiteralCall(stats::glm, testData$z, testData$x, group.by = testData$g, use.ranef = TRUE, use.lmer = TRUE)
+  expect_equal(res$call, parse(text = "stats::glm(z ~ V1 + V2 + V3 + (1 | g), data = df)")[[1L]])
+  expect_true(all(colnames(res$df) %in% c("z", "V1", "V2", "V3", "g")))
 })
 
 test_that("response call with data as list argument returns valid output", {

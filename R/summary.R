@@ -151,10 +151,12 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
   ci.probs <- evalx((1 - ci.level) / 2, c(x, 1 - x))
   
   # this is annoyingly complicated in order to handle grouped data
+  group.effects <- if (is.null(object$group.effects)) FALSE else object$group.effects
+  groupEstimates <- !is.null(object$group.by) && group.effects
   if (target == "pate") {
     if (object$method.rsp %in% c("tmle", "p.weight")) {
-      if (( is.null(object$group.by) && is.null(dim(object$est))) ||
-          (!is.null(object$group.by) && is.null(dim(object$est[[1L]]))))
+      if ((!groupEstimates && is.null(dim(object$est))) ||
+          ( groupEstimates && is.null(dim(object$est[[1L]]))))
       {
         getATEEstimate <- getPATEEstimate.tmle.nosamp
         getATEInterval <- getPATEIntervalFunction.tmle.nosamp(ci.style)
@@ -168,10 +170,10 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
     }
   } else if (target == "sate") {
     getATEEstimate <- getSATEEstimate.bart
-    getATEInterval <- getSATEIntervalFunction.bart
+    getATEInterval <- getSATEIntervalFunction.bart(ci.style)
   } else if (target == "cate") {
     getATEEstimate <- getCATEEstimate.bart
-    getATEInterval <- getCATEIntervalFunction.bart
+    getATEInterval <- getCATEIntervalFunction.bart(ci.style)
   }
   
   estimateVariables <- names(formals(getATEEstimate))
@@ -183,8 +185,8 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
   weights <- object$data.rsp@weights
   inferentialSubset <- switch(object$estimand,
                               ate = rep(TRUE, length(object$data.rsp@y)),
-                              att = object$trt == 1,
-                              atc = object$trt != 1)
+                              att = object$trt >  0,
+                              atc = object$trt <= 0)
   numObservations <- sum(inferentialSubset)
   
   # load whatever we might need
@@ -196,8 +198,8 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
            samples.cate  = extract(object, "cate"),
            samples.sate  = extract(object, "sate"),
            sigma         = object$fit.rsp$sigma,
-           samples.obs   = flattenSamples(object$mu.hat.obs),
-           samples.cf    = flattenSamples(object$mu.hat.cf),
+           samples.obs   = combineChains(object$mu.hat.obs),
+           samples.cf    = combineChains(object$mu.hat.cf),
            numObservations = numObservations
     ))
     estimateCall[[i + 1L]] <- parse(text = varName)[[1L]]
@@ -209,7 +211,7 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
     intervalCall[[i + 1L]] <- parse(text = varName)[[1L]]
   }
   
-  if (is.null(object$group.by)) {
+  if (!groupEstimates) {
     if (!is.null(weights)) weights <- weights / sum(weights)
     
     estimate <- eval(estimateCall)
@@ -236,7 +238,7 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
         if (varName %in% estimateVariables || varName %in% intervalVariables) {
           var <- get(varName)
           assign(varName, ifelse_3(is.null(dim(var)), length(dim(var)) == 2L,
-                                   var[levelObs], var[levelObs,,drop=FALSE], var[levelObs,,,drop=FALSE]))
+                                   var[levelObs], var[,levelObs,drop=FALSE], var[,,levelObs,drop=FALSE]))
         }
       }
       numObservations <- sum(levelObs)
@@ -246,15 +248,31 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
       names(interval) <- c("ci.lower", "ci.upper")
       c(estimate, interval, n = numObservations)
     })))
+    
+    # combine back to get whole if possible
+    if (object$method.rsp %in% "bart") {
+      weights.g <- estimates$n / numObservations
+      for (varName in c("samples.cate", "samples.pate"))
+        if (varName %in% estimateVariables || varName %in% intervalVariables)
+          assign(varName, colSums(t(sapply(get(varName), function(x) x)) * weights.g))
+      estimate <- eval(estimateCall)
+      interval <- eval(intervalCall)
+      
+      totalName <- "tot"
+      while (totalName %in% rownames(estimates))
+        totalName <- paste0(totalName, ".")
+      estimates[totalName,] <- c(estimate, interval, numObservations)
+    }
   }
   
   estimates
 }
 
+# TODO: document this
 summary.bartcFit <- function(object,
                              target = c("pate", "sate", "cate"),
                              ci.style = c("norm", "quant", "hpd"), ci.level = 0.95,
-                             pate.style = c("var.exp", "ppd"),
+                             pate.style = c("ppd", "var.exp"),
                              ...)
 {
   if (!is.character(target) || target[1L] %not_in% eval(formals(summary.bartcFit)$target))
@@ -279,12 +297,12 @@ summary.bartcFit <- function(object,
     stop("target '", target, "' not supported for method '", object$method.rsp)
   
   
-  numSamples      <- prod(dim(object$mu.hat.obs)[-1L])
-  numObservations <- dim(object$mu.hat.obs)[1L]
+  numSamples      <- prod(dim(object$mu.hat.obs)[-length(dim(object$mu.hat.obs))])
+  numObservations <- dim(object$mu.hat.obs)[length(dim(object$mu.hat.obs))]
   
   
   estimates <- getATEEstimates(object, target, ci.style, ci.level, pate.style)
-    
+  
   result <-
     namedList(call       = object$call,
               method.rsp = object$method.rsp,
@@ -296,9 +314,10 @@ summary.bartcFit <- function(object,
               n.chains   = object$n.chains,
               commonSup.rule = object$commonSup.rule)
   
+  groupEstimates <- !is.null(object$group.by) && !is.null(object$group.effects) && object$group.effects
   if (object$commonSup.rule != "none") {
     result$commonSup.cut <- object$commonSup.cut
-    if (is.null(object$group.by)) {
+    if (!groupEstimates) {
       n.cut <- as.data.frame(t(c(trt = sum(object$trt & !object$commonSup.sub), ctl = sum(!object$trt & !object$commonSup.sub))))
       row.names(n.cut) <- ""
     } else {

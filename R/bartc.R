@@ -1,8 +1,3 @@
-flattenSamples <- function(y) {
-  x <- NULL ## R CMD check
-  if (!is.null(dim(y)) && length(dim(y)) > 2L) evalx(dim(y), matrix(y, nrow = x[1L], ncol = x[2L] * x[3L])) else y
-}
-
 bartc <- function(
   response, treatment, confounders, data, subset, weights,
   method.rsp = c("bart", "tmle", "p.weight"),
@@ -12,17 +7,17 @@ bartc <- function(
   commonSup.rule = c("none", "sd", "chisq"),
   commonSup.cut  = c(NA_real_, 1, 0.05),
   args.rsp = list(), args.trt = list(),
-  p.scoreAsCovariate = TRUE, use.rbart = FALSE,
+  p.scoreAsCovariate = TRUE, use.ranef = TRUE, group.effects = FALSE,
   crossvalidateBinary = FALSE,
   keepCall = TRUE, verbose = TRUE, ...
 )
 {
-  matchedCall    <- match.call()
-  sysCall        <- sys.call()
-  callingEnv <- parent.frame(1L)
+  matchedCall <- match.call()
+  sysCall     <- sys.call()
+  callingEnv  <- parent.frame(1L)
   
   # some dots arg can get eaten by R's argument matching algorithm, like 'k' for keepCall
-  mismatchedArgs.sys <- names(sysCall) %not_in% names(matchedCall) & names(matchedCall) != "" &
+  mismatchedArgs.sys <- names(sysCall) %not_in% names(matchedCall) & names(sysCall) != "" &
                         names(sysCall) %in% names(formals(dbarts::bart2))
   if (any(mismatchedArgs.sys)) {
     mismatchedArgs.mc  <- sapply(matchedCall, function(x)
@@ -38,11 +33,9 @@ bartc <- function(
   }
   
   givenCall <- if (keepCall) matchedCall else call("NULL")
+  matchedCall$verbose <- NULL  
   
-  group.by <- eval(redirectCall(matchedCall, quoteInNamespace(getGroupBy)), envir = callingEnv)
-  
-  matchedCall$group.by <- group.by
-  matchedCall$verbose <- NULL
+  group.byIsLiteral <- FALSE
   
   ## check validity of character vector arguments by comparing to function prototype
   for (argName in c("method.rsp", "estimand", "commonSup.rule")) {
@@ -51,7 +44,7 @@ bartc <- function(
       stop(argName, " must be in '", paste0(eval(formals(bartCause::bartc)[[argName]]), collapse = "', '"), "'")
     assign(argName, arg[1L])
   }
-    
+  
   fit.trt <- p.score <- samples.p.score <- NULL
   if (is.numeric(method.trt)) {
     if (!is.null(dim(method.trt))) {
@@ -66,6 +59,13 @@ bartc <- function(
     if (method.trt %not_in% eval(formals(bartCause::bartc)$method.trt))
       stop("method.trt must be in '", paste0(eval(formals(bartCause::bartc)$method.trt), collapse = "', '"), "'")
     
+    
+    if (method.trt %not_in% c("none", "glm") && !is.null(matchedCall[["group.by"]]) && use.ranef) {
+      group.by <- eval(redirectCall(matchedCall, quoteInNamespace(getGroupBy)), envir = callingEnv)
+      group.byIsLiteral <- TRUE
+  
+      matchedCall[["group.by"]] <- group.by
+    }
     
     treatmentCall <- switch(method.trt,
       glm       = redirectCall(matchedCall, quoteInNamespace(getGLMTreatmentFit)),
@@ -93,6 +93,14 @@ bartc <- function(
   if (!is.null(matchedCall$p.scoreAsCovariate) && p.scoreAsCovariate == TRUE && method.trt == "none")
     warning("p.scoreAsCovariate == TRUE requires method.trt != 'none'")
   
+  
+  if (!group.byIsLiteral && !is.null(matchedCall[["group.by"]]) && use.ranef) {
+    group.by <- eval(redirectCall(matchedCall, quoteInNamespace(getGroupBy)), envir = callingEnv)
+    group.byIsLiteral <- TRUE
+    
+    matchedCall$group.by <- group.by
+  }
+  
   responseCall <- switch(method.rsp,
     #bcf      = redirectCall(matchedCall, quoteInNamespace(bcf)),
     bart     = redirectCall(matchedCall, quoteInNamespace(getBartResponseFit)),
@@ -104,8 +112,8 @@ bartc <- function(
     responseCall[[argName]] <- matchedCall[[argName]]
   
   if (!is.null(matchedCall$commonSup.rule)) {
-     if (is.null(matchedCall$commonSup.cut))
-       commonSup.cut <- eval(formals(bartCause::bartc)$commonSup.cut)[match(commonSup.rule, eval(formals(bartCause::bartc)$commonSup.rule))]
+    if (is.null(matchedCall$commonSup.cut))
+      commonSup.cut <- eval(formals(bartCause::bartc)$commonSup.cut)[match(commonSup.rule, eval(formals(bartCause::bartc)$commonSup.rule))]
     responseCall$commonSup.rule <- commonSup.rule[1L]
     responseCall$commonSup.cut <- commonSup.cut[1L]
   } else {
@@ -114,6 +122,7 @@ bartc <- function(
   }
   
   responseCall <- addCallDefaults(responseCall, bartCause::bartc)
+  if ("verbose" %in% names(responseCall)) responseCall[[which(names(responseCall) == "verbose")]] <- verbose
   
   evalEnv <- callingEnv
   if (p.scoreAsCovariate && !is.null(p.score)) {
@@ -141,15 +150,24 @@ bartc <- function(
   assignAll(eval(responseCall, envir = evalEnv))
   
   result <- namedList(fit.rsp = fit, data.rsp = data, fit.trt, mu.hat.obs, mu.hat.cf, p.score, samples.p.score,
-                      method.rsp, method.trt, estimand, group.by,
+                      method.rsp, method.trt, estimand,
                       commonSup.rule, commonSup.cut,
                       name.trt, trt,
                       sd.obs, sd.cf, commonSup.sub, missingRows, est, fitPars,
                       call = givenCall)
+  if (!is.null(matchedCall[["group.by"]])) {
+    result[["group.by"]] <-
+      if (group.byIsLiteral)
+        group.by
+      else
+        eval(redirectCall(matchedCall, quoteInNamespace(getGroupBy)), envir = callingEnv)
+    if (use.ranef) result[["use.ranef"]] <- use.ranef
+    if (group.effects) result[["group.effects"]] <- group.effects
+  }
   result$n.chains <- if (length(dim(fit$yhat.train) > 2L)) dim(fit$yhat.train)[1L] else 1L
   
-  if (!exists(".Random.seed", .GlobalEnv)) runif(1)
-  result$seed <- .Random.seed
+  if (!exists(".Random.seed", .GlobalEnv)) runif(1L)
+  result$seed <- .GlobalEnv[[".Random.seed"]]
   
   class(result) <- "bartcFit"
   result

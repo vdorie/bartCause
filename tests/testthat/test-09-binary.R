@@ -9,20 +9,20 @@ test_that("binary outcome model matches manual", {
                     n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L)
   
   set.seed(22)
-  fit.trt <- bart2(z ~ x, testData, verbose = FALSE,
-                   n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L)
+  fit.trt <- dbarts::bart2(z ~ x, testData, verbose = FALSE,
+                           n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L)
   p.score <- apply(pnorm(fit.trt$yhat.train), 2L, mean)
-  expect_equal(p.score, fitted(bartcFit, value = "p.score"))
+  expect_equal(p.score, fitted(bartcFit, type = "p.score"))
   
   x.train <- cbind(testData$x, z = testData$z, ps = p.score)
   x.test  <- cbind(testData$x, z = 1, ps = p.score)
   x.test <- rbind(x.test, x.test)
   x.test[seq.int(nrow(testData$x) + 1L, nrow(x.test)),"z"] <- 0
   
-  fit.rsp <- bart2(x.train, testData$y, x.test, verbose = FALSE,
-                   n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L)
-  expect_equal(extract(bartcFit, value = "mu.0"),
-               t(pnorm(fit.rsp$yhat.test)[,seq.int(nrow(testData$x) + 1L, nrow(x.test))]))
+  fit.rsp <- dbarts::bart2(x.train, testData$y, x.test, verbose = FALSE,
+                           n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L)
+  expect_equal(extract(bartcFit, type = "mu.0"),
+               pnorm(fit.rsp$yhat.test)[,seq.int(nrow(testData$x) + 1L, nrow(x.test))])
 })
 
 test_that("binary outcome runs with tmle", {

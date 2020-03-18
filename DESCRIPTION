@@ -8,7 +8,7 @@ Authors@R: c(
 Depends:
   R (>= 3.1-0)
 Imports:
-  dbarts (>= 0.9-10),
+  dbarts (>= 0.9-16),
   tmle,
   methods,
   stats,
@@ -16,6 +16,7 @@ Imports:
   parallel
 Suggests:
   testthat (>= 0.9-0),
+  lme4,
   rpart
 Description: Contains a variety of methods to generate typical causal inference estimates using Bayesian Additive Regression Trees (BART) as the underlying regression model (Hill (2012) <doi:10.1198/jcgs.2010.08162>).
 License: GPL (>= 2)
