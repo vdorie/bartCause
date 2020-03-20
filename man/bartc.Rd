@@ -7,14 +7,15 @@
 }
 \usage{
 bartc(response, treatment, confounders, data, subset, weights,
-      method.rsp = c("bart", "p.weight", "tmle"),
-      method.trt = c("none", "glm", "bart", "bart.xval"),
+      method.rsp = c("bart", "tmle", "p.weight"),
+      method.trt = c("bart", "glm", "none"),
       estimand   = c("ate", "att", "atc"),
       group.by = NULL,
       commonSup.rule = c("none", "sd", "chisq"),
       commonSup.cut  = c(NA_real_, 1, 0.05),
       args.rsp = list(), args.trt = list(),
       p.scoreAsCovariate = TRUE, use.ranef = TRUE, group.effects = FALSE,
+      crossvalidateBinary = FALSE,
       keepCall = TRUE, verbose = TRUE,
       \dots)
 }
@@ -51,11 +52,10 @@ bartc(response, treatment, confounders, data, subset, weights,
   }
   \item{method.trt}{
     A character string specifying which method to use when fitting the treatment assingment mechanism,
-    or a vector/matrix of propensity scores. Character string options are: \code{"none"} - do no
-    propensity score estimation, \code{"glm"} - fit a generalized linear model with a binomial response
-    and all confounders added linearly, \code{"bart"} - fit BART directly to the treatment variable,
-    and \code{"bart.xval"} - crossvalidate the treatment fit with different values of the end-node prior
-    variance. Cannot be \code{"none"} if the response model requires propensity scores. When supplied as
+    or a vector/matrix of propensity scores. Character string options are: \code{"bart"} - fit BART
+    directly to the treatment variable, \code{"glm"} - fit a generalized linear model with a binomial
+    response and all confounders added linearly, and \code{"none"} - do no propensity score estimation.
+    Cannot be \code{"none"} if the response model requires propensity scores. When supplied as
     a matrix, it should be of dimensions equal to the number of observations times the number of samples
     used in any response model.
   }
@@ -92,7 +92,7 @@ bartc(response, treatment, confounders, data, subset, weights,
     Logical specifying if \code{group.by} variable - when present - should be included as a "random" or
     "fixed" effect. If true, \code{\link[=rbart_vi]{rbart}} will be used for BART models. Using
     random effects for treatment assignment mechanisms of type \code{"glm"} require that the
-    \code{\link{lme4}} package be available.
+    \code{\link[lme4:lme4-package]{lme4}} package be available.
   }
   \item{group.effects}{
     Logical specifying if effects should be calculated within groups if the \code{group.by} variable
@@ -101,7 +101,11 @@ bartc(response, treatment, confounders, data, subset, weights,
   }
   \item{keepCall}{
     A logical such that when \code{FALSE}, the call to \code{bartc} is not kept. This can reduce the 
-    amount of information printed by \code{\link[=bartc-generics]{summary}} when passing in data as literals.
+    amount of information printed by \code{\link[=summary.bartcFit]{summary}} when passing in data as literals.
+  }
+  \item{crossvalidateBinary}{
+    Enable code to attempt to estimate the optimal end-node sensitivity parameter for the treatment
+    assignment model. This uses a rudimentary Bayesian optimization routine and can be extremely slow.
   }
   \item{verbose}{
     A logical that when \code{TRUE} prints information as the model is fit.
@@ -149,17 +153,22 @@ bartc(response, treatment, confounders, data, subset, weights,
   The treatment assignment models are:
   
   \itemize{
+    \item \code{"bart"} - fit a binary BART directly to the treatment using all the confounders.
     \item \code{"none"} - no modeling is doing. Only applies when using response method \code{"bart"} and
           \code{p.scoreAsCovariate} is \code{FALSE}.
     \item \code{"glm"} - fit a binomial generalized linear model with logistic link and confounders included
           as linear terms.
-    \item \code{"bart"} - fit a binary BART directly to the treatment using all the confounders.
-    \item \code{"bart.xval"} - use the \code{\link{xbart}} function to perform cross validation on the node
-          prior sensitivity (for that method, \code{k}) before fitting a final model.
     \item Finally, a vector or matrix of propensity scores can be supplied. Propensity score matrices should
           have a number of rows equal to the number of observations in the data and a number of columns
           equal to the number of posterior samples.
   }
+  
+  \strong{Generics}
+  
+  For a fitted model, the easiest way to analyze the resulting fit is to use the \link[=bartc-generics]{generics}
+  \code{fitted}, \code{extract}, and \code{predict} to analyze specific quantities and
+  \code{\link[=summary.bartcFit]{summary}} to aggregate those values into targets (e.g. ATE, ATT, or ATC).
+
   
   \strong{Common Support Rules}
   
@@ -190,9 +199,6 @@ bartc(response, treatment, confounders, data, subset, weights,
   
   \itemize{
     \item If \code{n.chains} is missing, unlike in \code{\link{bart2}} a default of 10 is used.
-    \item For \code{method.trt == "bart.xval"}, any of the parameters accepted by both \code{\link{xbart}}
-       and \code{\link{bart2}} can be passed as a list in \code{args.trt} and the first value will be used
-       in the crossvalidation step and the second for the fit itself.
     \item For \code{method.rsp == "tmle"}, a special \code{arg.trt} of \code{posteriorOfTMLE} determines
        if the TMLE correction should be applied to each posterior sample (\code{TRUE}), or just the
        posterior mean (\code{FALSE}).
@@ -210,7 +216,8 @@ bartc(response, treatment, confounders, data, subset, weights,
   \code{bartc} returns an object of class \code{bartcFit}. Information about the object can be derived
   by using methods \code{\link[=bartc-generics]{summary}}, \code{\link{plot_sigma}}, \code{\link{plot_est}},
   \code{\link{plot_indiv}}, and \code{\link{plot_support}}. Numerical quantities are recovered with the
-  \code{\link[=bartc-generics]{fitted}} and \code{\link{extract}} generics.
+  \code{\link[=bartc-generics]{fitted}} and \code{\link[=bartc-generics]{extract}} generics. Predictions for new
+  observations are obtained with \code{\link[=bartc-generics]{predict}}.
   
   Objects of class \code{bartcFit} are lists containing items:
   
@@ -223,11 +230,15 @@ bartc(response, treatment, confounders, data, subset, weights,
   \item{\code{fit.trt}}{object containing the fitted treatment model}
   \item{\code{group.by}}{optional factor vector containing the groups in which treatment effects are
                          estimated}
-  \item{\code{samples.est}}{matrix or array of posterior samples of the treatment effect estimate}
+  \item{\code{est}}{matrix or array of posterior samples of the treatment effect estimate}
   \item{\code{samples.indiv.diff}}{matrix or array of posterior samples of the individual treatment effects}
   \item{\code{p.score}}{the vector of propensity scores used as a covariate in the response model,
                         when applicable}
   \item{\code{samples.p.score}}{matrix or array of posterior samples of the propensity score, when applicable}
+  \item{\code{mu.hat.obs}}{samples from the posterior of the expected value for individual responses under the
+                           observed treatment regime}
+  \item{\code{mu.hat.cf}}{samples from the posterior of the expected value for individual responses under the
+                          counterfactual treatment}
   \item{\code{name.trt}}{character string giving the name of the treatment variable in the data 
                          of \code{fit.rsp}}
   \item{\code{trt}}{vector of treatment assignments}
@@ -240,6 +251,9 @@ bartc(response, treatment, confounders, data, subset, weights,
   \item{\code{sd.cf}}{vector of standard deviations of individual posterior predictors for counterfactuals}
   \item{\code{commonSup.sub}}{logical vector expressing which observations are used when estimating treatment
                               effects}
+  \item{\code{use.ranef}}{logical for whether ranef models were used; only added when true}
+  \item{\code{group.effects}}{logical for whether group-level estimates are made; only added when true}
+  \item{\code{seed}}{a random seed for use when drawing from the posterior predictive distribution}
 }
 \references{
 Chipman, H., George, E. and McCulloch R. (2006)

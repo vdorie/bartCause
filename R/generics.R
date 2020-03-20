@@ -82,14 +82,14 @@ getEstimateSamples <- function(samples.indiv.diff, treatmentRows, weights, estim
 predict.bartcFit <-
   function(object, newdata,
            group.by,
-           type = c("mu.1", "mu.0", "icate", "p.score"),
+           type = c("mu.0", "mu.1", "y.0", "y.1", "icate", "ite", "p.score"),
            combineChains = TRUE, ...)
 {
   matchedCall <- match.call()
   
-  type <- type[1L]
-  if (type %not_in% eval(formals(predict.bartcFit)$type))
+  if (!is.character(type) || type[1L] %not_in% eval(formals(predict.bartcFit)$type))
     stop("type must be in '", paste0(eval(formals(predict.bartcFit)$type), collapse = "', '"), "'")
+  type <- type[1L]
   
   if (type != "p.score") {
     if (object$method.rsp != "bart")
@@ -181,30 +181,36 @@ predict.bartcFit <-
     predictArgs <- list(object$fit.rsp, x.new, combineChains = FALSE, ...)
   }
   
+  if (type %in% c("mu.0", "y.0", "icate", "ite")) {
+    predictArgs[[2L]][[object$name.trt]] <- 0
+    mu.0 <- do.call("predict", predictArgs)
+  }
+  if (type %in% c("mu.1", "y.1", "icate", "ite")) {
+    predictArgs[[2L]][[object$name.trt]] <- 1
+    mu.1 <- do.call("predict", predictArgs)
+  }
+  
+  if (type %in% c("y.0", "ite"))
+    y.0 <- sampleFromPPD(object, mu.0)
+  if (type %in% c("y.1", "ite"))
+    y.1 <- sampleFromPPD(object, mu.1)
+  
   result <-
     switch(type,
-           mu.1 = {
-             predictArgs[[2L]][[object$name.trt]] <- 1
-             do.call("predict", predictArgs)
-           },
-           mu.0 = {
-             predictArgs[[2L]][[object$name.trt]] <- 0
-             do.call("predict", predictArgs)
-           },
-           icate = {
-             predictArgs[[2L]][[object$name.trt]] <- 1
-             mu.hat.1 <- do.call("predict", predictArgs)
-             predictArgs[[2L]][[object$name.trt]] <- 0
-             
-             mu.hat.1 - do.call("predict", predictArgs)
-           })
-  
+           mu.0  = mu.0,
+           mu.1  = mu.1,
+           icate = mu.1 - mu.0,
+           y.0   = y.0,
+           y.1   = y.1,
+           ite   = y.1 - y.0)
+    
   if (combineChains) combineChains(result) else result
 }
 
 fitted.bartcFit <-
   function(object, 
-           type = c("pate", "sate", "cate", "mu", "mu.0", "mu.1", "y.0", "y.1", "icate", "ite", "p.score", "p.weights"),
+           type = c("pate", "sate", "cate", "mu.obs", "mu.cf", "mu.0", "mu.1",
+                    "y.cf", "y.0", "y.1", "icate", "ite", "p.score", "p.weights"),
            sample = c("inferential", "all"),
            ...)
 {
@@ -228,7 +234,7 @@ fitted.bartcFit <-
     return(object$p.score[subset])
   }
   
-  result <- extract(object, type, sample, ...)
+  result <- extract(object, type = type, sample = sample, ...)
   
   group.effects <- if (!is.null(object[["group.effects"]])) object[["group.effects"]] else FALSE
   if (!is.null(object$group.by) && group.effects && type %in% c("pate", "sate", "cate")) {
@@ -252,7 +258,8 @@ fitted.bartcFit <-
 
 extract.bartcFit <-
   function(object,
-           type = c("pate", "sate", "cate", "mu", "mu.0", "mu.1", "y.0", "y.1", "icate", "ite", "p.score", "p.weights"),
+           type = c("pate", "sate", "cate", "mu.obs", "mu.cf", "mu.0", "mu.1", "y.cf",
+                    "y.0", "y.1", "icate", "ite", "p.score", "p.weights"),
            sample = c("inferential", "all"),
            combineChains = TRUE,
            ...)
@@ -298,11 +305,13 @@ extract.bartcFit <-
   n.chains  <- object$n.chains
   trtSign <- ifelse(object$trt == 1, 1, -1)
   
-  if (type %in% c("pate", "sate", "y.0", "y.1", "ite"))
-    y.cf <- sampleFromPPD(object$mu.hat.cf, object)
+  if (type %in% c("pate", "sate", "y.cf", "y.0", "y.1", "ite")) {
+    y.obs <- object$fit.rsp$y
+    y.cf <- sampleFromPPD(object, object$mu.hat.cf)
+  }
   
   if (type == "pate")
-    y.obs <- sampleFromPPD(object$mu.hat.obs, object)
+    y.obs.ppd <- sampleFromPPD(object, object$mu.hat.obs)
   
   .GlobalEnv$.Random.seed <- oldSeed
   
@@ -318,8 +327,8 @@ extract.bartcFit <-
     
     samples.indiv.diff <- multiplyArrayByVec(with(object,
       switch(type,
-             pate = y.obs - y.cf,
-             sate = mu.hat.obs - y.cf,
+             pate = y.obs.ppd - y.cf,
+             sate = y.obs     - y.cf,
              cate = mu.hat.obs - mu.hat.cf)),
       trtSign)
     
@@ -335,12 +344,14 @@ extract.bartcFit <-
   
   result <-
     with(object, switch(type,
-           mu          = mu.hat.obs,
+           mu.obs      = mu.hat.obs,
+           mu.cf       = mu.hat.cf,
            mu.1        = obsCfToTrtCtl(mu.hat.obs, mu.hat.cf, trt),
            mu.0        = obsCfToTrtCtl(mu.hat.obs, mu.hat.cf, 1 - trt),
-           y.1         = obsCfToTrtCtl(mu.hat.obs, y.cf, trt),
-           y.0         = obsCfToTrtCtl(mu.hat.obs, y.cf, 1 - trt),
-           ite         = multiplyArrayByVec(mu.hat.obs -      y.cf, trtSign),
+           y.cf        = y.cf,
+           y.1         = obsCfToTrtCtl(y.obs, y.cf, trt),
+           y.0         = obsCfToTrtCtl(y.obs, y.cf, 1 - trt),
+           ite         = multiplyArrayByVec(     y.obs -      y.cf, trtSign),
            icate       = multiplyArrayByVec(mu.hat.obs - mu.hat.cf, trtSign),
            p.score     = object$samples.p.score,
            p.weights   = getPWeights(estimand, trt, weights, if (!is.null(samples.p.score)) samples.p.score else p.score, fitPars$p.scoreBounds)))
@@ -361,7 +372,7 @@ extract.bartcFit <-
     result[,subset]
 }
 
-sampleFromPPD <- function(ev, object)
+sampleFromPPD <- function(object, ev)
 {
   responseIsBinary <- is.null(object$fit.rsp[["sigma"]])
   
@@ -412,6 +423,7 @@ refit.bartcFit <- function(object, newresp = NULL,
   
   responseIsBinary <- is.null(object$fit.rsp[["sigma"]])
   group.effects <- if (!is.null(object[["group.effects"]])) object[["group.effects"]] else FALSE
+  group.by <- if (!is.null(object[["group.by"]])) object[["group.by"]] else NULL
   
   if (object$method.rsp == "bart") {
     samples.indiv.diff <- extract(object, value = "icate", combineChains = FALSE)
@@ -431,7 +443,7 @@ refit.bartcFit <- function(object, newresp = NULL,
       mu.hat.1 <- t(mu.hat.1)
     }
     
-    p.score <- if (!is.null(object$samples.p.score)) samples.p.score else p.score
+    p.score <- if (!is.null(object$samples.p.score)) object$samples.p.score else object$p.score
     if (!is.null(dim(p.score)) && length(dim(p.score)) < length(dim(mu.hat.0))) {
       # chains were collapsed
       n.chains  <- dim(mu.hat.0)[2L]
@@ -480,7 +492,7 @@ refit.bartcFit <- function(object, newresp = NULL,
       mu.hat.1 <- t(mu.hat.1)
     }
     
-    p.score <- if (!is.null(object$samples.p.score)) samples.p.score else p.score
+    p.score <- if (!is.null(object$samples.p.score)) object$samples.p.score else object$p.score
     if (!is.null(dim(p.score)) && length(dim(p.score)) < length(dim(mu.hat.0))) {
       # chains were collapsed
       n.chains  <- dim(mu.hat.0)[2L]

@@ -13,26 +13,28 @@
 plot_sigma(x, main = "Traceplot sigma", 
            xlab = "iteration", ylab = "sigma",
            lty = 1:x$n.chains,
-           ...)
+           \dots)
 
 plot_est(x, main = paste("Traceplot", x$estimand),
          xlab = "iteration", ylab = x$estimand,
          lty = 1:x$n.chains, col = NULL,
-         ...)
+         \dots)
 
-plot_indiv(x, main = "Histogram Individual Effects",
+plot_indiv(x, main = "Histogram Individual Quantities",
+           type = c("icate", "mu.obs", "mu.cf", "mu.0", "mu.1", "y.cf", "y.0", "y.1", "ite"),
            xlab = "treatment effect",
            breaks = 20,
-           ...)
+           \dots)
 
 plot_support(x, main = "Common Support Scatterplot",
              xvar = "tree.1", yvar = "tree.2",
+             sample = c("inferential", "all"),
              xlab = NULL, ylab = NULL,
              pch.trt = 21, bg.trt = "black",
              pch.ctl = pch.trt, bg.ctl = NA,
              pch.sup = pch.trt, bg.sup = NA, col.sup = "red", cex.sup = 1.5,
              legend.x = "topleft", legend.y = NULL,
-             ...)
+             \dots)
 }
 \arguments{
   \item{x}{
@@ -48,20 +50,26 @@ plot_support(x, main = "Common Support Scatterplot",
     Character label of \eqn{y} axis. For \code{plot_support}, if \code{NULL} a default will be used.
   }
   \item{lty}{
-    For line plots (\code{plot.sigma}, \code{plot.est}), models use the values of \code{lty} to
+    For line plots (\code{plot_sigma}, \code{plot_est}), models use the values of \code{lty} to
     visually distinguish each chain.
   }
-  \item{lty}{
-    For \code{plot.est}, use the values of \code{col} to visually distinguish each group, if there are any.
+  \item{col}{
+    For line plots, use \code{col} vector to distinguish between groups (if any).
   }
   \item{breaks}{
     Argument to code{\link{hist}}.
   }
+  \item{type}{
+    The individual quantity to be plotted. See \code{\link[=bartc-generics]{fitted}}.
+  }
   \item{xvar}{
     Variable for use on \eqn{x} axis.  Can be one of \code{"tree.XX"}, \code{"pca.XX"}, \code{"css"}, 
-    \code{"p.score"}, \code{"y"}, \code{"y0"}, \code{"y1"}, \code{"indiv.diff"}, \code{"p.score"},
-    \code{"p.weights"}, the number of name of a column used to fit the response model, or a given
-    vector. See below for details.
+    any individual level quantity accepted by \code{\link[=bartc-generics]{fitted}}, the number or 
+    name of a column used to fit the response model, or a given vector. See below for details.
+  }
+  \item{sample}{
+    Return information for either the \code{"inferential"} (e.g. treated observations when the estimand is
+    \code{att}) or \code{"all"} observations.
   }
   \item{yvar}{
     Variable for use on the \eqn{y} axis, of the same form as \code{xvar}.
@@ -96,7 +104,7 @@ plot_support(x, main = "Common Support Scatterplot",
   \item{legend.y}{
     Optional y value passed to \code{legend}
   }
-  \item{...}{
+  \item{\dots}{
     Optional graphical parameters.
   }
 }

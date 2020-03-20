@@ -99,7 +99,10 @@ getBartResponseFit <- function(response, treatment, confounders, data, subset, w
   evalEnv[["responseData"]] <- responseData
   
   
-  if (crossvalidateBinary && responseIsBinary)
+  responseIsBinary <- unique(responseData@y)
+  responseIsBinary <- length(responseIsBinary) == 2L && min(responseIsBinary) == 0 && max(responseIsBinary) == 1
+  
+  if (responseIsBinary && crossvalidateBinary)
     bartCall <- optimizeBARTCall(bartCall, evalEnv)
   
   bartFit <- eval(bartCall, envir = evalEnv)
@@ -436,7 +439,7 @@ getTMLEEstimates <- function(y, z, weights, estimand, mu.hat.0, mu.hat.1, p.scor
   
   getPWeightEstimate <- getPWeightFunction(estimand, weights, numeric(), numeric())
   
-  getmu.hat.0Deriv <- getmu.hat.1Deriv <- getPScoreDeriv <- getIC <- calcLoss <- NULL
+  mu.hat.0.deriv <- mu.hat.1.deriv <- p.score.deriv <- getIC <- calcLoss <- NULL
   assignAll(getTMLEFunctions(estimand, weights))
   
   result <- t(sapply(seq_len(ncol(mu.hat.0.samp)), function(i) {

@@ -1,5 +1,8 @@
 plot_sigma <- function(x, main = "Traceplot sigma", xlab = "iteration", ylab = "sigma", lty = 1:x$n.chains, ...) {
-  if (!is(x, "bartcFit")) stop("plot.sigma requires an object of class 'bartcFit'")
+  if (!is(x, "bartcFit"))
+    stop("plot.sigma requires an object of class 'bartcFit'")
+  if (is.null(x$fit.rsp$sigma))
+    stop("residual standard deviation plot requires a continuous response")
   
   first.sigma <- x$fit.rsp$first.sigma
   
@@ -26,12 +29,13 @@ plot_sigma <- function(x, main = "Traceplot sigma", xlab = "iteration", ylab = "
   invisible(NULL)
 }
 
-plot_est <- function(x, main = paste("Traceplot", x$estimand), xlab = "iteration", ylab = x$estimand,
+plot_est <- function(x, main = paste("Traceplot", x$estimand),
+                     xlab = "iteration", ylab = x$estimand,
                      lty = 1:x$n.chains, col = NULL, ...) {
   if (!is(x, "bartcFit")) stop("plot.set requires an object of class 'bartcFit'")
   
   estType <- if (x$method.rsp %in% c("tmle", "p.weight")) "pate" else "cate"
-  samples <-  extract(x, estType, combineChains = FALSE)
+  samples <-  extract(x, type = estType, combineChains = FALSE)
   if (!is.list(samples)) samples <- list(samples)
   
   if (is.null(col)) { col <- if (is.null(x$group.by)) 1 else seq_len(nlevels(x$group.by)) }
@@ -54,17 +58,24 @@ plot_est <- function(x, main = paste("Traceplot", x$estimand), xlab = "iteration
   invisible(NULL)
 }
 
-plot_indiv <- function(x, main = "Histogram Individual Effects", xlab = "treatment effect", breaks = 20, ...)
+plot_indiv <- function(x, main = "Histogram Individual Quantities",
+                       type = c("icate", "mu.obs", "mu.cf", "mu.0", "mu.1", "y.cf", "y.0", "y.1", "ite"),
+                       xlab = "treatment effect", breaks = 20, ...)
 {
   if (!is(x, "bartcFit")) stop("plot.indiv requires an object of class 'bartcFit'")
   
-  samples <- extract(x, "icate", combineChains = TRUE)
+  if (!is.character(type) || type[1L] %not_in% eval(formals(plot_indiv)$type))
+    stop("type must be in '", paste0(eval(formals(plot_indiv)$type), collapse = "', '"), "'")
+  type <- type[1L]
   
-  hist(apply(samples, 1L, mean), main = main, xlab = xlab, breaks = breaks, ...)
+  icates <- fitted(x, type = type)
+  
+  hist(icates, main = main, xlab = xlab, breaks = breaks, ...)
 }
 
 plot_support <- function(x, main = "Common Support Scatterplot",
                          xvar = "tree.1", yvar = "tree.2",
+                         sample = c("inferential", "all"),
                          xlab = NULL, ylab = NULL,
                          pch.trt = 21, bg.trt = "black",
                          pch.ctl = pch.trt, bg.ctl = NA,
@@ -75,9 +86,33 @@ plot_support <- function(x, main = "Common Support Scatterplot",
   if (!is(x, "bartcFit")) stop("plot.support requires an object of class 'bartcFit'")
   if (x$commonSup.rule == "none") stop("common support plot requires support rule other than 'none'")
   
-  matchedCall <- match.call()
+  if (!is.character(sample) || sample[1L] %not_in% eval(formals(plot_support)$sample))
+    stop("sample must be in '", paste0(eval(formals(plot_support)$sample), collapse = "', '"), "'")
+  sample <- sample[1L]
   
+  labelMap <- list(p.score = "propensity score",
+                   mu.obs  = expression(hat(mu)(z)),
+                   mu.cf   = expression(hat(mu)(1-z)),
+                   mu.1    = expression(hat(mu)(1)),
+                   mu.0    = expression(hat(mu)(0)),
+                   y.cf    = expression(hat(y)(1-z)),
+                   y.1     = expression(yz + hat(y)(1)*(1 - z)),
+                   y.0     = expression(y(1-z) + hat(y)(0) * z),
+                   ite     = expression(hat(y)(1) - hat(y)(0)),
+                   icate   = expression(hat(mu)(1) - hat(mu)(0)),
+                   p.weights = "p.weights")
+  
+  matchedCall <- match.call()
+    
   x.matrix <- x$data.rsp@x
+  
+  subset <- rep_len(TRUE, nrow(x.matrix))
+  if (sample == "inferential") {
+    if (x$estimand == "att") subset <- x$trt > 0
+    else if (x$estimand == "atc") subset <- x$trt <= 0
+  }
+  
+  x.matrix <- x.matrix[subset,,drop = FALSE]
   
   getColumn <- function(var, lab) {
     callingEnv <- parent.frame(1L)
@@ -99,9 +134,9 @@ plot_support <- function(x, main = "Common Support Scatterplot",
       if (is.null(callingEnv$treeVars)) {
         if (!requireNamespace("rpart", quietly = TRUE))
           stop("tree plots require the package 'rpart'; please install it to use this feature", call. = FALSE)
-        df <- data.frame(.y = fitted(x, "icate", sample = "all"), x$data.rsp@x)
-        tree <- rpart::rpart(.y ~ ., df, ...)
-        contCols <- apply(x$data.rsp@x, 2L, function(col) length(unique(col)) > 2L)
+        df <- data.frame(.y.hat = fitted(x, type = "icate", sample = sample), x.matrix)
+        tree <- rpart::rpart(.y.hat ~ ., df, ...)
+        contCols <- apply(x.matrix, 2L, function(col) length(unique(col)) > 2L)
         callingEnv$treeVars <- tree$variable.importance[names(tree$variable.importance) %in% names(which(contCols))]
       }
       
@@ -109,31 +144,17 @@ plot_support <- function(x, main = "Common Support Scatterplot",
       if (is.na(col)) stop("unable to parse tree column '", var, "'")
       if (col > length(callingEnv$treeVars)) stop("column '", var, "' greater than the number of continuous columns")
       
-      val <- x$data.rsp@x[,names(callingEnv$treeVars)[col]]
+      val <- x.matrix[,names(callingEnv$treeVars)[col]]
       if (is.null(lab)) lab <- paste0(names(callingEnv$treeVars)[col], " (by tree)")
     } else if (var == "css") {
-      val <- with(x, getCommonSupportStatistic(sd.obs, sd.cf, commonSup.rule, commonSup.cut))
+      val <- with(x, getCommonSupportStatistic(sd.obs, sd.cf, commonSup.rule, commonSup.cut))[subset]
       if (is.null(lab)) lab <- paste0(x$commonSup.rule, " common support stat")
-    } else if (var == "p.score") {
-      if (is.null(x$p.score)) stop("p.score not present in fit")
-      val <- x$p.score
-      if (is.null(lab)) lab <- "propensity score"
-    } else if (var == "y") {
-      val <- x$data.rsp@y
-      if (is.null(lab)) lab <- "y"
-    } else if (var == "mu.0") {
-      val <- fitted(x, "mu.0", sample = "all")
-      if (is.null(lab)) lab <- expression(hat(mu)(0))
-    } else if (var == "mu.1") {
-      val <- fitted(x, "mu.1", sample = "all")
-      if (is.null(lab)) lab <- expression(hat(mu)(1))
-    } else if (var == "icate") {
-      val <- fitted(x, "icate", sample = "all")
-      if (is.null(lab)) lab <- expression(hat(mu)(1) - hat(mu)(0))
-    } else if (var == "p.weights") {
-      if (x$method.rsp != "p.weight") stop("'p.weights' only valid for response method 'p.weight'")
-      val <- fitted(x, "p.weights", sample = "all")
-      if (is.null(lab)) lab <- "p.weights"
+    } else if (var %not_in% c("pate", "sate", "cate") && var %in% eval(formals(fitted.bartcFit)$type)) {
+      val <- fitted(x, type = var, sample = sample)
+      if (is.null(lab)) lab <- labelMap[[var]]
+    } else if (var %in% c("y", "y.obs")) {
+      val <- x$data.rsp@y[subset]
+      if (is.null(lab)) lab <- expression(y(z))
     } else if (is.numeric(var)) {
       if (length(var) == 1L) {
         var <- as.integer(round(var, 0))
@@ -155,13 +176,17 @@ plot_support <- function(x, main = "Common Support Scatterplot",
     list(val, lab)
   }
   
+  trt <- x$trt[subset]
+  
   x.val <- y.val <- NULL
   massign[x.val, xlab] <- getColumn(xvar, xlab)
   massign[y.val, ylab] <- getColumn(yvar, ylab)
   plot(x.val, y.val, main = main,
-       pch = ifelse(x$trt > 0, pch.trt, pch.ctl), bg = ifelse(x$trt > 0, bg.trt, bg.ctl), xlab = xlab, ylab = ylab, ...)
-  if (any(x$commonSup.sub == FALSE))
-    points(x.val[!x$commonSup.sub], y.val[!x$commonSup.sub], pch = pch.sup, col = col.sup, bg = bg.sup, cex = cex.sup, ...)
+       pch = ifelse(trt > 0, pch.trt, pch.ctl), bg = ifelse(trt > 0, bg.trt, bg.ctl), xlab = xlab, ylab = ylab, ...)
+  if (any(x$commonSup.sub == FALSE)) {
+    commonSup.sub <- x$commonSup.sub[subset]
+    points(x.val[!commonSup.sub], y.val[!commonSup.sub], pch = pch.sup, col = col.sup, bg = bg.sup, cex = cex.sup, ...)
+  }
   
   if (xvar == "css") {
     cut <- with(x, getCommonSupportCutoff(sd.obs, sd.cf, commonSup.rule, commonSup.cut, trt, missingRows))

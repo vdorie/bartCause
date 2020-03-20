@@ -10,16 +10,20 @@ S3method(predict, bartcFit)
 S3method(extract, bartcFit)
 S3method(refit, bartcFit)
 
-
 importFrom(dbarts, bart2, guessNumCores, xbart, extract)
 export(extract)
 
-importFrom(methods, is)
-importFrom(stats, glm, binomial, fitted, sd)
+importFrom(methods, is, "slot<-")
+importFrom(stats, glm, binomial, fitted, predict, sd)
 importFrom(stats, plogis, pnorm, qlogis, qnorm, qchisq)
+importFrom(stats, runif, rbinom, rnorm)
 importFrom(stats, quantile, setNames, coef)
 
 importFrom(graphics, abline, hist, lines, plot)
-importFrom(graphics, legend, mtext, par, points)
+importFrom(graphics, legend, mtext, par, points, polygon)
 
 importFrom(parallel, makeCluster, clusterExport, clusterEvalQ, clusterApply, stopCluster)
+
+importFrom(utils, tail)
+importFrom(grDevices, rgb)
+

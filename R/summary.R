@@ -1,21 +1,22 @@
-getPATEEstimate.tmle.nosamp <- function(samples.tmle)
+summaryATEFunctions <- list(
+  getPATEEstimate.tmle.nosamp = function(samples.tmle)
 {
   est <- samples.tmle[["est"]]
   sd  <- samples.tmle[["se"]]
   
   c(estimate = est, sd = sd)
-}
+},
 
-getPATEIntervalFunction.tmle.nosamp <- function(ci.style)
+getPATEIntervalFunction.tmle.nosamp = function(ci.style)
 {
   if (ci.style %in% c("quant", "hpd"))
     stop("ci style '", ci.style, "' requires full posterior distribution to be calculated")
   
   function(ci.probs, estimate)
     estimate[["estimate"]] + estimate[["sd"]] * qnorm(ci.probs)
-}
+},
 
-getPATEEstimate.tmle.var.exp <- function(samples.tmle, samples.icate, weights)
+getPATEEstimate.tmle.var.exp = function(samples.tmle, samples.icate, weights)
 {
   samples.pate <- if (length(dim(samples.tmle)) == 2L) samples.tmle[,"est"] else as.vector(samples.tmle[,,"est"])
   
@@ -31,9 +32,9 @@ getPATEEstimate.tmle.var.exp <- function(samples.tmle, samples.icate, weights)
   var.within.samples <- mean(variance.samples)
   
   c(estimate = est, sd = sqrt(var.between.samples + var.within.samples))
-}
+},
 
-getPATEEstimate.tmle.psi <- function(samples.tmle)
+getPATEEstimate.tmle.psi = function(samples.tmle)
 {
   samples.pate <- if (length(dim(samples.tmle)) == 2L) samples.tmle[,"est"] else as.vector(samples.tmle[,,"est"])
   
@@ -43,10 +44,10 @@ getPATEEstimate.tmle.psi <- function(samples.tmle)
   var.within.samples <- mean(variance.samples)
   
   c(estimate = est, sd = sqrt(var.between.samples + var.within.samples))
-}
+},
 
 
-getPATEIntervalFunction.tmle <- function(ci.style)
+getPATEIntervalFunction.tmle = function(ci.style)
 {
   switch(ci.style,
          norm  = function(ci.probs, estimate) estimate[["estimate"]] + estimate[["sd"]] * qnorm(ci.probs),
@@ -58,9 +59,9 @@ getPATEIntervalFunction.tmle <- function(ci.style)
            samples.pate <- if (length(dim(samples.tmle)) == 2L) samples.tmle[,"est"] else as.vector(samples.tmle[,,"est"])
            getHPDInterval(samples.pate, ci.level)
          })
-}
+},
 
-getPATEEstimate.bart.var.exp <- function(samples.icate, weights)
+getPATEEstimate.bart.var.exp = function(samples.icate, weights)
 {
   n.obs <- nrow(samples.icate)
   n.samples <- ncol(samples.icate)
@@ -81,74 +82,83 @@ getPATEEstimate.bart.var.exp <- function(samples.icate, weights)
   var.within.samples  <- mean(variance.samples)
   
   c(estimate = est, sd = sqrt(var.between.samples + var.within.samples))
-}
+},
 
-getPATEEstimate.bart.ppd <- function(samples.cate, weights, sigma, samples.obs, samples.cf, numObservations)
+getPATEEstimate.bart.ppd = function(samples.cate, weights, sigma, samples.obs, samples.cf, n.obs)
 {
   est <- mean(samples.cate)
   
   sd <- sqrt(var(samples.cate) +
     if (!is.null(sigma))
-      2 * mean(sigma^2) / numObservations
+      2 * mean(sigma^2) / n.obs
     else {
       samples.var <- samples.obs * (1 - samples.obs) + samples.cf * (1 - samples.cf)
       if (!is.null(weights))
-        mean(apply(weights * samples.var, 2L, sum) / numObservations)
+        mean(apply(weights * samples.var, 2L, sum) / n.obs)
       else
-        mean(apply(samples.var, 2L, mean) / numObservations)
+        mean(apply(samples.var, 2L, mean) / n.obs)
     })
   c(estimate = est, sd = sd)
-}
+},
 
-getPATEIntervalFunction.bart <- function(ci.style)
+getPATEIntervalFunction.bart = function(ci.style)
 {
   switch(ci.style,
          norm  = function(ci.probs, estimate) estimate[["estimate"]] + estimate[["sd"]] * qnorm(ci.probs),
          quant = function(ci.probs, samples.pate) unname(quantile(samples.pate, ci.probs)),
          hpd   = function(ci.level, samples.pate) getHPDInterval(samples.pate, ci.level))
-}
+},
 
-getSATEEstimate.bart <- function(samples.cate, weights, sigma, samples.cf, numObservations)
+getSATEEstimate.bart = function(samples.cate, weights, sigma, samples.cf, n.obs)
 {
   est <- mean(samples.cate)
   
   sd <- sqrt(var(samples.cate) +
     if (!is.null(sigma))
-      mean(sigma^2) / numObservations
+      mean(sigma^2) / n.obs
     else {
       samples.var <- samples.cf * (1 - samples.cf)
       if (!is.null(weights))
-        mean(apply(weights * samples.var, 2L, sum) / numObservations)
+        mean(apply(weights * samples.var, 2L, sum) / n.obs)
       else
-        mean(apply(samples.var, 2L, mean) / numObservations)
+        mean(apply(samples.var, 2L, mean) / n.obs)
     })
   c(estimate = est, sd = sd)
-}
+},
 
-getSATEIntervalFunction.bart <- function(ci.style)
+getSATEIntervalFunction.bart = function(ci.style)
 {
   switch(ci.style,
          norm  = function(ci.probs, estimate) estimate[["estimate"]] + estimate[["sd"]] * qnorm(ci.probs),
          quant = function(ci.probs, samples.sate) unname(quantile(samples.sate, ci.probs)),
          hpd   = function(ci.level, samples.sate) getHPDInterval(samples.sate, ci.level))
-}
+},
 
-getCATEEstimate.bart <- function(samples.cate)
+getCATEEstimate.bart = function(samples.cate)
 {
   c(estimate = mean(samples.cate), sd = sd(samples.cate))
-}
+},
 
-getCATEIntervalFunction.bart <- function(ci.style)
+getCATEIntervalFunction.bart = function(ci.style)
 {
   switch(ci.style,
          norm  = function(ci.probs, estimate) estimate[["estimate"]] + estimate[["sd"]] * qnorm(ci.probs),
          quant = function(ci.probs, samples.sate) unname(quantile(samples.cate, ci.probs)),
          hpd   = function(ci.level, samples.sate) getHPDInterval(samples.cate, ci.level))
-}
+})
 
 getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
 {
+  x <- NULL
   ci.probs <- evalx((1 - ci.level) / 2, c(x, 1 - x))
+  
+  # for R CMD check
+  getPATEEstimate.tmle.nosamp <- getPATEIntervalFunction.tmle.nosamp <- getPATEEstimate.tmle.var.exp <-
+    getPATEEstimate.tmle.psi <- getPATEIntervalFunction.tmle <- getPATEEstimate.bart.var.exp <-
+    getPATEEstimate.bart.ppd <- getPATEIntervalFunction.bart <- getSATEEstimate.bart <- 
+    getSATEIntervalFunction.bart <- getCATEEstimate.bart <- getCATEIntervalFunction.bart <- NULL
+  for (functionName in names(summaryATEFunctions))
+    assign(functionName, summaryATEFunctions[[functionName]])
   
   # this is annoyingly complicated in order to handle grouped data
   group.effects <- if (is.null(object$group.effects)) FALSE else object$group.effects
@@ -187,7 +197,7 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
                               ate = rep(TRUE, length(object$data.rsp@y)),
                               att = object$trt >  0,
                               atc = object$trt <= 0)
-  numObservations <- sum(inferentialSubset)
+  n.obs <- sum(inferentialSubset)
   
   # load whatever we might need
   for (i in seq_along(estimateVariables)) {
@@ -200,7 +210,7 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
            sigma         = object$fit.rsp$sigma,
            samples.obs   = combineChains(object$mu.hat.obs),
            samples.cf    = combineChains(object$mu.hat.cf),
-           numObservations = numObservations
+           n.obs = n.obs
     ))
     estimateCall[[i + 1L]] <- parse(text = varName)[[1L]]
   }
@@ -241,17 +251,17 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
                                    var[levelObs], var[,levelObs,drop=FALSE], var[,,levelObs,drop=FALSE]))
         }
       }
-      numObservations <- sum(levelObs)
+      n.obs <- sum(levelObs)
       
       estimate <- eval(estimateCall)
       interval <- eval(intervalCall)
       names(interval) <- c("ci.lower", "ci.upper")
-      c(estimate, interval, n = numObservations)
+      c(estimate, interval, n = n.obs)
     })))
     
     # combine back to get whole if possible
     if (object$method.rsp %in% "bart") {
-      weights.g <- estimates$n / numObservations
+      weights.g <- estimates$n / n.obs
       for (varName in c("samples.cate", "samples.pate"))
         if (varName %in% estimateVariables || varName %in% intervalVariables)
           assign(varName, colSums(t(sapply(get(varName), function(x) x)) * weights.g))
@@ -261,14 +271,13 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
       totalName <- "tot"
       while (totalName %in% rownames(estimates))
         totalName <- paste0(totalName, ".")
-      estimates[totalName,] <- c(estimate, interval, numObservations)
+      estimates[totalName,] <- c(estimate, interval, n.obs)
     }
   }
   
   estimates
 }
 
-# TODO: document this
 summary.bartcFit <- function(object,
                              target = c("pate", "sate", "cate"),
                              ci.style = c("norm", "quant", "hpd"), ci.level = 0.95,
@@ -297,8 +306,8 @@ summary.bartcFit <- function(object,
     stop("target '", target, "' not supported for method '", object$method.rsp)
   
   
-  numSamples      <- prod(dim(object$mu.hat.obs)[-length(dim(object$mu.hat.obs))])
-  numObservations <- dim(object$mu.hat.obs)[length(dim(object$mu.hat.obs))]
+  n.samples <- if (length(dim(object$mu.hat.obs)) > 2L) dim(object$mu.hat.obs)[2L] else dim(object$mu.hat.obs)[1L]
+  n.obs     <- dim(object$mu.hat.obs)[length(dim(object$mu.hat.obs))] 
   
   
   estimates <- getATEEstimates(object, target, ci.style, ci.level, pate.style)
@@ -308,11 +317,11 @@ summary.bartcFit <- function(object,
               method.rsp = object$method.rsp,
               method.trt = object$method.trt,
               ci.info = namedList(target, ci.style, ci.level, pate.style),
-              numObservations,
-              numSamples,
-              estimates,
+              n.obs,
+              n.samples,
               n.chains   = object$n.chains,
-              commonSup.rule = object$commonSup.rule)
+              commonSup.rule = object$commonSup.rule,
+              estimates)
   
   groupEstimates <- !is.null(object$group.by) && !is.null(object$group.effects) && object$group.effects
   if (object$commonSup.rule != "none") {
@@ -352,9 +361,9 @@ print.bartcFit.summary <- function(x, ...)
   cat("Treatment effect (", x$ci.info$target, "):\n", ..., sep = "")
   
   print(x$estimates, digits = digits, ...)
-  if (!is.null(x$estimates[["n"]]) && any(x$estimates[["n"]] <= 10L) && x$numObservations > 10L)
+  if (!is.null(x$estimates[["n"]]) && any(x$estimates[["n"]] <= 10L) && x$n.obs > 10L)
     cat("  if (n < 10) group-size estimates may be unstable\n", ...)
-  cat("Estimates fit from ", x$numObservations - if (x$commonSup.rule != "none") sum(x$n.cut) else 0, " total observations\n", sep = "")
+  cat("Estimates fit from ", x$n.obs - if (x$commonSup.rule != "none") sum(x$n.cut) else 0, " total observations\n", sep = "")
   
   cat(round(100 * x$ci.info$ci.level, digits), "% credible interval calculated by: ",
       switch(x$ci.info$ci.style,
@@ -372,8 +381,8 @@ print.bartcFit.summary <- function(x, ...)
     cat("\n")
   }
   
-  cat("Result based on ", x$numSamples, " posterior samples", 
-      if (!is.null(x$n.chains)) paste0(" across ", x$n.chains, " chains") else "",
+  cat("Result based on ", x$n.samples, " posterior samples", 
+      if (!is.null(x$n.chains)) paste0(" times ", x$n.chains, " chains") else "",
       "\n", sep = "", ...)
   
   invisible(x)
