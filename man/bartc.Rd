@@ -274,6 +274,12 @@ Hill, J. L. and Su Y. S. (2013)
   \emph{The Annals of Applied Statistics} \bold{7(3)}, 1386--1420.
   The Institute of Mathematical Statistics.
   \url{https://doi.org/10.1214/13-AOAS630}.
+
+Carnegie, N. B. (2019)
+  Comment: Contributions of Model Features to BART Causal Inference Performance Using ACIC 2016 Competition Data
+  \emph{Statistical Science} \bold{34(1)}, 90--93.
+  The Institute of Mathematical Statistics.
+  \url{https://doi.org/10.1214/18-STS682}
 }
 \author{
 Vincent Dorie: \email{vdorie@gmail.com}.

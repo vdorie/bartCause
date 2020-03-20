@@ -1,0 +1,11 @@
+bibentry(bibtype = "article",
+         title = "Bayesian Nonparametric Modeling for Causal Inference",
+         author = person("Jennifer L.", "Hill"),
+         doi = "10.1198/jcgs.2010.08162",
+         pages = "217--240",
+         journal = "Journal of Computational and Graphical Statistics",
+         publisher = "Taylor & Francis",
+         volume = 20,
+         number = 1,
+         year = 2011)
+
