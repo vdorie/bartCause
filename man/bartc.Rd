@@ -298,12 +298,14 @@ mu.1 <- x \%*\% beta.y + tau
 
 y <- mu.0 * (1 - z) + mu.1 * z + rnorm(n, 0, sigma)
 
-fit <- bartc(y, z, x, n.samples = 100L)
+# low parameters only for example
+fit <- bartc(y, z, x, n.samples = 100L, n.burn = 50L, n.chains = 3L)
 summary(fit)
 
 ## example to show refitting under the common support rule
 fit2 <- refit(fit, commonSup.rule = "sd")
-fit3 <- bartc(y, z, x, subset = fit2$commonSup.sub, n.samples = 100L)
+fit3 <- bartc(y, z, x, subset = fit2$commonSup.sub,
+              n.samples = 100L, n.burn = 50L, n.chains = 3L)
 }
 \keyword{causal}
 \keyword{bart}

@@ -21,7 +21,8 @@ plot_est(x, main = paste("Traceplot", x$estimand),
          \dots)
 
 plot_indiv(x, main = "Histogram Individual Quantities",
-           type = c("icate", "mu.obs", "mu.cf", "mu.0", "mu.1", "y.cf", "y.0", "y.1", "ite"),
+           type = c("icate", "mu.obs", "mu.cf", "mu.0",
+                    "mu.1", "y.cf", "y.0", "y.1", "ite"),
            xlab = "treatment effect",
            breaks = 20,
            \dots)

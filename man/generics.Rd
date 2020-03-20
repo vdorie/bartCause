@@ -13,23 +13,26 @@
 }
 \usage{
 \method{fitted}{bartcFit}(object,
-                          type = c("pate", "sate", "cate", "mu.obs", "mu.cf", "mu.0", "mu.1",
-                                   "y.cf", "y.0", "y.1", "icate", "ite", "p.score", "p.weights"),
+                          type = c("pate", "sate", "cate", "mu.obs", "mu.cf", "mu.0",
+                                   "mu.1", "y.cf", "y.0", "y.1", "icate", "ite",
+                                   "p.score", "p.weights"),
                           sample = c("inferential", "all"),
                            \dots)
 
 extract(object, \dots)
 
 \method{extract}{bartcFit}(object,
-                           type = c("pate", "sate", "cate", "mu.obs", "mu.cf", "mu.0", "mu.1",
-                                    "y.cf", "y.0", "y.1", "icate", "ite", "p.score", "p.weights"),
+                           type = c("pate", "sate", "cate", "mu.obs", "mu.cf", "mu.0",
+                                    "mu.1", "y.cf", "y.0", "y.1", "icate", "ite",
+                                    "p.score", "p.weights"),
                            sample = c("inferential", "all"),
                            combineChains = TRUE,
                            \dots)
 
 \method{predict}{bartcFit}(object, newdata,
                            group.by,
-                           type = c("mu.0", "mu.1", "y.0", "y.1", "icate", "ite", "p.score"),
+                           type = c("mu.0", "mu.1", "y.0", "y.1", "icate", "ite",
+                                    "p.score"),
                            combineChains = TRUE,
                            \dots)
 
@@ -151,7 +154,8 @@ mu.1 <- x \%*\% beta.y + tau
 
 y <- mu.0 * (1 - z) + mu.1 * z + rnorm(n, 0, sigma)
 
-fit <- bartc(y, z, x, n.samples = 100L)
+# low parameters only for example
+fit <- bartc(y, z, x, n.samples = 100L, n.burn = 15L, n.chains = 3L)
 
 # compare fit to linear model
 lm.fit <- lm(y ~ z + x)
