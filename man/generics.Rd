@@ -155,7 +155,7 @@ mu.1 <- x \%*\% beta.y + tau
 y <- mu.0 * (1 - z) + mu.1 * z + rnorm(n, 0, sigma)
 
 # low parameters only for example
-fit <- bartc(y, z, x, n.samples = 100L, n.burn = 15L, n.chains = 3L)
+fit <- bartc(y, z, x, n.samples = 100L, n.burn = 15L, n.chains = 2L)
 
 # compare fit to linear model
 lm.fit <- lm(y ~ z + x)

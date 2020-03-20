@@ -59,32 +59,11 @@ test_that("predict results matches training data", {
 set.seed(22)
 g <- sample(3L, nrow(x), replace = TRUE)
 
+n.samples <- 7L
+n.chains  <- 2L
+
 test_that("predict works with grouped data, glm trt model", {
-  
-  n.samples <- 7L
-  n.chains  <- 2L
-  suppressWarnings(
-    fit <- bartc(y, z, x, method.trt = "glm", method.rsp = "bart", group.by = g,
-                 n.chains = n.chains, n.threads = 1L, n.burn = 0L, n.samples = n.samples, n.trees = 13L,
-                 keepTrees = TRUE,
-                 args.trt = list(k = 1.5), verbose = FALSE)
-  )
-  
-  p.score <- fitted(fit, type = "p.score")
-  mu.1    <- extract(fit, type = "mu.1")
-  mu.0    <- extract(fit, type = "mu.0")
-  icate   <- extract(fit, type = "icate")
-  
-  p.score.new <- predict(fit, x, group.by = g, type = "p.score")
-  mu.1.new    <- predict(fit, x, group.by = g, type = "mu.1")
-  mu.0.new    <- predict(fit, x, group.by = g, type = "mu.0")
-  icate.new   <- predict(fit, x, group.by = g, type = "icate")
-  
-  expect_equal(p.score, p.score.new)
-  expect_equal(mu.0, mu.0.new)
-  expect_equal(mu.1, mu.1.new)
-  expect_equal(icate, icate.new)
-  
+ 
   fit <- bartc(y, z, x, method.trt = "glm", method.rsp = "bart", group.by = g,
                n.chains = n.chains, n.threads = 1L, n.burn = 0L, n.samples = n.samples, n.trees = 13L,
                keepTrees = TRUE, use.ranef = FALSE,
@@ -106,10 +85,33 @@ test_that("predict works with grouped data, glm trt model", {
   expect_equal(icate, icate.new)
 })
 
+test_that("predict works with grouped data, glmer trt model", {
+  skip_if_not_installed("lme4")
+
+  suppressWarnings(
+    fit <- bartc(y, z, x, method.trt = "glm", method.rsp = "bart", group.by = g,
+                 n.chains = n.chains, n.threads = 1L, n.burn = 0L, n.samples = n.samples, n.trees = 13L,
+                 keepTrees = TRUE, use.ranef = FALSE,
+                 args.trt = list(k = 1.5), verbose = FALSE)
+  )
+  
+  p.score <- fitted(fit, type = "p.score")
+  mu.1    <- extract(fit, type = "mu.1")
+  mu.0    <- extract(fit, type = "mu.0")
+  icate   <- extract(fit, type = "icate")
+  
+  p.score.new <- predict(fit, x, group.by = g, type = "p.score")
+  mu.1.new    <- predict(fit, x, group.by = g, type = "mu.1")
+  mu.0.new    <- predict(fit, x, group.by = g, type = "mu.0")
+  icate.new   <- predict(fit, x, group.by = g, type = "icate")
+  
+  expect_equal(p.score, p.score.new)
+  expect_equal(mu.0, mu.0.new)
+  expect_equal(mu.1, mu.1.new)
+  expect_equal(icate, icate.new)
+})
 
 test_that("predict works with grouped data, bart trt model", {
-  n.samples <- 7L
-  n.chains  <- 2L
   fit <- bartc(y, z, x, method.trt = "bart", method.rsp = "bart", group.by = g,
                n.chains = n.chains, n.threads = 1L, n.burn = 0L, n.samples = n.samples, n.trees = 13L,
                keepTrees = TRUE,
@@ -151,5 +153,5 @@ test_that("predict works with grouped data, bart trt model", {
   expect_equal(icate, icate.new)
 })
 
-rm(testData, n.train, x, y, z, g, x.new, n.test)
+rm(testData, n.train, x, y, z, g, n.samples, n.chains, x.new, n.test)
 

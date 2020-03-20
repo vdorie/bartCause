@@ -21,15 +21,16 @@ bartc(response, treatment, confounders, data, subset, weights,
 }
 \arguments{
   \item{response}{
-    A vector of the continuous outcome variable, or a reference to such in the \code{data} argument.
+    A vector of the outcome variable, or a reference to such in the \code{data} argument. Can be
+    continuous or binary.
   }
   \item{treatment}{
     A vector of the binary treatment variable, or a reference to \code{data}.
   }
   \item{confounders}{
     A matrix or data frame of covariates to be used in estimating the treatment and response model.
-    Can also the right-hand-side of a formula (e.g. \code{x1 + x2 + ...}). The \code{data} argument
-    will be searched when supplied.
+    Can also be the right-hand-side of a formula (e.g. \code{x1 + x2 + ...}). The \code{data}
+    argument will be searched if supplied.
   }
   \item{data}{
     An optional data frame or named list containing the \code{response}, \code{treatment}, and
@@ -256,11 +257,11 @@ bartc(response, treatment, confounders, data, subset, weights,
   \item{\code{seed}}{a random seed for use when drawing from the posterior predictive distribution}
 }
 \references{
-Chipman, H., George, E. and McCulloch R. (2006)
-  Bayesian Ensemble Learning.
-  \emph{Proceedings of the 19th International Conference on Neural Information Processing Systems}, 265--272.
-  Cambridge, MA: MIT Press.
-  \url{http://papers.nips.cc/paper/3084-bayesian-ensemble-learning.pdf}.
+Chipman, H., George, E. and McCulloch R. (2010)
+  BART: Bayesian additive regression trees.
+  \emph{The Annals of Applied Statistics} \bold{4(1)}, 266--298.
+  The Institute of Mathematical Statistics.
+  \url{https://doi.org/10.1214/09-AOAS285}.
 
 Hill, J. L. (2011)
   Bayesian Nonparametric Modeling for Causal Inference.
@@ -271,7 +272,8 @@ Hill, J. L. (2011)
 Hill, J. L. and Su Y. S. (2013)
   Assessing Lack of Common Support in Causal Inference Using Bayesian Nonparametrics: Implications for Evaluating the Effect of Breastfeeding on Children's Cognitive Outcomes
   \emph{The Annals of Applied Statistics} \bold{7(3)}, 1386--1420.
-  \url{https://www.jstor.org/stable/23566478}.
+  The Institute of Mathematical Statistics.
+  \url{https://doi.org/10.1214/13-AOAS630}.
 }
 \author{
 Vincent Dorie: \email{vdorie@gmail.com}.
@@ -299,13 +301,13 @@ mu.1 <- x \%*\% beta.y + tau
 y <- mu.0 * (1 - z) + mu.1 * z + rnorm(n, 0, sigma)
 
 # low parameters only for example
-fit <- bartc(y, z, x, n.samples = 100L, n.burn = 50L, n.chains = 3L)
+fit <- bartc(y, z, x, n.samples = 100L, n.burn = 15L, n.chains = 2L)
 summary(fit)
 
 ## example to show refitting under the common support rule
 fit2 <- refit(fit, commonSup.rule = "sd")
 fit3 <- bartc(y, z, x, subset = fit2$commonSup.sub,
-              n.samples = 100L, n.burn = 50L, n.chains = 3L)
+              n.samples = 100L, n.burn = 15L, n.chains = 2L)
 }
 \keyword{causal}
 \keyword{bart}

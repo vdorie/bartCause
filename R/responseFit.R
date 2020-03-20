@@ -358,12 +358,13 @@ getTMLEEstimates <- function(y, z, weights, estimand, mu.hat.0, mu.hat.1, p.scor
     addDimsToSubset(p.score <- p.score[completeRows, drop = FALSE])
   }
   
-  if (!is.null(weights)) {
-    weights <- rep_len(weights, length(y))
-    weights <- weights / sum(weights)
-  } else {
+  tmle <- NULL
+  if (is.null(weights) && is(tryCatch(tmle <- tmle::tmle, error = function(e) e), "error"))
+    warning("tmle package not found; install for up-to-date results with method.rsp = 'tmle'")
+  
+  if (!is.null(tmle)) {
     if (is.null(dim(mu.hat.0))) { 
-      result <- tmle::tmle(Y = y, A = z, W = matrix(0, length(y), 1L), Q = cbind(Q0W = mu.hat.0, Q1W = mu.hat.1), g1W = p.score)
+      result <- tmle(Y = y, A = z, W = matrix(0, length(y), 1L), Q = cbind(Q0W = mu.hat.0, Q1W = mu.hat.1), g1W = p.score)
       result <- unlist(result$estimates[[switch(estimand, ate = "ATE", att = "ATT", atc = "ATC")]][c("psi", "var.psi")])
       names(result) <- c("est", "se")
       result["se"] <- sqrt(result["se"])
@@ -377,7 +378,7 @@ getTMLEEstimates <- function(y, z, weights, estimand, mu.hat.0, mu.hat.1, p.scor
       
       if (n.threads == 1L) {
         result <- t(sapply(seq_len(dim(Q)[3L]), function(i) {
-          res <- tmle::tmle(Y = y, A = z, W = W, Q = Q[,,i], g1W = if (!is.null(dim(p.score))) p.score[,i] else p.score)
+          res <- tmle(Y = y, A = z, W = W, Q = Q[,,i], g1W = if (!is.null(dim(p.score))) p.score[,i] else p.score)
           unlist(res$estimates[[switch(estimand, ate = "ATE", att = "ATT", atc = "ATC")]][c("psi", "var.psi")])
         }))
       } else {
@@ -399,7 +400,7 @@ getTMLEEstimates <- function(y, z, weights, estimand, mu.hat.0, mu.hat.1, p.scor
           Q <- x$Q
           p.score <- x$p.score
           sapply(seq_len(dim(Q)[3L]), function(i) {
-            res <- tmle::tmle(Y = y, A = z, W = W, Q = Q[,,i], g1W = if (!is.null(dim(p.score))) p.score[,i] else p.score)
+            res <- tmle(Y = y, A = z, W = W, Q = Q[,,i], g1W = if (!is.null(dim(p.score))) p.score[,i] else p.score)
             unlist(res$estimates[[switch(estimand, ate = "ATE", att = "ATT", atc = "ATC")]][c("psi", "var.psi")])
           })
         }), error = I)
@@ -416,6 +417,11 @@ getTMLEEstimates <- function(y, z, weights, estimand, mu.hat.0, mu.hat.1, p.scor
       }
     }
     return(result)
+  }
+  
+  if (!is.null(weights)) {
+    weights <- rep_len(weights, length(y))
+    weights <- weights / sum(weights)
   }
   
   r <- range(y)

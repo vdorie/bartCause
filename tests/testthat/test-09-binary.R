@@ -26,8 +26,14 @@ test_that("binary outcome model matches manual", {
 })
 
 test_that("binary outcome runs with tmle", {
+  oldWarn <- getOption("warn")
+  if (!requireNamespace("tmle", quietly = TRUE))
+    options(warn = -1)
+  
   expect_is(bartc(y, z, x, testData,
                   method.rsp = "tmle", method.trt = "bart", verbose = FALSE,
                   n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L), "bartcFit")
+  
+  options(warn = oldWarn)
 })
 
