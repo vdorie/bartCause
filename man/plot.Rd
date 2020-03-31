@@ -159,11 +159,11 @@ set.seed(725)
 x <- matrix(rnorm(3 * n), n, 3)
 tau <- rgamma(1L, 0.25 * 16 * rgamma(1L, 1 * 32, 32), 16)
 
-p.score <- pnorm(x /%*/% beta.z)
+p.score <- pnorm(x \%*\% beta.z)
 z <- rbinom(n, 1, p.score)
 
-mu.0 <- x /%*/% beta.y
-mu.1 <- x /%*/% beta.y + tau
+mu.0 <- x \%*\% beta.y
+mu.1 <- x \%*\% beta.y + tau
 
 y <- mu.0 * (1 - z) + mu.1 * z + rnorm(n, 0, sigma)
 
