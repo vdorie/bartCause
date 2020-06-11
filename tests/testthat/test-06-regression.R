@@ -35,6 +35,9 @@ test_that("bart w/TMLE matches old", {
                method.rsp = "tmle", method.trt = "bart", estimand = "att", verbose = FALSE,
                n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L, n.trees = 5L, n.reps = 5L)
   
-  expect_equal(fitted(fit, "pate"), 0.460325271945704)
+  if (packageVersion("tmle") >= "1.5.0")
+    expect_equal(fitted(fit, "pate"), 0.471054207787337)
+  else
+    expect_equal(fitted(fit, "pate"), 0.460325271945704)
 })
 
