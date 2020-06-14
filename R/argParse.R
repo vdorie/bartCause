@@ -21,6 +21,13 @@ getGroupBy <- function(data, subset, group.by)
 getTreatmentDataCall <- function(fn, treatment, confounders, data, subset, weights, group.by, use.ranef, use.lmer)
 {
   matchedCall <- match.call()
+  tryResult <- tryCatch(confounders.literal <- confounders, error = function(e) e)
+  if (!is(tryResult, "error")) {
+    if (is.language(confounders.literal))
+      matchedCall$confounders <- confounders.literal
+    else if (is.character(confounders.literal))
+      matchedCall$confounders <- str2lang(confounders.literal)
+  }
   
   if (is.null(matchedCall[["group.by"]]) || (use.ranef && !use.lmer)) {
     formula <- a ~ b
@@ -50,6 +57,13 @@ getTreatmentDataCall <- function(fn, treatment, confounders, data, subset, weigh
 getResponseDataCall <- function(fn, response, treatment, confounders, data, subset, weights, p.score, group.by, use.ranef)
 {
   matchedCall <- match.call()
+  tryResult <- tryCatch(confounders.literal <- confounders, error = function(e) e)
+  if (!is(tryResult, "error")) {
+    if (is.language(confounders.literal))
+      matchedCall$confounders <- confounders.literal
+    else if (is.character(confounders.literal))
+      matchedCall$confounders <- str2lang(confounders.literal)
+  }
   
   if (is.null(matchedCall$p.score)) {
     evalEnv <- parent.frame(1L)
@@ -61,12 +75,11 @@ getResponseDataCall <- function(fn, response, treatment, confounders, data, subs
       formula[[3L]][[2L]] <- matchedCall$confounders
       formula[[3L]][[3L]] <- matchedCall$treatment
     } else {
-      browser()
       formula <- a ~ b + c + d
       formula[[2L]] <- matchedCall$response
-      formula[[3L]] <- quote(a + b)
-      formula[[3L]][[2L]] <- matchedCall$confounders
-      formula[[3L]][[3L]] <- matchedCall$treatment
+      formula[[3L]][[2L]][[2L]] <- matchedCall$confounders
+      formula[[3L]][[2L]][[3L]] <- matchedCall$treatment
+      formula[[3L]][[3L]] <- matchedCall$group.by
     }
   } else {
     ## if the p.score is present it was likely estimated (or just given) and thus not
@@ -100,7 +113,12 @@ getResponseDataCall <- function(fn, response, treatment, confounders, data, subs
       formula[[3L]][[2L]][[3L]] <- parse(text = pScoreName)[[1L]]
       formula[[3L]][[3L]] <- matchedCall$treatment
     } else {
-      browser()
+      formula <- a ~ b + c + d + e
+      formula[[2L]] <- matchedCall$response
+      formula[[3L]][[2L]][[2L]][[2L]] <- matchedCall$confounders
+      formula[[3L]][[2L]][[2L]][[3L]] <- parse(text = pScoreName)[[1L]]
+      formula[[3L]][[2L]][[3L]]       <- matchedCall$treatment
+      formula[[3L]][[3L]]             <- matchedCall$group.by
     }
   }
   

@@ -52,6 +52,23 @@ test_that("treatment call with data as data.frame argument returns valid output"
   expect_equal(res$call, parse(text = "stats::glm(z ~ X1 + X2 + X3 + (1 | g), data = df)")[[1L]])
   expect_identical(res$env, currentEnv)
   expect_identical(environment(res$call[[2L]]), currentEnv)
+  
+  
+  confounders <- "X1 + X2 + X3"
+  res <- bartCause:::getTreatmentDataCall(stats::glm, z, confounders, df, group.by = g, use.ranef = FALSE)
+  expect_equal(res$call, parse(text = "stats::glm(z ~ X1 + X2 + X3 + g, data = df)")[[1L]])
+  expect_identical(res$env, currentEnv)
+  expect_identical(environment(res$call[[2L]]), currentEnv)
+  
+  res <- bartCause:::getTreatmentDataCall(stats::glm, z, confounders, df, group.by = g, use.ranef = TRUE, use.lmer = FALSE)
+  expect_equal(res$call, parse(text = "stats::glm(z ~ X1 + X2 + X3, data = df)")[[1L]])
+  expect_identical(res$env, currentEnv)
+  expect_identical(environment(res$call[[2L]]), currentEnv)
+  
+  res <- bartCause:::getTreatmentDataCall(stats::glm, z, confounders, df, group.by = g, use.ranef = TRUE, use.lmer = TRUE)
+  expect_equal(res$call, parse(text = "stats::glm(z ~ X1 + X2 + X3 + (1 | g), data = df)")[[1L]])
+  expect_identical(res$env, currentEnv)
+  expect_identical(environment(res$call[[2L]]), currentEnv)
 })
 
 test_that("treatment call with literal arguments retuns valid output", {
@@ -145,7 +162,35 @@ test_that("response call with data as data.frame argument returns valid output",
   
   expect_equal(res$trt, "z")
   
-  rm(df)
+  
+  confounders <- "X1 + X2 + X3"
+  res <- bartCause:::getResponseDataCall(stats::lm, y, z, confounders, df)
+  expect_equal(res$call, parse(text = "stats::lm(y ~ X1 + X2 + X3 + z, data = df)")[[1L]])
+  
+  currentEnv <- sys.frame(sys.nframe())
+  expect_identical(res$env, currentEnv)
+  expect_identical(environment(res$call[[2L]]), currentEnv)
+  
+  expect_equal(res$trt, "z")
+  
+  ## p.score in testData
+  res <- bartCause:::getResponseDataCall(stats::lm, y, z, confounders, df, p.score = p.score)
+  expect_equal(res$call, parse(text = "stats::lm(y ~ X1 + X2 + X3 + p.score + z, data = df)")[[1L]])
+  
+  expect_identical(res$env, currentEnv)
+  expect_identical(environment(res$call[[2L]]), currentEnv)
+  
+  expect_equal(res$trt, "z")
+  
+  ## p.score supplied as literal
+  res <- bartCause:::getResponseDataCall(stats::lm, y, z, confounders, df, p.score = df$p.score)
+  expect_equal(res$call, parse(text = "stats::lm(y ~ X1 + X2 + X3 + ps + z, data = data)")[[1L]])
+  
+  expect_false(identical(res$env, currentEnv))
+  expect_false(identical(environment(res$call[[2L]]), currentEnv))
+  expect_equal(res$env$data$ps, df$p.score)
+  
+  expect_equal(res$trt, "z")
 })
 
 test_that("response call with data as data.frame argument returns valid output", {
