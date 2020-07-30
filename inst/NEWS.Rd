@@ -1,11 +1,31 @@
 \name{NEWS}
 \title{bartCause News}
 \encoding{UTF-8}
+\section{CHANGES IN VERSION 1.0-4}{
+  \subsection{NEW FEATURES}{
+    \itemize{
+      \item \code{predict} now accepts as options \code{"mu"} and 
+            \code{"y"} for when the user-supplied \code{newdata}
+            object already has a valid treatment assignment.
+    }
+  }
+  \subsection{USER-VISIBLE CHANGES}{
+    \itemize{
+      \item Default \code{type} argument for \code{predict} is
+            now \code{"mu"}.
+    }
+  }
+  \subsection{BUG-FIXES}{
+    \itemize{
+    	\item \code{"ite"} for generics now returns correctly.
+    }
+  }
+}
 \section{CHANGES IN VERSION 1.0-3}{
   \subsection{NEW FEATURES}{
     \itemize{
       \item Confounders can be passed in as literals when using
-            \code{data} argument. This can be assistance in
+            \code{data} argument. This can be of assistance in
             using complicated formulae with many variables.
     }
   }

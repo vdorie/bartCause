@@ -44,16 +44,19 @@ test_that("predict results matches training data", {
   mu.1    <- extract(fit, type = "mu.1")
   mu.0    <- extract(fit, type = "mu.0")
   icate   <- extract(fit, type = "icate")
+  mu      <- extract(fit, type = "mu.obs")
   
   p.score.new <- predict(fit, x, type = "p.score")
   mu.1.new    <- predict(fit, x, type = "mu.1")
   mu.0.new    <- predict(fit, x, type = "mu.0")
   icate.new   <- predict(fit, x, type = "icate")
+  mu.new      <- predict(fit, cbind(x, z), type = "mu")
   
   expect_equal(p.score, p.score.new)
   expect_equal(mu.0, mu.0.new)
   expect_equal(mu.1, mu.1.new)
   expect_equal(icate, icate.new)
+  expect_equal(mu, mu.new)
 })
 
 set.seed(22)

@@ -13,36 +13,36 @@
 }
 \usage{
 \method{fitted}{bartcFit}(object,
-                          type = c("pate", "sate", "cate", "mu.obs", "mu.cf", "mu.0",
-                                   "mu.1", "y.cf", "y.0", "y.1", "icate", "ite",
-                                   "p.score", "p.weights"),
-                          sample = c("inferential", "all"),
-                           \dots)
+       type = c("pate", "sate", "cate", "mu.obs", "mu.cf", "mu.0",
+                "mu.1", "y.cf", "y.0", "y.1", "icate", "ite",
+                "p.score", "p.weights"),
+       sample = c("inferential", "all"),
+       \dots)
 
 extract(object, \dots)
 
 \method{extract}{bartcFit}(object,
-                           type = c("pate", "sate", "cate", "mu.obs", "mu.cf", "mu.0",
-                                    "mu.1", "y.cf", "y.0", "y.1", "icate", "ite",
-                                    "p.score", "p.weights"),
-                           sample = c("inferential", "all"),
-                           combineChains = TRUE,
-                           \dots)
+        type = c("pate", "sate", "cate", "mu.obs", "mu.cf", "mu.0",
+                 "mu.1", "y.cf", "y.0", "y.1", "icate", "ite",
+                 "p.score", "p.weights"),
+        sample = c("inferential", "all"),
+        combineChains = TRUE,
+        \dots)
 
 \method{predict}{bartcFit}(object, newdata,
-                           group.by,
-                           type = c("mu.0", "mu.1", "y.0", "y.1", "icate", "ite",
-                                    "p.score"),
-                           combineChains = TRUE,
-                           \dots)
+        group.by,
+        type = c("mu", "y", "mu.0", "mu.1", "y.0", "y.1", "icate", "ite",
+                 "p.score"),
+        combineChains = TRUE,
+        \dots)
 
 refit(object, newresp, \dots)
 
 \method{refit}{bartcFit}(object,
-                         newresp = NULL,
-                         commonSup.rule = c("none", "sd", "chisq"),
-                         commonSup.cut  = c(NA_real_, 1, 0.05),
-                         \dots)
+      newresp = NULL,
+      commonSup.rule = c("none", "sd", "chisq"),
+      commonSup.cut  = c(NA_real_, 1, 0.05),
+      \dots)
 
 }
 \arguments{
@@ -81,6 +81,10 @@ refit(object, newresp, \dots)
   
   \itemize{
     \item \code{"pate", "sate", "cate"} - various target quantities; see \code{\link[=summary.bartcFit]{summary}}
+    \item \code{"mu"} - predict only: expected value; requires user-supplied treatment variable in
+                        \code{newdata}
+    \item \code{"y"} - predict only: sample of the response; requires user-supplied treatment variable in
+                        \code{newdata}
     \item \code{"mu.obs"} - (samples from the posterior of) the expected value under the observed
                             treatment condition, i.e.
                            \eqn{\hat{mu}_i(1) * z_i + \hat{mu}_i(0) * (1 - z_i)}
@@ -110,7 +114,7 @@ refit(object, newresp, \dots)
   
   \code{predict} allows the fitted model to be used to make predictions on an out-of-sample set.
   Requires model to be fit with \code{keepTrees} equal to \code{TRUE}. As \sQuote{\code{y}} values are
-  all out of sample, the posterior predictive distribution is used in all cases.
+  all considered out of sample, the posterior predictive distribution is always used when relevant.
 }
 \value{
   For \code{fitted}, \code{extract}, and \code{predict}, a matrix, array, or vector depending on the

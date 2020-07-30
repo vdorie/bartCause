@@ -71,6 +71,11 @@ test_that("extract matches manual fit", {
     expect_equal(cate[[as.character(group)]], apply(icate[,,testData$g == group], c(1L, 2L), mean))
 })
 
+test_that("ite estimates match manual", {
+  expect_equal(as.numeric((testData$y - fitted(fit, "y.cf")) * (2 * testData$z - 1)),
+               fitted(fit, "ite"))
+})
+
 test_that("summary object contains correct information", {
   sum <- summary(fit)
   

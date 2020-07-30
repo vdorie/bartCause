@@ -232,7 +232,6 @@ bartc(response, treatment, confounders, data, subset, weights,
   \item{\code{group.by}}{optional factor vector containing the groups in which treatment effects are
                          estimated}
   \item{\code{est}}{matrix or array of posterior samples of the treatment effect estimate}
-  \item{\code{samples.indiv.diff}}{matrix or array of posterior samples of the individual treatment effects}
   \item{\code{p.score}}{the vector of propensity scores used as a covariate in the response model,
                         when applicable}
   \item{\code{samples.p.score}}{matrix or array of posterior samples of the propensity score, when applicable}
