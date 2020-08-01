@@ -347,7 +347,7 @@ extract.bartcFit <-
     samples.indiv.diff <- multiplyArrayByVec(with(object,
       switch(type,
              pate = y.obs.ppd - y.cf,
-             sate = y.obs     - y.cf,
+             sate = subtractArrayFromVec(y.obs, y.cf),
              cate = mu.hat.obs - mu.hat.cf)),
       trtSign)
     

@@ -17,8 +17,8 @@
   }
   \subsection{BUG-FIXES}{
     \itemize{
-    	\item \code{"ite"} for generics now returns correctly. Report
-            thanks to Bryan Keller.
+    	\item \code{"ite"} and \code{"sate"} for generics now returns
+            correctly. Report thanks to Bryan Keller.
     }
   }
 }
