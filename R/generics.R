@@ -335,7 +335,13 @@ extract.bartcFit <-
   .GlobalEnv$.Random.seed <- oldSeed
   
   obsCfToTrtCtl <- function(obs, cf, trt) {
-    if (length(dim(obs)) > 2L) {
+    if (is.null(dim(obs))) {
+      if (length(dim(cf)) > 2L) {
+        aperm(obs * trt + aperm(cf, c(3L, 1L, 2L)) * (1 - trt), c(2L, 3L, 1L))
+      } else {
+        t(obs * trt + t(cf) * (1 - trt))
+      }
+    } else if (length(dim(obs)) > 2L) {
       aperm(aperm(obs, c(3L, 1L, 2L)) * trt + aperm(cf, c(3L, 1L, 2L)) * (1 - trt), c(2L, 3L, 1L))
     } else {
       t(t(obs) * trt + t(cf) * (1 - trt))
