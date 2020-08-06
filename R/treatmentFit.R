@@ -53,7 +53,7 @@ getGLMTreatmentFit <- function(treatment, confounders, data, subset, weights, gr
 }
 
 getBartTreatmentFit <- function(treatment, confounders, data, subset, weights, group.by = NULL, use.ranef = TRUE,
-                                crossvalidateBinary = FALSE, ...)
+                                crossvalidate = FALSE, ...)
 {
   treatmentIsMissing    <- missing(treatment)
   confoundersAreMissing <- missing(confounders)
@@ -99,7 +99,7 @@ getBartTreatmentFit <- function(treatment, confounders, data, subset, weights, g
   bartCall <- addCallArguments(bartCall, extraArgs)
   if (is.null(bartCall[["n.chains"]])) bartCall[["n.chains"]] <- 10L
   
-  if (crossvalidateBinary)
+  if (crossvalidate)
     bartCall <- optimizeBARTCall(bartCall, evalEnv)
   
   bartFit <- eval(bartCall, envir = evalEnv)

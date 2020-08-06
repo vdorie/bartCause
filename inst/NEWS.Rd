@@ -13,6 +13,10 @@
     \itemize{
       \item Default \code{type} argument for \code{predict} is
             now \code{"mu"}.
+      \item \code{bartc} argument \code{crossvalidateBinary}
+            renamed to \code{crossvalidate}. Accepts one of \code{TRUE},
+            \code{FALSE}, \code{"trt"}, or \code{"rsp"}. This feature
+            is experimental and discouraged from use.
     }
   }
   \subsection{BUG-FIXES}{

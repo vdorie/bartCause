@@ -8,7 +8,7 @@ bartc <- function(
   commonSup.cut  = c(NA_real_, 1, 0.05),
   args.rsp = list(), args.trt = list(),
   p.scoreAsCovariate = TRUE, use.ranef = TRUE, group.effects = FALSE,
-  crossvalidateBinary = FALSE,
+  crossvalidate = FALSE,
   keepCall = TRUE, verbose = TRUE, ...
 )
 {
@@ -45,6 +45,12 @@ bartc <- function(
     assign(argName, arg[1L])
   }
   
+  if (length(crossvalidate) != 1L ||
+      (!is.logical(crossvalidate) && !is.character(crossvalidate)) ||
+      (is.logical(crossvalidate) && is.na(crossvalidate)) ||
+      (is.character(crossvalidate) && crossvalidate %not_in% c("rsp", "trt")))
+    stop("crossvalidate must be one of TRUE, FALSE, 'rsp', or 'trt'")
+  
   fit.trt <- p.score <- samples.p.score <- NULL
   if (is.numeric(method.trt)) {
     if (!is.null(dim(method.trt))) {
@@ -71,10 +77,15 @@ bartc <- function(
       glm       = redirectCall(matchedCall, quoteInNamespace(getGLMTreatmentFit)),
       bart      = redirectCall(matchedCall, quoteInNamespace(getBartTreatmentFit)),
       none      = NULL)
-    if (!is.null(args.trt) && length(args.trt) > 0L)
-      treatmentCall[names(matchedCall[["args.trt"]])[-1L]] <- matchedCall[["args.trt"]][-1L]
     
+        
     if (!is.null(treatmentCall)) {
+      if (!is.null(args.trt) && length(args.trt) > 0L)
+        treatmentCall[names(matchedCall[["args.trt"]])[-1L]] <- matchedCall[["args.trt"]][-1L]
+    
+      if (!is.null(treatmentCall[["crossvalidate"]]))
+        treatmentCall[["crossvalidate"]] <- if (is.logical(crossvalidate)) crossvalidate else crossvalidate == "trt"
+
       
       if (verbose) cat("fitting treatment model via method '", method.trt, "'\n", sep = "")
       
@@ -142,6 +153,10 @@ bartc <- function(
   
   if (!is.null(args.rsp) && length(args.rsp) > 0L)
     responseCall[names(matchedCall[["args.rsp"]])[-1L]] <- matchedCall[["args.rsp"]][-1L]
+  
+  if (!is.null(responseCall[["crossvalidate"]]))
+    responseCall[["crossvalidate"]] <- if (is.logical(crossvalidate)) crossvalidate else crossvalidate == "rsp"
+  
   
   if (verbose) cat("fitting response model via method '", method.rsp, "'\n", sep = "")
   

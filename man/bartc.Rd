@@ -15,7 +15,7 @@ bartc(response, treatment, confounders, data, subset, weights,
       commonSup.cut  = c(NA_real_, 1, 0.05),
       args.rsp = list(), args.trt = list(),
       p.scoreAsCovariate = TRUE, use.ranef = TRUE, group.effects = FALSE,
-      crossvalidateBinary = FALSE,
+      crossvalidate = FALSE,
       keepCall = TRUE, verbose = TRUE,
       \dots)
 }
@@ -104,9 +104,10 @@ bartc(response, treatment, confounders, data, subset, weights,
     A logical such that when \code{FALSE}, the call to \code{bartc} is not kept. This can reduce the 
     amount of information printed by \code{\link[=summary.bartcFit]{summary}} when passing in data as literals.
   }
-  \item{crossvalidateBinary}{
-    Enable code to attempt to estimate the optimal end-node sensitivity parameter for the treatment
-    assignment model. This uses a rudimentary Bayesian optimization routine and can be extremely slow.
+  \item{crossvalidate}{
+    One of \code{TRUE}, \code{FALSE}, \code{"trt"}, or \code{"rsp"}. Enables code to attempt to
+    estimate the optimal end-node sensitivity parameter. This uses a rudimentary Bayesian optimization
+    routine and can be extremely slow.
   }
   \item{verbose}{
     A logical that when \code{TRUE} prints information as the model is fit.
