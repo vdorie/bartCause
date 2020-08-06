@@ -75,3 +75,12 @@ test_that("rbart_vi fit matches manual call", {
   expect_equal(bartFit$yhat.test,  bartcFit$fit$yhat.test)
 })
 
+# commenting this out crossvalidation calls have more control over run time
+if (FALSE) test_that("xbart fit matches manual call", {
+  set.seed(22)
+  res <- bartCause:::getBartResponseFit(y, z, x, testData,
+                                        estimand = "ate", group.by = NULL, commonSup.rule = "none", commonSup.cut = NA,
+                                        n.chains = 1L, n.threads = 1L, n.burn = 3L, n.samples = 13L, n.trees = 7L,
+                                        crossvalidate = TRUE)
+})
+

@@ -106,8 +106,13 @@ getBartTreatmentFit <- function(treatment, confounders, data, subset, weights, g
   combineChains <- if (is.null(matchedCall[["combineChains"]])) FALSE else list(...)[["combineChains"]]
   samples <- extract(bartFit, combineChains = combineChains)
   
-  list(fit = bartFit,
-       p.score = apply(samples, length(dim(samples)), mean),
-       samples = samples)
+  result <- 
+    list(fit = bartFit,
+         p.score = apply(samples, length(dim(samples)), mean),
+         samples = samples)
+  if (crossvalidate)
+    result[["k"]] <- bartCall[["k"]]
+  
+  result
 }
 

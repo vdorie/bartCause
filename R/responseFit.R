@@ -159,7 +159,12 @@ getBartResponseFit <- function(response, treatment, confounders, data, subset, w
   
   if (is.null(bartFit[["y"]])) bartFit[["y"]] <- responseData@y
   
-  namedList(fit = bartFit, data = responseData, mu.hat.obs, mu.hat.cf, name.trt = treatmentName, trt, sd.obs, sd.cf, commonSup.sub, missingRows, est = NULL, fitPars = NULL)
+  result <- namedList(fit = bartFit, data = responseData, mu.hat.obs, mu.hat.cf, name.trt = treatmentName, trt, sd.obs, sd.cf, commonSup.sub, missingRows, est = NULL, fitPars = NULL)
+  
+  if (crossvalidate)
+    result[["k"]] <- bartCall[["k"]]
+  
+  result
 }
 
 boundValues <- function(x, bounds){
