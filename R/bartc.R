@@ -136,7 +136,7 @@ bartc <- function(
   if ("verbose" %in% names(responseCall)) responseCall[[which(names(responseCall) == "verbose")]] <- verbose
   
   evalEnv <- callingEnv
-  if (p.scoreAsCovariate && !is.null(p.score)) {
+  if ((p.scoreAsCovariate || method.rsp %in% c("tmle", "p.weight")) && !is.null(p.score)) {
     evalEnv <- new.env(parent = callingEnv)
     pScoreArgName <- "ps"
     if (!is.null(matchedCall$data))
@@ -179,7 +179,7 @@ bartc <- function(
     if (use.ranef) result[["use.ranef"]] <- use.ranef
     if (group.effects) result[["group.effects"]] <- group.effects
   }
-  result$n.chains <- if (length(dim(fit$yhat.train) > 2L)) dim(fit$yhat.train)[1L] else 1L
+  result$n.chains <- if (length(dim(fit$yhat.train)) > 2L) dim(fit$yhat.train)[1L] else 1L
   
   if (!exists(".Random.seed", .GlobalEnv)) runif(1L)
   result$seed <- .GlobalEnv[[".Random.seed"]]

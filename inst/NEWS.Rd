@@ -1,6 +1,14 @@
 \name{NEWS}
 \title{bartCause News}
 \encoding{UTF-8}
+\section{CHANGES IN VERSION 1.0-5}{
+  \subsection{BUG-FIXES}{
+    \itemize{
+      \item Now works with response models in \code{"tmle"} and
+            \code{"p.weight"} when \code{p.scoreAsCovariate} is \code{FALSE}.
+      \item Correctly summarizes the number of samples when \code{n.chains = 1}.
+    }
+  }
 \section{CHANGES IN VERSION 1.0-4}{
   \subsection{NEW FEATURES}{
     \itemize{

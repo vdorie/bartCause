@@ -382,7 +382,7 @@ print.bartcFit.summary <- function(x, ...)
   }
   
   cat("Result based on ", x$n.samples, " posterior samples", 
-      if (!is.null(x$n.chains)) paste0(" times ", x$n.chains, " chains") else "",
+      if (!is.null(x$n.chains) && x$n.chains > 1L) paste0(" times ", x$n.chains, " chains") else "",
       "\n", sep = "", ...)
   
   invisible(x)
