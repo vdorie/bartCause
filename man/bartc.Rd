@@ -17,6 +17,7 @@ bartc(response, treatment, confounders, data, subset, weights,
       p.scoreAsCovariate = TRUE, use.ranef = TRUE, group.effects = FALSE,
       crossvalidate = FALSE,
       keepCall = TRUE, verbose = TRUE,
+      seed = NA_integer_,
       \dots)
 }
 \arguments{
@@ -125,6 +126,12 @@ bartc(response, treatment, confounders, data, subset, weights,
   }
   \item{verbose}{
     A logical that when \code{TRUE} prints information as the model is fit.
+  }
+  \item{seed}{
+    Optional integer specifying the desired pRNG \link[=set.seed]{seed}. It should not be needed
+    when running single-threaded - \code{\link{set.seed}} will suffice, and can be used to
+    obtain reproducible results when multi-threaded. See Reproducibility section of
+    \code{\link{bart2}}.
   }
   \item{args.rsp, args.trt, \dots}{ 
     Further arguments to the treatment and response model fitting algorithms.

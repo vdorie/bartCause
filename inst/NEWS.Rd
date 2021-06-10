@@ -2,6 +2,13 @@
 \title{bartCause News}
 \encoding{UTF-8}
 \section{CHANGES IN VERSION 1.0-5}{
+  \subsection{NEW FEATURES}{
+    \itemize{
+      \item \code{bartc} now accepts a \code{seed} argument that yields
+             reproducible results, even when running with multiple threads
+             and multiple chains.
+    }
+  }
   \subsection{BUG-FIXES}{
     \itemize{
       \item Now works with response models in \code{"tmle"} and
@@ -9,6 +16,7 @@
       \item Correctly summarizes the number of samples when \code{n.chains = 1}.
     }
   }
+}
 \section{CHANGES IN VERSION 1.0-4}{
   \subsection{NEW FEATURES}{
     \itemize{

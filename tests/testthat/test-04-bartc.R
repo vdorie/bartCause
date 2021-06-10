@@ -19,7 +19,7 @@ test_that("bartc matches manual fit", {
   set.seed(22)
   bartcFit <- bartc(y, z, x, testData,
                     method.rsp = "bart", method.trt = "bart", verbose = FALSE,
-                    n.burn = 3L,, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L)
+                    n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L)
   
   set.seed(22)
   fit.trt <- dbarts::bart2(z ~ x, testData, verbose = FALSE,

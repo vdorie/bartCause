@@ -9,7 +9,8 @@ bartc <- function(
   args.rsp = list(), args.trt = list(),
   p.scoreAsCovariate = TRUE, use.ranef = TRUE, group.effects = FALSE,
   crossvalidate = FALSE,
-  keepCall = TRUE, verbose = TRUE, ...
+  keepCall = TRUE, verbose = TRUE,
+  seed = NA_integer_, ...
 )
 {
   matchedCall <- match.call()
@@ -51,6 +52,12 @@ bartc <- function(
       (is.character(crossvalidate) && crossvalidate %not_in% c("rsp", "trt")))
     stop("crossvalidate must be one of TRUE, FALSE, 'rsp', or 'trt'")
   
+  if (!is.na(seed)) {
+    oldSeed <- .GlobalEnv[[".Random.seed"]]
+    set.seed(seed)
+    matchedCall[["seed"]] <- NULL
+  }
+  
   fit.trt <- p.score <- samples.p.score <- NULL
   if (is.numeric(method.trt)) {
     if (!is.null(dim(method.trt))) {
@@ -64,7 +71,6 @@ bartc <- function(
     method.trt <- method.trt[1L]
     if (method.trt %not_in% eval(formals(bartCause::bartc)$method.trt))
       stop("method.trt must be in '", paste0(eval(formals(bartCause::bartc)$method.trt), collapse = "', '"), "'")
-    
     
     if (method.trt %not_in% c("none", "glm") && !is.null(matchedCall[["group.by"]]) && use.ranef) {
       group.by <- eval(redirectCall(matchedCall, quoteInNamespace(getGroupBy)), envir = callingEnv)
@@ -85,7 +91,9 @@ bartc <- function(
     
       if (!is.null(treatmentCall[["crossvalidate"]]))
         treatmentCall[["crossvalidate"]] <- if (is.logical(crossvalidate)) crossvalidate else crossvalidate == "trt"
-
+      
+      if (!is.na(seed) && method.trt == "bart")
+        treatmentCall$seed <- sample.int(.Machine$integer.max, 1L)
       
       if (verbose) cat("fitting treatment model via method '", method.trt, "'\n", sep = "")
       
@@ -157,6 +165,8 @@ bartc <- function(
   if (!is.null(responseCall[["crossvalidate"]]))
     responseCall[["crossvalidate"]] <- if (is.logical(crossvalidate)) crossvalidate else crossvalidate == "rsp"
   
+  if (!is.na(seed))
+    responseCall$seed <- sample.int(.Machine$integer.max, 1L)
   
   if (verbose) cat("fitting response model via method '", method.rsp, "'\n", sep = "")
   
@@ -181,9 +191,15 @@ bartc <- function(
   }
   result$n.chains <- if (length(dim(fit$yhat.train)) > 2L) dim(fit$yhat.train)[1L] else 1L
   
-  if (!exists(".Random.seed", .GlobalEnv)) runif(1L)
-  result$seed <- .GlobalEnv[[".Random.seed"]]
-  
+  if (!is.na(seed)) {
+    result$seed <- .GlobalEnv$.Random.seed
+    
+    .GlobalEnv[[".Random.seed"]] <- oldSeed
+  } else {
+    if (!exists(".Random.seed", .GlobalEnv)) runif(1L)
+    result$seed <- .GlobalEnv$.Random.seed
+  }
+   
   class(result) <- "bartcFit"
   result
 }
