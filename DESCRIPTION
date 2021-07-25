@@ -14,7 +14,8 @@ Imports:
   graphics,
   parallel,
   utils,
-  grDevices
+  grDevices,
+  stan4bart
 Suggests:
   testthat (>= 0.9-0),
   lme4,

@@ -364,7 +364,7 @@ getTMLEEstimates <- function(y, z, weights, estimand, mu.hat.0, mu.hat.1, p.scor
   }
   
   tmle <- NULL
-  if (is.null(weights) && is(tryCatch(tmle <- tmle::tmle, error = function(e) e), "error"))
+  if (is.null(weights) && inherits(tryCatch(tmle <- tmle::tmle, error = function(e) e), "error"))
     warning("tmle package not found; install for up-to-date results with method.rsp = 'tmle'")
   
   if (!is.null(tmle)) {

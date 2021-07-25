@@ -13,7 +13,9 @@ S3method(refit, bartcFit)
 importFrom(dbarts, bart2, guessNumCores, xbart, extract)
 export(extract)
 
-importFrom(methods, is, "slot<-")
+importFrom(stan4bart, mstan4bart)
+
+importFrom(methods, "slot<-")
 importFrom(stats, glm, binomial, fitted, predict, sd)
 importFrom(stats, plogis, pnorm, qlogis, qnorm, qchisq)
 importFrom(stats, runif, rbinom, rnorm)

@@ -34,7 +34,7 @@ optimizeBARTCall <- function(bartCall, env)
         control[[argName]] <- xbartCall[[argName]]
         xbartCall[[argName]] <- NULL
       }
-    } else if (is(control, "dbartsControl")) {
+    } else if (inherits(control, "dbartsControl")) {
       for (argName in names(xbartCall)[argsToMove]) {
         slot(control, argName) <- eval(xbartCall[[argName]], env)
         xbartCall[[argName]] <- NULL

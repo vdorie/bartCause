@@ -6,7 +6,7 @@ coerceOrError <- function(x, type)
   
   func <- switch(type, logical = as.logical, integer = as.integer, numeric = as.numeric)
   result <- tryCatch(func(x), warning = function(e) e)
-  if (is(result, "warning")) stop("'", mc[[2L]], "' must be coercible to type: ", type)
+  if (inherits(result, "warning")) stop("'", mc[[2L]], "' must be coercible to type: ", type)
   
   result
 }
@@ -126,7 +126,7 @@ addCallArguments <- function(call, args, replace = TRUE)
     call[names(call) != "" & names(call) %in% names(args)] <- args[oldArgs]
   args <- args[!oldArgs]
   
-  if (is(args, "call"))
+  if (inherits(args, "call"))
     args <- args[-1L]
 
   for (i in seq_along(args)) {
@@ -236,7 +236,7 @@ addDimsToSubset <- function(e) {
   env <- parent.frame()
   
   tryResult <- tryCatch(result <- eval(subDims(e, env), env), error = function(e) e)
-  if (is(tryResult, "error")) browser()
+  if (inherits(tryResult, "error")) browser()
   result
 }
 
