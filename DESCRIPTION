@@ -14,13 +14,13 @@ Imports:
   graphics,
   parallel,
   utils,
-  grDevices,
-  stan4bart
+  grDevices
 Suggests:
   testthat (>= 0.9-0),
   lme4,
   rpart,
-  tmle
+  tmle,
+  stan4bart
 Description: Contains a variety of methods to generate typical causal inference estimates using Bayesian Additive Regression Trees (BART) as the underlying regression model (Hill (2012) <doi:10.1198/jcgs.2010.08162>).
 License: GPL (>= 2)
 NeedsCompilation: no

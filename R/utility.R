@@ -19,19 +19,42 @@ evalx.recurse <- function(x, e) {
   for (i in seq_along(e)) {
     if (!is.language(e[[i]])) next
     
-    e[[i]] <- if (e[[i]] == "x") x else evalx.recurse(x, e[[i]])
+    e[[i]] <- if (e[[i]] == "x") {
+        # prematurely evaluate recursive calls to evalx
+        if (is.language(x) && !is.symbol(x) && length(x) > 0L && x[[1L]] == quote(evalx)) eval(x, parent.frame()) else x
+      } else {
+        evalx.recurse(x, e[[i]])
+      }
   }
   
   e
 }
 
-## evaluates the expression 'e' by after first replacing all instances of 'x' with the expression x
-evalx <- function(x, e) {
+# evaluates the expression 'e' by after first replacing all instances of 'x' with the expression x
+# if force is TRUE, x will be evaluated and not passed on as an expression. This is useful when
+# x itself evaluates to the expession desired
+#
+# for example:
+# complicated_x <- quote(big_variable_name[big_variable_name > 0])
+# evalx(complicated_x, x <- x + 5, forceX = TRUE)
+
+# resolves to:
+# big_variable_name[big_variable_name > 0] <-
+#    big_variable_name[big_variable_name > 0] + 5
+#
+# in contrast to:
+evalx <- function(x, e, forceX = FALSE) {
   mc <- match.call()
   callingEnv <- parent.frame()
   
-  e <- evalx.recurse(mc$x, mc$e)
-  eval(e, callingEnv)
+  if (!forceX) {
+    e <- evalx.recurse(mc$x, mc$e)
+    eval(e, callingEnv)
+  } else {
+    x <- force(x)
+    e <- evalx.recurse(x, mc$e)
+    eval(e, callingEnv)
+  }
 }
 
 ifelse_3 <- function(a, b, c, d, e) {

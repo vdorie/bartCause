@@ -4,7 +4,7 @@ source(system.file("common", "groupedData.R", package = "bartCause"))
 
 test_that("treatment call with data as list argument returns valid output", {
   res <- bartCause:::getTreatmentDataCall(stats::glm, z, x, data = testData)
-  ## check that it generates the correct call and that the environments point here
+  # check that it generates the correct call and that the environments point here
   expect_equal(res$call, str2lang("stats::glm(z ~ x, data = testData)"))
   
   currentEnv <- sys.frame(sys.nframe())
@@ -13,6 +13,15 @@ test_that("treatment call with data as list argument returns valid output", {
   
   res <- bartCause:::getTreatmentDataCall(stats::glm, z, x, data = testData, group.by = g, use.ranef = FALSE)
   expect_equal(res$call, str2lang("stats::glm(z ~ x + g, data = testData)"))
+  expect_identical(res$env, currentEnv)
+  expect_identical(environment(res$call[[2L]]), currentEnv)
+  
+  # function doesn't make sense, but allows us to run test without relevant package
+  # installed 
+  res <- bartCause:::getTreatmentDataCall(stats::glm, z, x, data = testData, parametric = (1 | g))
+  expect_equal(res$call, str2lang("stats::glm(z ~ (1 | g) + bart(x), data = testData)"))
+  
+  currentEnv <- sys.frame(sys.nframe())
   expect_identical(res$env, currentEnv)
   expect_identical(environment(res$call[[2L]]), currentEnv)
   
@@ -25,12 +34,29 @@ test_that("treatment call with data as list argument returns valid output", {
   expect_equal(res$call, str2lang("stats::glm(z ~ x + (1 | g), data = testData)"))
   expect_identical(res$env, currentEnv)
   expect_identical(environment(res$call[[2L]]), currentEnv)
+  
+  expect_error(bartCause:::getTreatmentDataCall(stats::glm, z, x, data = testData, group.by = g, parametric = (1 | g)))
 })
 
 test_that("treatment call with data as data.frame argument returns valid output", {
   df <- with(testData, data.frame(x, z, y, p.score, g))
+  
   res <- bartCause:::getTreatmentDataCall(stats::glm, z, X1 + X2 + X3, data = df)
   expect_true(res$call == str2lang("stats::glm(z ~ X1 + X2 + X3, data = df)"))
+  
+  currentEnv <- sys.frame(sys.nframe())
+  expect_identical(res$env, currentEnv)
+  expect_identical(environment(res$call[[2L]]), currentEnv)
+  
+  res <- bartCause:::getTreatmentDataCall(stats::glm, z, X1, data = df, parametric = X2 + X3)
+  expect_true(res$call == str2lang("stats::glm(z ~ X2 + X3 + bart(X1), data = df)"))
+  
+  currentEnv <- sys.frame(sys.nframe())
+  expect_identical(res$env, currentEnv)
+  expect_identical(environment(res$call[[2L]]), currentEnv)
+  
+  res <- bartCause:::getTreatmentDataCall(stats::glm, z, X1 + X2 + X3, data = df, parametric = (1 | g))
+  expect_true(res$call == str2lang("stats::glm(z ~ (1 | g) + bart(X1 + X2 + X3), data = df)"))
   
   currentEnv <- sys.frame(sys.nframe())
   expect_identical(res$env, currentEnv)
@@ -52,6 +78,13 @@ test_that("treatment call with data as data.frame argument returns valid output"
   expect_identical(environment(res$call[[2L]]), currentEnv)
   
   confounders <- "X1 + X2 + X3"
+  res <- bartCause:::getTreatmentDataCall(stats::glm, z, confounders, data = df, parametric = (1 | g))
+  expect_true(res$call == str2lang("stats::glm(z ~ (1 | g) + bart(X1 + X2 + X3), data = df)"))
+  
+  currentEnv <- sys.frame(sys.nframe())
+  expect_identical(res$env, currentEnv)
+  expect_identical(environment(res$call[[2L]]), currentEnv)
+  
   res <- bartCause:::getTreatmentDataCall(stats::glm, z, confounders, data = df, group.by = g, use.ranef = FALSE)
   expect_equal(res$call, str2lang("stats::glm(z ~ X1 + X2 + X3 + g, data = df)"))
   expect_identical(res$env, currentEnv)
@@ -69,14 +102,25 @@ test_that("treatment call with data as data.frame argument returns valid output"
 })
 
 test_that("treatment call with literal arguments retuns valid output", {
+  testData <- within(testData, Z <- Matrix::sparseMatrix(seq_along(g), g))
+  
   res <- bartCause:::getTreatmentLiteralCall(stats::glm, testData$z, testData$x)
   expect_equal(res$call, str2lang("stats::glm(z ~ V1 + V2 + V3, data = df)"))
   expect_true(all(colnames(res$df) %in% c("z", "V1", "V2", "V3")))
+  
+  res <- bartCause:::getTreatmentLiteralCall(stats::glm, testData$z, testData$x, parametric = testData$Z)
+  expect_equal(res$call, str2lang("stats::glm(z ~ V1 + V2 + V3 + bart(V1_bart + V2_bart + V3_bart), data = df)"))
+  expect_true(all(colnames(res$df) %in% c("z", "V1", "V2", "V3", "V1_bart", "V2_bart", "V3_bart")))
   
   colnames(testData$x) <- c("x1", "x2", "z")
   res <- bartCause:::getTreatmentLiteralCall(stats::glm, testData$z, testData$x)
   expect_equal(res$call, str2lang("stats::glm(zz ~ x1 + x2 + z, data = df)"))
   expect_true(all(colnames(res$df) %in% c("zz", "x1", "x2", "z")))
+  
+  colnames(testData$Z) <- c(paste0("g_", seq_len(ncol(testData$Z) - 1L)), "x2")
+  res <- bartCause:::getTreatmentLiteralCall(stats::glm, testData$z, testData$x, parametric = testData$Z)
+  expect_equal(res$call, str2lang("stats::glm(zz ~ g_1 + g_2 + x2 + bart(x1 + x2_bart + z), data = df)"))
+  expect_true(all(colnames(res$df) %in% c("zz", "x1", "x2_bart", "z", "g_1", "g_2", "x2")))
   
   x <- as.data.frame(testData$x)
   z <- testData$z
@@ -107,6 +151,17 @@ test_that("response call with data as list argument returns valid output", {
   expect_identical(environment(res$call[[2L]]), currentEnv)
   
   expect_equal(res$trt, "z")
+  expect_true(length(res$missingRows) > 0L && !any(res$missingRows))
+  
+  res <- bartCause:::getResponseDataCall(stats::lm, y, z, x, parametric = (1 | g), data = testData)
+  expect_equal(res$call, str2lang("stats::lm(y ~ z + bart(x) + (1 | g), data = testData)"))
+  
+  currentEnv <- sys.frame(sys.nframe())
+  expect_identical(res$env, currentEnv)
+  expect_identical(environment(res$call[[2L]]), currentEnv)
+  
+  expect_equal(res$trt, "z")
+  expect_true(length(res$missingRows) > 0L && !any(res$missingRows))
   
   ## p.score in testData
   res <- bartCause:::getResponseDataCall(stats::lm, y, z, x, data = testData, p.score = p.score)
@@ -116,6 +171,17 @@ test_that("response call with data as list argument returns valid output", {
   expect_identical(environment(res$call[[2L]]), currentEnv)
   
   expect_equal(res$trt, "z")
+  expect_true(length(res$missingRows) > 0L && !any(res$missingRows))
+  
+  res <- bartCause:::getResponseDataCall(stats::lm, y, z, x, parametric = (1 | g),
+                                         data = testData, p.score = p.score)
+  expect_equal(res$call, str2lang("stats::lm(y ~ z + p.score + bart(x) + (1 | g), data = testData)"))
+  
+  expect_identical(res$env, currentEnv)
+  expect_identical(environment(res$call[[2L]]), currentEnv)
+  
+  expect_equal(res$trt, "z")
+  expect_true(length(res$missingRows) > 0L && !any(res$missingRows))
   
   ## p.score supplied as literal
   res <- bartCause:::getResponseDataCall(stats::lm, y, z, x, data = testData, p.score = testData$p.score)
@@ -126,10 +192,22 @@ test_that("response call with data as list argument returns valid output", {
   expect_equal(res$env$data$ps, testData$p.score)
   
   expect_equal(res$trt, "z")
+  expect_true(length(res$missingRows) > 0L && !any(res$missingRows))
+  
+  res <- bartCause:::getResponseDataCall(stats::lm, y, z, x, parametric = (1 | g),
+                                         data = testData, p.score = testData$p.score)
+  expect_equal(res$call, str2lang("stats::lm(y ~ z + ps + bart(x) + (1 | g), data = data)"))
+  
+  expect_false(identical(res$env, currentEnv))
+  expect_false(identical(environment(res$call[[2L]]),currentEnv))
+  expect_equal(res$env$data$ps, testData$p.score)
+  
+  expect_equal(res$trt, "z")
+  expect_true(length(res$missingRows) > 0L && !any(res$missingRows))
 })
 
 test_that("response call with data as data.frame argument returns valid output", {
-  df <- with(testData, data.frame(x, y, z, p.score))
+  df <- with(testData, data.frame(x, y, z, p.score, g))
   
   res <- bartCause:::getResponseDataCall(stats::lm, y, z, X1 + X2 + X3, data = df)
   expect_equal(res$call, str2lang("stats::lm(y ~ X1 + X2 + X3 + z, data = df)"))
@@ -139,6 +217,16 @@ test_that("response call with data as data.frame argument returns valid output",
   expect_identical(environment(res$call[[2L]]), currentEnv)
   
   expect_equal(res$trt, "z")
+  expect_true(length(res$missingRows) > 0L && !any(res$missingRows))
+  
+  res <- bartCause:::getResponseDataCall(stats::lm, y, z, x, parametric = (1 | g), data = df)
+  expect_equal(res$call, str2lang("stats::lm(y ~ z + bart(x) + (1 | g), data = df)"))
+  
+  expect_identical(res$env, currentEnv)
+  expect_identical(environment(res$call[[2L]]), currentEnv)
+  
+  expect_equal(res$trt, "z")
+  expect_true(length(res$missingRows) > 0L && !any(res$missingRows))
   
   ## p.score in testData
   res <- bartCause:::getResponseDataCall(stats::lm, y, z, X1 + X2 + X3, data = df, p.score = p.score)
@@ -148,6 +236,17 @@ test_that("response call with data as data.frame argument returns valid output",
   expect_identical(environment(res$call[[2L]]), currentEnv)
   
   expect_equal(res$trt, "z")
+  expect_true(length(res$missingRows) > 0L && !any(res$missingRows))
+  
+  res <- bartCause:::getResponseDataCall(stats::lm, y, z, X1 + X2 + X3, parametric = (1 | g),
+                                         data = df, p.score = p.score)
+  expect_equal(res$call, str2lang("stats::lm(y ~ z + p.score + bart(X1 + X2 + X3) + (1 | g), data = df)"))
+  
+  expect_identical(res$env, currentEnv)
+  expect_identical(environment(res$call[[2L]]), currentEnv)
+  
+  expect_equal(res$trt, "z")
+  expect_true(length(res$missingRows) > 0L && !any(res$missingRows))
   
   ## p.score supplied as literal
   res <- bartCause:::getResponseDataCall(stats::lm, y, z, X1 + X2 + X3, data = df, p.score = df$p.score)
@@ -158,6 +257,18 @@ test_that("response call with data as data.frame argument returns valid output",
   expect_equal(res$env$data$ps, df$p.score)
   
   expect_equal(res$trt, "z")
+  expect_true(length(res$missingRows) > 0L && !any(res$missingRows))
+  
+  res <- bartCause:::getResponseDataCall(stats::lm, y, z, X1 + X2 + X3, parametric = (1 | g),
+                                         data = df, p.score = df$p.score)
+  expect_equal(res$call, str2lang("stats::lm(y ~ z + ps + bart(X1 + X2 + X3) + (1 | g), data = data)"))
+  
+  expect_false(identical(res$env, currentEnv))
+  expect_false(identical(environment(res$call[[2L]]), currentEnv))
+  expect_equal(res$env$data$ps, df$p.score)
+  
+  expect_equal(res$trt, "z")
+  expect_true(length(res$missingRows) > 0L && !any(res$missingRows))
   
   
   confounders <- "X1 + X2 + X3"
@@ -169,6 +280,19 @@ test_that("response call with data as data.frame argument returns valid output",
   expect_identical(environment(res$call[[2L]]), currentEnv)
   
   expect_equal(res$trt, "z")
+  expect_true(length(res$missingRows) > 0L && !any(res$missingRows))
+  
+  
+  res <- bartCause:::getResponseDataCall(stats::lm, y, z, confounders, parametric = (1 | g), data = df)
+  expect_equal(res$call, str2lang("stats::lm(y ~ z + bart(X1 + X2 + X3) + (1 | g), data = df)"))
+  
+  currentEnv <- sys.frame(sys.nframe())
+  expect_identical(res$env, currentEnv)
+  expect_identical(environment(res$call[[2L]]), currentEnv)
+  
+  expect_equal(res$trt, "z")
+  expect_true(length(res$missingRows) > 0L && !any(res$missingRows))
+  
   
   ## p.score in testData
   res <- bartCause:::getResponseDataCall(stats::lm, y, z, confounders, data = df, p.score = p.score)
@@ -178,6 +302,18 @@ test_that("response call with data as data.frame argument returns valid output",
   expect_identical(environment(res$call[[2L]]), currentEnv)
   
   expect_equal(res$trt, "z")
+  expect_true(length(res$missingRows) > 0L && !any(res$missingRows))
+  
+  res <- bartCause:::getResponseDataCall(stats::lm, y, z, confounders, parametric = (1 | g),
+                                         data = df, p.score = p.score)
+  expect_equal(res$call, str2lang("stats::lm(y ~ z + p.score + bart(X1 + X2 + X3) + (1 | g), data = df)"))
+  
+  expect_identical(res$env, currentEnv)
+  expect_identical(environment(res$call[[2L]]), currentEnv)
+  
+  expect_equal(res$trt, "z")
+  expect_true(length(res$missingRows) > 0L && !any(res$missingRows))
+  
   
   ## p.score supplied as literal
   res <- bartCause:::getResponseDataCall(stats::lm, y, z, confounders, data = df, p.score = df$p.score)
@@ -188,22 +324,57 @@ test_that("response call with data as data.frame argument returns valid output",
   expect_equal(res$env$data$ps, df$p.score)
   
   expect_equal(res$trt, "z")
+  expect_true(length(res$missingRows) > 0L && !any(res$missingRows))
+  
+  res <- bartCause:::getResponseDataCall(stats::lm, y, z, confounders, parametric = (1 | g),
+                                         data = df, p.score = df$p.score)
+  expect_equal(res$call, str2lang("stats::lm(y ~ z + ps + bart(X1 + X2 + X3) + (1 | g), data = data)"))
+  
+  expect_false(identical(res$env, currentEnv))
+  expect_false(identical(environment(res$call[[2L]]), currentEnv))
+  expect_equal(res$env$data$ps, df$p.score)
+  
+  expect_equal(res$trt, "z")
+  expect_true(length(res$missingRows) > 0L && !any(res$missingRows))
 })
 
-test_that("response call with data as data.frame argument returns valid output", {
+test_that("response call with literal arguments retuns valid output", {
   res <- bartCause:::getResponseLiteralCall(stats::lm, testData$y, testData$z, testData$x)
   expect_equal(res$call, str2lang("stats::lm(y ~ z + V1 + V2 + V3, data = df)"))
   expect_true(all(colnames(res$df) %in% c("z", "y", "V1", "V2", "V3")))
   
   expect_equal(res$trt, "z")
+  expect_true(length(res$missingRows) > 0L && !any(res$missingRows))
+  
+  
+  testData <- within(testData, Z <- Matrix::sparseMatrix(seq_along(g), g))
+
+  res <- bartCause:::getResponseLiteralCall(stats::lm, testData$y, testData$z, testData$x, parametric = testData$Z)
+  expect_equal(res$call, str2lang("stats::lm(y ~ z + V1 + V2 + V3 + bart(V1_bart + V2_bart + V3_bart), data = df)"))
+  expect_true(all(colnames(res$df) %in% c("z", "y", "V1", "V2", "V3", "V1_bart", "V2_bart", "V3_bart")))
+  
+  expect_equal(res$trt, "z")
+  expect_true(length(res$missingRows) > 0L && !any(res$missingRows))
+  
   
   colnames(testData$x) <- c("x1", "x2", "z")
   res <- bartCause:::getResponseLiteralCall(stats::lm, testData$y, testData$z, testData$x)
   expect_equal(res$call, str2lang("stats::lm(y ~ zz + x1 + x2 + z, data = df)"))
   expect_true(all(colnames(res$df) %in% c("zz", "y", "x1", "x2", "z")))
   
+  expect_equal(res$trt, "zz")
+  expect_true(length(res$missingRows) > 0L && !any(res$missingRows))
+  
+  res <- bartCause:::getResponseLiteralCall(stats::lm, testData$y, testData$z, testData$x, parametric = testData$Z)
+  expect_equal(res$call, str2lang("stats::lm(y ~ zz + V1 + V2 + V3 + bart(x1 + x2 + z), data = df)"))
+  expect_true(all(colnames(res$df) %in% c("zz", "y", "V1", "V2", "V3", "x1", "x2", "z")))
+  
+  expect_equal(res$trt, "zz")
+  expect_true(length(res$missingRows) > 0L && !any(res$missingRows))
+  
+  
   colnames(testData$x) <- NULL
-    
+  
   res <- bartCause:::getResponseLiteralCall(stats::lm, testData$y, testData$z, testData$x, p.score = testData$p.score)
   expect_equal(res$call, str2lang("stats::lm(y ~ z + V1 + V2 + V3 + ps, data = df)"))
   expect_true(all(colnames(res$df) %in% c("z", "y", "V1", "V2", "V3", "ps")))
@@ -211,5 +382,16 @@ test_that("response call with data as data.frame argument returns valid output",
   expect_equal(res$df$ps, testData$p.score)
    
   expect_equal(res$trt, "z")
+  expect_true(length(res$missingRows) > 0L && !any(res$missingRows))
+  
+  res <- bartCause:::getResponseLiteralCall(stats::lm, testData$y, testData$z, testData$x, p.score = testData$p.score, parametric = testData$Z)
+  expect_equal(res$call, str2lang("stats::lm(y ~ z + V1 + V2 + V3 + ps + bart(V1_bart + V2_bart + 
+    V3_bart), data = df)"))
+  expect_true(all(colnames(res$df) %in% c("z", "y", "V1", "V2", "V3", "ps", "V1_bart", "V2_bart", "V3_bart")))
+  
+  expect_equal(as.vector(res$df[,"ps"]), as.vector(testData$p.score))
+   
+  expect_equal(res$trt, "z")
+  expect_true(length(res$missingRows) > 0L && !any(res$missingRows))
 })
 
