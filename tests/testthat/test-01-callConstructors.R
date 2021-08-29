@@ -18,12 +18,15 @@ test_that("treatment call with data as list argument returns valid output", {
   
   # function doesn't make sense, but allows us to run test without relevant package
   # installed 
-  res <- bartCause:::getTreatmentDataCall(stats::glm, z, x, data = testData, parametric = (1 | g))
+  res <- bartCause:::getTreatmentDataCall(stats::glm, z, x, data = testData, parametric = (1 | g), use.lmer = FALSE)
   expect_equal(res$call, str2lang("stats::glm(z ~ (1 | g) + bart(x), data = testData)"))
   
   currentEnv <- sys.frame(sys.nframe())
   expect_identical(res$env, currentEnv)
   expect_identical(environment(res$call[[2L]]), currentEnv)
+  
+  res <- bartCause:::getTreatmentDataCall(stats::glm, z, x, data = testData, parametric = (1 | g), use.lmer = TRUE)
+  expect_equal(res$call, str2lang("stats::glm(z ~ (1 | g) + x, data = testData)"))
   
   res <- bartCause:::getTreatmentDataCall(stats::glm, z, x, data = testData, group.by = g, use.ranef = TRUE, use.lmer = FALSE)
   expect_equal(res$call, str2lang("stats::glm(z ~ x, data = testData)"))
@@ -48,19 +51,34 @@ test_that("treatment call with data as data.frame argument returns valid output"
   expect_identical(res$env, currentEnv)
   expect_identical(environment(res$call[[2L]]), currentEnv)
   
-  res <- bartCause:::getTreatmentDataCall(stats::glm, z, X1, data = df, parametric = X2 + X3)
+  res <- bartCause:::getTreatmentDataCall(stats::glm, z, X1, data = df, parametric = X2 + X3, use.lmer = FALSE)
   expect_true(res$call == str2lang("stats::glm(z ~ X2 + X3 + bart(X1), data = df)"))
   
   currentEnv <- sys.frame(sys.nframe())
   expect_identical(res$env, currentEnv)
   expect_identical(environment(res$call[[2L]]), currentEnv)
   
-  res <- bartCause:::getTreatmentDataCall(stats::glm, z, X1 + X2 + X3, data = df, parametric = (1 | g))
+  res <- bartCause:::getTreatmentDataCall(stats::glm, z, X1, data = df, parametric = X2 + X3, use.lmer = TRUE)
+  expect_true(res$call == str2lang("stats::glm(z ~ X2 + X3 + X1, data = df)"))
+  
+  currentEnv <- sys.frame(sys.nframe())
+  expect_identical(res$env, currentEnv)
+  expect_identical(environment(res$call[[2L]]), currentEnv)
+  
+  res <- bartCause:::getTreatmentDataCall(stats::glm, z, X1 + X2 + X3, data = df, parametric = (1 | g), use.lmer = FALSE)
   expect_true(res$call == str2lang("stats::glm(z ~ (1 | g) + bart(X1 + X2 + X3), data = df)"))
   
   currentEnv <- sys.frame(sys.nframe())
   expect_identical(res$env, currentEnv)
   expect_identical(environment(res$call[[2L]]), currentEnv)
+  
+  res <- bartCause:::getTreatmentDataCall(stats::glm, z, X1 + X2 + X3, data = df, parametric = (1 | g), use.lmer = TRUE)
+  expect_true(res$call == str2lang("stats::glm(z ~ (1 | g) + (X1 + X2 + X3), data = df)"))
+  
+  currentEnv <- sys.frame(sys.nframe())
+  expect_identical(res$env, currentEnv)
+  expect_identical(environment(res$call[[2L]]), currentEnv)
+
   
   res <- bartCause:::getTreatmentDataCall(stats::glm, z, X1 + X2 + X3, data = df, group.by = g, use.ranef = FALSE)
   expect_equal(res$call, str2lang("stats::glm(z ~ X1 + X2 + X3 + g, data = df)"))
@@ -78,8 +96,15 @@ test_that("treatment call with data as data.frame argument returns valid output"
   expect_identical(environment(res$call[[2L]]), currentEnv)
   
   confounders <- "X1 + X2 + X3"
-  res <- bartCause:::getTreatmentDataCall(stats::glm, z, confounders, data = df, parametric = (1 | g))
+  res <- bartCause:::getTreatmentDataCall(stats::glm, z, confounders, data = df, parametric = (1 | g), use.lmer = FALSE)
   expect_true(res$call == str2lang("stats::glm(z ~ (1 | g) + bart(X1 + X2 + X3), data = df)"))
+  
+  currentEnv <- sys.frame(sys.nframe())
+  expect_identical(res$env, currentEnv)
+  expect_identical(environment(res$call[[2L]]), currentEnv)
+  
+  res <- bartCause:::getTreatmentDataCall(stats::glm, z, confounders, data = df, parametric = (1 | g), use.lmer = TRUE)
+  expect_true(res$call == str2lang("stats::glm(z ~ (1 | g) + (X1 + X2 + X3), data = df)"))
   
   currentEnv <- sys.frame(sys.nframe())
   expect_identical(res$env, currentEnv)
@@ -102,14 +127,21 @@ test_that("treatment call with data as data.frame argument returns valid output"
 })
 
 test_that("treatment call with literal arguments retuns valid output", {
-  testData <- within(testData, Z <- Matrix::sparseMatrix(seq_along(g), g))
+  testData$Z <- model.matrix(~ -1 + as.factor(g), testData)
+  colnames(testData$Z) <- NULL
+  attr(testData$Z, "assign") <- NULL
+  attr(testData$Z, "contrasts") <- NULL
   
   res <- bartCause:::getTreatmentLiteralCall(stats::glm, testData$z, testData$x)
   expect_equal(res$call, str2lang("stats::glm(z ~ V1 + V2 + V3, data = df)"))
   expect_true(all(colnames(res$df) %in% c("z", "V1", "V2", "V3")))
   
-  res <- bartCause:::getTreatmentLiteralCall(stats::glm, testData$z, testData$x, parametric = testData$Z)
+  res <- bartCause:::getTreatmentLiteralCall(stats::glm, testData$z, testData$x, parametric = testData$Z, use.lmer = FALSE)
   expect_equal(res$call, str2lang("stats::glm(z ~ V1 + V2 + V3 + bart(V1_bart + V2_bart + V3_bart), data = df)"))
+  expect_true(all(colnames(res$df) %in% c("z", "V1", "V2", "V3", "V1_bart", "V2_bart", "V3_bart")))
+  
+  res <- bartCause:::getTreatmentLiteralCall(stats::glm, testData$z, testData$x, parametric = testData$Z, use.lmer = TRUE)
+  expect_equal(res$call, str2lang("stats::glm(z ~ V1 + V2 + V3 + V1_bart + V2_bart + V3_bart, data = df)"))
   expect_true(all(colnames(res$df) %in% c("z", "V1", "V2", "V3", "V1_bart", "V2_bart", "V3_bart")))
   
   colnames(testData$x) <- c("x1", "x2", "z")
@@ -118,7 +150,7 @@ test_that("treatment call with literal arguments retuns valid output", {
   expect_true(all(colnames(res$df) %in% c("zz", "x1", "x2", "z")))
   
   colnames(testData$Z) <- c(paste0("g_", seq_len(ncol(testData$Z) - 1L)), "x2")
-  res <- bartCause:::getTreatmentLiteralCall(stats::glm, testData$z, testData$x, parametric = testData$Z)
+  res <- bartCause:::getTreatmentLiteralCall(stats::glm, testData$z, testData$x, parametric = testData$Z, use.lmer = FALSE)
   expect_equal(res$call, str2lang("stats::glm(zz ~ g_1 + g_2 + x2 + bart(x1 + x2_bart + z), data = df)"))
   expect_true(all(colnames(res$df) %in% c("zz", "x1", "x2_bart", "z", "g_1", "g_2", "x2")))
   
@@ -347,7 +379,10 @@ test_that("response call with literal arguments retuns valid output", {
   expect_true(length(res$missingRows) > 0L && !any(res$missingRows))
   
   
-  testData <- within(testData, Z <- Matrix::sparseMatrix(seq_along(g), g))
+  testData$Z <- model.matrix(~ -1 + as.factor(g), testData)
+  colnames(testData$Z) <- NULL
+  attr(testData$Z, "assign") <- NULL
+  attr(testData$Z, "contrasts") <- NULL
 
   res <- bartCause:::getResponseLiteralCall(stats::lm, testData$y, testData$z, testData$x, parametric = testData$Z)
   expect_equal(res$call, str2lang("stats::lm(y ~ z + V1 + V2 + V3 + bart(V1_bart + V2_bart + V3_bart), data = df)"))

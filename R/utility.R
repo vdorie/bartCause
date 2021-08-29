@@ -276,3 +276,6 @@ getArrayIndicesForOffset <- function(i, d)
   res
 }
 
+anyBars <- function(expr)
+  any(c("|", "||") %in% all.names(expr))
+

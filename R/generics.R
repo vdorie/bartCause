@@ -161,7 +161,12 @@ predict.bartcFit <-
           p.score <- predict(object$fit.trt, x.new.g, combineChains = FALSE, ...)
         }
       } else {
-        p.score <- predict(object$fit.trt, x.new, ...)
+        if (inherits(object$fit.trt, "mstan4bartFit")) {
+          p.score <- predict(object$fit.trt, x.new, combine_chains = FALSE, ...)
+          p.score <- aperm(p.score, c(3L, 2L, 1L))
+        } else {
+          p.score <- predict(object$fit.trt, x.new, ...)
+        }
       }
     }
   }
@@ -174,7 +179,11 @@ predict.bartcFit <-
     x.new[[p.scoreName]] <- p.score
   }
   
-  responseIsBinary <- is.null(object$fit.rsp[["sigma"]])
+  if (inherits(object$fit.rsp, "mstan4bartFit")) {
+    responseIsBinary <- object$fit.rsp$family$family != "gaussian"
+  } else {
+    responseIsBinary <- is.null(object$fit.rsp[["sigma"]])
+  }
   
   if (!is.null(object$group.by)) {
     if (use.ranef) {
@@ -190,10 +199,18 @@ predict.bartcFit <-
     predictArgs <- list(object$fit.rsp, x.new, combineChains = FALSE, ...)
   }
   
+  if (inherits(predictArgs[[1L]], "mstan4bart") && any(names(predictArgs) == "combineChains"))
+      evalx(names(predictArgs), x[x == "combineChains"] <- "combine_chains")
+  
   if (type %in% c("mu", "y")) {
     if (is.null(x.new[[object$name.trt]]) || anyNA(x.new[[object$name.trt]]))
       stop("for predict type '", type, "', newdata must have '", object$name.trt, "' column filled")
+    
     mu <- do.call("predict", predictArgs)
+    
+    if (inherits(predictArgs[[1L]], "mstan4bart"))
+      mu <- aperm(mu, c(3L, 2L, 1L))
+    
     if (type == "y")
       y <- sampleFromPPD(object, y)
   }
@@ -201,10 +218,16 @@ predict.bartcFit <-
   if (type %in% c("mu.0", "y.0", "icate", "ite")) {
     predictArgs[[2L]][[object$name.trt]] <- 0
     mu.0 <- do.call("predict", predictArgs)
+    
+    if (inherits(predictArgs[[1L]], "mstan4bart"))
+      mu.0 <- aperm(mu.0, c(3L, 2L, 1L))
   }
   if (type %in% c("mu.1", "y.1", "icate", "ite")) {
     predictArgs[[2L]][[object$name.trt]] <- 1
     mu.1 <- do.call("predict", predictArgs)
+    
+    if (inherits(predictArgs[[1L]], "mstan4bart"))
+      mu.1 <- aperm(mu.1, c(3L, 2L, 1L))
   }
   
   if (type %in% c("y.0", "ite"))
@@ -313,13 +336,16 @@ extract.bartcFit <-
     }
   }
   
-  weights <- object$data.rsp@weights
-  if (!is.null(weights)) weights <- weights / sum(weights)
+  weights <- if (inherits(object$fit.rsp, "mstan4bartFit")) object$fit.rsp$weights else object$data.rsp@weights
+  if (!is.null(weights)) {
+    if (length(weights) == 0L) weights <- NULL
+    else weights <- weights / sum(weights)
+  }
   
   oldSeed <- .GlobalEnv$.Random.seed
   .GlobalEnv$.Random.seed <- object$seed
   
-  n.obs     <- length(object$data.rsp@y)
+  n.obs     <- length(if (inherits(object$fit.rsp, "mstan4bartFit")) object$fit.rsp$y else object$data.rsp@y)
   n.samples <- tail(dim(object$mu.hat.cf), 1L)
   n.chains  <- object$n.chains
   trtSign <- ifelse(object$trt == 1, 1, -1)

@@ -1,6 +1,7 @@
 optimizeBARTCall <- function(bartCall, env)
 {
   initCall <- bartCall
+    
   initCall[["n.chains"]] <- 1L
   initCall[["n.samples"]] <-
     if (!is.null(initCall[["n.samples"]]))

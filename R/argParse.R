@@ -28,12 +28,14 @@ getTreatmentDataCall <- function(fn, treatment, confounders, parametric, data, s
     else if (is.character(confounders.literal))
       matchedCall$confounders <- str2lang(confounders.literal)
   }
-  tryResult <- tryCatch(parametric.literal <- parametric, error = function(e) e)
-  if (!inherits(tryResult, "error")) {
-    if (is.language(parametric.literal))
-      matchedCall$parametric <- parametric.literal
-    else if (is.character(parametric.literal))
-      matchedCall$parametric <- str2lang(parametric.literal)
+  if (!is.null(matchedCall[["parametric"]])) {
+    tryResult <- tryCatch(parametric.literal <- parametric, error = function(e) e)
+    if (!inherits(tryResult, "error")) {
+      if (is.language(parametric.literal))
+        matchedCall$parametric <- parametric.literal
+      else if (is.character(parametric.literal))
+        matchedCall$parametric <- str2lang(parametric.literal)
+    }
   }
   
   if (is.null(matchedCall[["parametric"]])) {
@@ -55,11 +57,18 @@ getTreatmentDataCall <- function(fn, treatment, confounders, parametric, data, s
     }
   } else {
     if (!is.null(matchedCall[["group.by"]]))
-      stop("group.by must be missing or NULL if parametric is supplied; for varying intercepts, add (1 | group) to parametric equation")
-    formula <- treatment ~ parametrics + bart(nonParametrics)
-    formula[[2L]] <- matchedCall$treatment
-    formula[[3L]][[2L]] <- matchedCall$parametric
-    formula[[3L]][[3L]][[2L]] <- matchedCall$confounders
+      stop("`group.by` must be missing or NULL if `parametric` is supplied; for varying intercepts, add (1 | group) to parametric equation")
+    if (!use.lmer) {
+      formula <- treatment ~ parametrics + bart(nonParametrics)
+      formula[[2L]] <- matchedCall$treatment
+      formula[[3L]][[2L]] <- matchedCall$parametric
+      formula[[3L]][[3L]][[2L]] <- matchedCall$confounders
+    } else {
+      formula <- treatment ~ parametrics + nonParametrics
+      formula[[2L]] <- matchedCall$treatment
+      formula[[3L]][[2L]] <- matchedCall$parametric
+      formula[[3L]][[3L]] <- matchedCall$confounders
+    }
   }
   
   environment(formula) <- parent.frame(1L)
@@ -81,12 +90,14 @@ getResponseDataCall <- function(fn, response, treatment, confounders, parametric
     else if (is.character(confounders.literal))
       matchedCall$confounders <- str2lang(confounders.literal)
   }
-  tryResult <- tryCatch(parametric.literal <- parametric, error = function(e) e)
-  if (!inherits(tryResult, "error")) {
-    if (is.language(parametric.literal))
-      matchedCall$parametric <- parametric.literal
-    else if (is.character(parametric.literal))
-      matchedCall$parametric <- str2lang(parametric.literal)
+  if (!is.null(matchedCall[["parametric"]])) {
+    tryResult <- tryCatch(parametric.literal <- parametric, error = function(e) e)
+    if (!inherits(tryResult, "error")) {
+      if (is.language(parametric.literal))
+        matchedCall$parametric <- parametric.literal
+      else if (is.character(parametric.literal))
+        matchedCall$parametric <- str2lang(parametric.literal)
+    }
   }
   
   if (is.null(matchedCall$p.score)) {
@@ -160,6 +171,7 @@ getResponseDataCall <- function(fn, response, treatment, confounders, parametric
     } else {
       if (!is.null(matchedCall[["group.by"]]))
         stop("group.by must be missing or NULL if parametric is supplied; for varying intercepts, add (1 | group) to parametric equation")
+      
       formula <- response ~ treatment + p.score + bart(confounders) + parametric
       # ~(response, RHS)
       formula[[2L]] <- matchedCall$response
@@ -240,13 +252,19 @@ getTreatmentLiteralCall <- function(fn, treatment, confounders, parametric, subs
     while (treatmentName %in% confounderNames || treatmentName %in% parametricNames)
       treatmentName <- paste0(treatmentName, "z")
      
-    df <- cbind(treatment, confounders, parametric)
+    df <- as.data.frame(cbind(treatment, confounders, parametric))
     colnames(df) <- c(treatmentName, confounderNames, parametricNames)
     
-    formula <- treatment ~ parametrics + bart(nonParametrics)
-    formula[[2L]] <- str2lang(treatmentName)
-    formula[[3L]][[2L]] <- str2lang(paste0(parametricNames, collapse = " + "))
-    formula[[3L]][[3L]][[2L]] <- str2lang(paste0(confounderNames, collapse = " + "))
+    if (!use.lmer) {
+      formula <- treatment ~ parametrics + bart(nonParametrics)
+      formula[[2L]] <- str2lang(treatmentName)
+      formula[[3L]][[2L]] <- str2lang(paste0(parametricNames, collapse = " + "))
+      formula[[3L]][[3L]][[2L]] <- str2lang(paste0(confounderNames, collapse = " + "))
+    } else {
+      formula <- treatment ~ allTerms
+      formula[[2L]] <- str2lang(treatmentName)
+      formula[[3L]] <- str2lang(paste0(c(parametricNames, confounderNames), collapse = " + "))
+    }
   }
     
   result <- quote(functionName(formula, data = df))
@@ -327,7 +345,7 @@ getResponseLiteralCall <- function(fn, response, treatment, confounders, paramet
     while (treatmentName %in% confounderNames || treatmentName %in% parametricNames)
       treatmentName <- paste0(treatmentName, "z")
     
-    df <- cbind(response, treatment, confounders, parametric)
+    df <- as.data.frame(cbind(response, treatment, confounders, parametric))
     colnames(df) <- c(responseName, treatmentName, confounderNames, parametricNames)
     
     if (!is.null(matchedCall$p.score)) {

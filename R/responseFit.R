@@ -1,4 +1,94 @@
-getBartResponseFit <- function(response, treatment, confounders, data, subset, weights, estimand,
+getStan4BartResponseFit <- function(response, treatment, confounders, parametric, data, subset, weights, estimand,
+                                    commonSup.rule, commonSup.cut, p.score, calculateEstimates = TRUE, ...)
+{
+  treatmentIsMissing    <- missing(treatment)
+  responseIsMissing     <- missing(response)
+  confoundersAreMissing <- missing(confounders)
+  weightsAreMissing     <- missing(weights)
+  dataAreMissing        <- missing(data)
+  
+  matchedCall <- match.call()
+  callingEnv <- parent.frame(1L)
+  
+  if (treatmentIsMissing)
+    stop("'treatment' variable must be specified")
+  if (responseIsMissing)
+    stop("'response' variable must be specified")
+  if (confoundersAreMissing)
+    stop("'confounders' variable must be specified")
+  
+  if (requireNamespace("stan4bart", quietly = TRUE) == FALSE)
+      stop("semiparametric BART treatment model requires stan4bart package to be available")
+  
+  if (!is.character(estimand) || estimand[1L] %not_in% c("ate", "att", "atc"))
+    stop("estimand must be one of 'ate', 'att', or 'atc'")
+  estimand <- estimand[1L]
+  
+  stan4bartCall <- NULL; treatmentName <- NULL; missingRows <- NULL
+  if (!dataAreMissing && is.data.frame(data)) {
+    evalEnv <- NULL
+    dataCall <- addCallArgument(redirectCall(matchedCall, quoteInNamespace(getResponseDataCall)), "fn", quote(stan4bart::mstan4bart))
+    dataCall <- addCallDefaults(dataCall, eval(quoteInNamespace(getStan4BartResponseFit)))
+    dataCall$group.by <- NULL
+    dataCall$use.ranef <- NULL
+    
+    massign[stan4bartCall, evalEnv, treatmentName, missingRows] <- eval(dataCall, envir = callingEnv)
+  } else {
+    df <- NULL
+    literalCall <- addCallArgument(redirectCall(matchedCall, quoteInNamespace(getResponseLiteralCall)), "fn", quote(stan4bart::mstan4bart))
+    literalCall <- addCallDefaults(literalCall, eval(quoteInNamespace(getStan4BartResponseFit)))
+    literalCall$group.by <- NULL
+    literalCall$use.ranef <- NULL
+    
+    dataEnv <- if (dataAreMissing) callingEnv else list2env(data, parent = callingEnv)
+    
+    massign[dbartsDataCall, df, treatmentName, missingRows] <- eval(literalCall, envir = dataEnv)
+    
+    evalEnv <- sys.frame(sys.nframe())
+  }
+  stan4bartCall$treatment <- str2lang(treatmentName)
+  
+  extraArgs <- matchedCall[names(matchedCall) %not_in% names(stan4bartCall) | names(matchedCall) == ""]
+  
+  stan4bartCall$verbose <- -1L
+  stan4bartCall <- addCallArguments(stan4bartCall, extraArgs)
+
+  if (is.null(stan4bartCall[["chains"]])) stan4bartCall[["chains"]] <- 10L
+  
+  bartFit <- eval(stan4bartCall, envir = evalEnv)
+  
+  trt <- bartFit$frame[[treatmentName]]
+  treatmentRows <- trt > 0
+  
+  combineChains <- if (is.null(matchedCall[["combineChains"]])) FALSE else list(...)[["combineChains"]]
+  
+  mu.hat.train <- extract(bartFit, sample = "train", combine_chains = combineChains)
+  mu.hat.test  <- extract(bartFit, sample = "test",  combine_chains = combineChains)
+  
+  # stan4bart has n.obs x n.samples x n.chains or n.obs x (n.samples * n.chains)
+  # bart has n.chains x n.samples x n.obs or (n.chains * n.samples) x n.obs
+  if (combineChains) {
+    mu.hat.train <- t(mu.hat.train)
+    mu.hat.test <- t(mu.hat.test)
+  } else {
+    mu.hat.train <- aperm(mu.hat.train, c(3L, 2L, 1L))
+    mu.hat.test <- aperm(mu.hat.test, c(3L, 2L, 1L))
+  }
+  
+  mu.hat.obs <- mu.hat.train
+  mu.hat.cf  <- mu.hat.test      
+  
+  sd.obs <- apply(mu.hat.obs, length(dim(mu.hat.obs)), sd)
+  sd.cf  <- apply(mu.hat.cf,  length(dim(mu.hat.obs)), sd)
+  
+  commonSup.sub <- getCommonSupportSubset(sd.obs, sd.cf, commonSup.rule, commonSup.cut, trt, missingRows)
+  
+  result <- namedList(fit = bartFit, data = bartFit$frame, mu.hat.obs, mu.hat.cf, name.trt = treatmentName, trt, sd.obs, sd.cf, commonSup.sub, missingRows, est = NULL, fitPars = NULL)
+  
+  result
+}
+
+getBartResponseFit <- function(response, treatment, confounders, parametric, data, subset, weights, estimand,
                                group.by = NULL, use.ranef = TRUE,
                                commonSup.rule, commonSup.cut, p.score, crossvalidate = FALSE, calculateEstimates = TRUE, ...)
 {
@@ -18,9 +108,33 @@ getBartResponseFit <- function(response, treatment, confounders, data, subset, w
   if (confoundersAreMissing)
     stop("'confounders' variable must be specified")
   
+  bartMethod <- "bart"
+  fn <- quote(dbarts::bart2)
+  if (!is.null(matchedCall[["parametric"]])) {
+    if (!is.null(matchedCall[["group.by"]]))
+      stop("`group.by` must be missing or NULL if `parametric` is supplied; for varying intercepts, add (1 | group) to parametric equation")
+    if (requireNamespace("stan4bart", quietly = TRUE) == FALSE)
+      stop("semiparametric BART treatment model requires stan4bart package to be available")
+    # fn <- quote(stan4bart::mstan4bart)
+    bartMethod <- "stan4bart"
+  } else if (!is.null(matchedCall[["group.by"]]) && use.ranef) {
+    fn <- quote(dbarts::rbart_vi)
+    bartMethod <- "rbart"
+  }
+  
+  if (crossvalidate && bartMethod %not_in% "bart")
+    stop("crossvalidation not yet supported for varying intercept or semiparametric BART models")
+  
   if (!is.character(estimand) || estimand[1L] %not_in% c("ate", "att", "atc"))
     stop("estimand must be one of 'ate', 'att', or 'atc'")
   estimand <- estimand[1L]
+  
+  if (bartMethod == "stan4bart") {
+    stan4bartCall <- redirectCall(matchedCall, quoteInNamespace(getStan4BartResponseFit))
+    stan4bartCall$group.by <- NULL
+    stan4bartCall$use.ranef <- NULL
+    return(eval(stan4bartCall, envir = callingEnv))
+  }
   
   dbartsDataCall <- NULL; treatmentName <- NULL; missingRows <- NULL
   if (!dataAreMissing && is.data.frame(data)) {
@@ -46,7 +160,7 @@ getBartResponseFit <- function(response, treatment, confounders, data, subset, w
   
   missingData <- NULL
   if (any(missingRows)) {
-    ## replace response with inverted missing ness so we can get a data object for use later
+    ## replace response with inverted missing-ness so we can get a data object for use later
     evalEnv[[deparse(dbartsDataCall$data)]][[deparse(dbartsDataCall[[2L]][[2L]])]] <- 
       ifelse(missingRows, 0, NA)
     missingData <- eval(dbartsDataCall, envir = evalEnv)

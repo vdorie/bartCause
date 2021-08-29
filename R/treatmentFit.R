@@ -1,7 +1,8 @@
-getGLMTreatmentFit <- function(treatment, confounders, data, subset, weights, group.by = NULL, use.ranef = TRUE, ...)
+getGLMTreatmentFit <- function(treatment, confounders, parametric, data, subset, weights, group.by = NULL, use.ranef = TRUE, ...)
 {
   treatmentIsMissing    <- missing(treatment)
   confoundersAreMissing <- missing(confounders)
+  parametricIsMissing   <- missing(parametric)
   dataAreMissing        <- missing(data)
   
   matchedCall <- match.call()
@@ -12,21 +13,25 @@ getGLMTreatmentFit <- function(treatment, confounders, data, subset, weights, gr
   if (confoundersAreMissing)
     stop("'confounders' variable must be specified")
   
-  if (is.null(matchedCall[["group.by"]]) || !use.ranef) {
+  useLmer <-
+    (!is.null(matchedCall[["group.by"]]) && use.ranef) ||
+    (!is.null(matchedCall[["parametric"]]) && anyBars(matchedCall[["parametric"]]))
+  
+  if (!useLmer) {
     fn <- quote(stats::glm)
   } else {
     if (requireNamespace("lme4", quietly = TRUE) == FALSE)
       stop("random effect model for glm treatment requires lme4 package to be available")
     fn <- quote(lme4::glmer)
   }
-  
+
   glmCall <- evalEnv <- NULL
   if (!dataAreMissing && is.data.frame(data)) {
     evalEnv <- NULL
     
     dataCall <- addCallArgument(redirectCall(matchedCall, quoteInNamespace(getTreatmentDataCall)), "fn", fn)
     dataCall <- addCallDefaults(dataCall, eval(quoteInNamespace(getGLMTreatmentFit)))
-    dataCall[["use.lmer"]] <- !is.null(matchedCall[["group.by"]]) && use.ranef
+    dataCall[["use.lmer"]] <- useLmer
     
     massign[glmCall, evalEnv] <- eval(dataCall, envir = callingEnv)
   } else {
@@ -35,13 +40,15 @@ getGLMTreatmentFit <- function(treatment, confounders, data, subset, weights, gr
     literalCall <- addCallDefaults(literalCall, eval(quoteInNamespace(getGLMTreatmentFit)))
     
     dataEnv <- if (dataAreMissing) callingEnv else list2env(data, parent = callingEnv)
-    literalCall[["use.lmer"]] <- !is.null(matchedCall$group.by) && use.ranef
+    literalCall[["use.lmer"]] <- useLmer
     
     massign[glmCall, df] <- eval(literalCall, envir = dataEnv)
     
     evalEnv <- new.env(parent = callingEnv)
     evalEnv[["df"]] <- df
   }
+  
+    
   extraArgs <- matchedCall[names(matchedCall) %not_in% names(glmCall) | names(matchedCall) == ""]
   
   glmCall <- addCallArguments(glmCall, extraArgs)
@@ -52,7 +59,7 @@ getGLMTreatmentFit <- function(treatment, confounders, data, subset, weights, gr
   list(fit = glmFit, p.score = fitted(glmFit), samples = NULL)
 }
 
-getBartTreatmentFit <- function(treatment, confounders, data, subset, weights, group.by = NULL, use.ranef = TRUE,
+getBartTreatmentFit <- function(treatment, confounders, parametric, data, subset, weights, group.by = NULL, use.ranef = TRUE,
                                 crossvalidate = FALSE, ...)
 {
   treatmentIsMissing    <- missing(treatment)
@@ -67,10 +74,22 @@ getBartTreatmentFit <- function(treatment, confounders, data, subset, weights, g
   if (confoundersAreMissing)
     stop("'confounders' variable must be specified")
   
-  fn <- if (is.null(matchedCall[["group.by"]]) || !use.ranef)
-      quote(dbarts::bart2)
-    else 
-      quote(dbarts::rbart_vi)
+  bartMethod <- "bart"
+  fn <- quote(dbarts::bart2)
+  if (!is.null(matchedCall[["parametric"]])) {
+    if (!is.null(matchedCall[["group.by"]]))
+      stop("`group.by` must be missing or NULL if `parametric` is supplied; for varying intercepts, add (1 | group) to parametric equation")
+    if (requireNamespace("stan4bart", quietly = TRUE) == FALSE)
+      stop("semiparametric BART treatment model requires stan4bart package to be available")
+    fn <- quote(stan4bart::mstan4bart)
+    bartMethod <- "stan4bart"
+  } else if (!is.null(matchedCall[["group.by"]]) && use.ranef) {
+    fn <- quote(dbarts::rbart_vi)
+    bartMethod <- "rbart"
+  }
+  
+  if (crossvalidate && bartMethod %not_in% "bart")
+    stop("crossvalidation not yet supported for varying intercept or semiparametric BART models")
   
   bartCall <- NULL
   if (!dataAreMissing && is.data.frame(data)) {
@@ -95,21 +114,28 @@ getBartTreatmentFit <- function(treatment, confounders, data, subset, weights, g
   }
   extraArgs <- matchedCall[names(matchedCall) %not_in% names(bartCall) | names(matchedCall) == ""]
   
-  bartCall$verbose <- FALSE
+  bartCall$verbose <- if (bartMethod %in% "stan4bart") -1L else FALSE
   bartCall <- addCallArguments(bartCall, extraArgs)
-  if (is.null(bartCall[["n.chains"]])) bartCall[["n.chains"]] <- 10L
+  
+  chainsArgument <- if (bartMethod %in% "stan4bart") "chains" else "n.chains"
+  if (is.null(bartCall[[chainsArgument]])) bartCall[[chainsArgument]] <- 10L
   
   if (crossvalidate)
     bartCall <- optimizeBARTCall(bartCall, evalEnv)
   
   bartFit <- eval(bartCall, envir = evalEnv)
   combineChains <- if (is.null(matchedCall[["combineChains"]])) FALSE else list(...)[["combineChains"]]
-  samples <- extract(bartFit, combineChains = combineChains)
+  
+  if (bartMethod %in% "stan4bart")
+    samples <- extract(bartFit, combine_chains = combineChains)
+  else
+    samples <- extract(bartFit, combineChains = combineChains)
   
   result <- 
     list(fit = bartFit,
          p.score = apply(samples, length(dim(samples)), mean),
          samples = samples)
+  
   if (crossvalidate)
     result[["k"]] <- bartCall[["k"]]
   

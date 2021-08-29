@@ -1,5 +1,5 @@
 bartc <- function(
-  response, treatment, confounders, data, subset, weights,
+  response, treatment, confounders, parametric, data, subset, weights,
   method.rsp = c("bart", "tmle", "p.weight"),
   method.trt = c("bart", "glm", "none"),
   estimand   = c("ate", "att", "atc"),
@@ -84,7 +84,6 @@ bartc <- function(
       bart      = redirectCall(matchedCall, quoteInNamespace(getBartTreatmentFit)),
       none      = NULL)
     
-        
     if (!is.null(treatmentCall)) {
       if (!is.null(args.trt) && length(args.trt) > 0L)
         treatmentCall[names(matchedCall[["args.trt"]])[-1L]] <- matchedCall[["args.trt"]][-1L]
