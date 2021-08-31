@@ -3,14 +3,14 @@ context("generic functions")
 source(system.file("common", "groupedData.R", package = "bartCause"))
 
 set.seed(22)
-fit <- bartc(y, z, x, testData, method.trt = "glm", n.samples = 50L,
+fit <- bartc(y, z, x, data = testData, method.trt = "glm", n.samples = 50L,
              group.by = g, use.ranef = FALSE, group.effects = TRUE,
              n.burn = 25L, n.chains = 4L, n.threads = 1L, verbose = FALSE)
 
 p.score <- fitted(glm(z ~ x + g, family = stats::binomial, data = testData))
 
 set.seed(22)
-x.train <- cbind(testData$x, z = testData$z, p.score, testData$g)
+x.train <- cbind(z = testData$z, testData$x, p.score, testData$g)
 x.test  <- x.train; x.test[,"z"] <- 1 - x.test[,"z"]
 bartFit <- dbarts::bart2(x.train, testData$y, x.test, n.samples = 50L, n.burn = 25L,
                          n.chains = 4L, n.threads = 1L, verbose = FALSE)
@@ -99,7 +99,7 @@ test_that("summary object contains correct information", {
 })
 
 test_that("generics work for p.weights", {
-  pfit <- bartc(y, z, x, testData, method.trt = "bart", method.rsp = "p.weight", estimand = "att",
+  pfit <- bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "p.weight", estimand = "att",
                 group.by = g, group.effects = TRUE, n.chains = 3L,
                 n.samples = 7L, n.burn = 3L, n.threads = 1L, verbose = FALSE)
   pfit.sum <- summary(pfit)
@@ -151,7 +151,7 @@ test_that("summary works with different styles", {
   if (!requireNamespace("tmle", quietly = TRUE))
     options(warn = -1)
   
-  fit <- bartc(y, z, x, testData, method.trt = "glm", method.rsp = "tmle", verbose = FALSE,
+  fit <- bartc(y, z, x, data = testData, method.trt = "glm", method.rsp = "tmle", verbose = FALSE,
                group.by = g, group.effects = TRUE ,use.ranef = FALSE,
                n.chains = 2L, n.threads = 1L, n.burn = 0L, n.samples = 7L, n.trees = 13L)
   
@@ -162,7 +162,7 @@ test_that("summary works with different styles", {
 })
 
 test_that("summary gives consistent answers with grouped data", {
-  inGroupFit <- bartc(y, z, x, testData, estimand = "ate",
+  inGroupFit <- bartc(y, z, x, data = testData, estimand = "ate",
                       group.by = g, group.effects = TRUE,
                       method.trt = "bart", method.rsp = "bart", verbose = FALSE,
                       n.chains = 2L, n.threads = 1L, n.burn = 0L, n.samples = 7L, n.trees = 13L)

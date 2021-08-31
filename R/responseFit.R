@@ -115,7 +115,7 @@ getBartResponseFit <- function(response, treatment, confounders, parametric, dat
       stop("`group.by` must be missing or NULL if `parametric` is supplied; for varying intercepts, add (1 | group) to parametric equation")
     if (requireNamespace("stan4bart", quietly = TRUE) == FALSE)
       stop("semiparametric BART treatment model requires stan4bart package to be available")
-    # fn <- quote(stan4bart::mstan4bart)
+    # fn <- quote(stan4bart::mstan4bart) # not needed
     bartMethod <- "stan4bart"
   } else if (!is.null(matchedCall[["group.by"]]) && use.ranef) {
     fn <- quote(dbarts::rbart_vi)

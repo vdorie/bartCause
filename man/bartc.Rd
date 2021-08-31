@@ -6,7 +6,7 @@
   Regression Trees (BART) algorithm, producing estimates of treatment effects.
 }
 \usage{
-bartc(response, treatment, confounders, data, subset, weights,
+bartc(response, treatment, confounders, parametric, data, subset, weights,
       method.rsp = c("bart", "tmle", "p.weight"),
       method.trt = c("bart", "glm", "none"),
       estimand   = c("ate", "att", "atc"),
@@ -33,6 +33,11 @@ bartc(response, treatment, confounders, data, subset, weights,
     and response model. Can also be the right-hand-side of a formula (e.g.
     \code{x1 + x2 + ...}). The \code{data} argument will be searched if
     supplied.
+  }
+  \item{parametric}{
+    The right-hand-side of a formula (e.g. \code{x1 + x2 + (1 | g) ...}) giving the
+    equation of a parametric form to be used for estimating the mean structure.
+    See the details section below.
   }
   \item{data}{
     An optional data frame or named list containing the \code{response},
@@ -197,6 +202,12 @@ bartc(response, treatment, confounders, data, subset, weights,
           number of observations in the data and a number of columns equal to
           the number of posterior samples.
   }
+  
+  \strong{Parametrics}
+  
+  \code{bartc} uses the \code{stan4bart} package, when available, to fit semi-
+  parametric surfaces. Equations can be given as to \code{\link{lm}}. Grouping
+  structures are also permitted, and use the syntax of \code{\link{lmer}}.
   
   \strong{Generics}
   

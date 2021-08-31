@@ -4,9 +4,10 @@ source(system.file("common", "linearData.R", package = "bartCause"))
 
 test_that("bart fit matches manual call", {
   set.seed(22)
-  bartcFit <- bartCause:::getBartResponseFit(y, z, x, testData, estimand = "ate", group.by = NULL, commonSup.rule = "none", commonSup.cut = NA,
-                                         n.chains = 1L, n.threads = 1L, n.burn = 3L, n.samples = 13L, n.trees = 7L)
-  x.train <- with(testData, cbind(x, z))
+  bartcFit <- bartCause:::getBartResponseFit(y, z, x, data = testData, estimand = "ate",
+                                             group.by = NULL, commonSup.rule = "none", commonSup.cut = NA,
+                                             n.chains = 1L, n.threads = 1L, n.burn = 3L, n.samples = 13L, n.trees = 7L)
+  x.train <- with(testData, cbind(z, x))
   # colnames(x.train) <- c("x1", "x2", "x3", "z")
   x.test <- x.train
   x.test[,"z"] <- 1 - x.test[,"z"]
@@ -22,7 +23,7 @@ test_that("p.weight fits", {
   set.seed(22)
   testData$w <- 1 + rpois(length(testData$y), 0.5)
   
-  testCall <- quote(bartc(y, z, x, testData, method.trt = "glm", method.rsp = "p.weight",
+  testCall <- quote(bartc(y, z, x, data = testData, method.trt = "glm", method.rsp = "p.weight",
                           n.chains = 1L, n.threads = 1L, n.samples = 13L, n.burn = 3L, n.trees = 7L,
                           verbose = FALSE))
   
@@ -60,9 +61,9 @@ source(system.file("common", "groupedData.R", package = "bartCause"))
 
 test_that("rbart_vi fit matches manual call", {
   set.seed(22)
-  bartcFit <- bartCause:::getBartResponseFit(y, z, x, testData, estimand = "ate", group.by = g, commonSup.rule = "none", commonSup.cut = NA,
+  bartcFit <- bartCause:::getBartResponseFit(y, z, x, data = testData, estimand = "ate", group.by = g, commonSup.rule = "none", commonSup.cut = NA,
                                              n.chains = 1L, n.threads = 1L, n.burn = 3L, n.samples = 13L, n.trees = 7L)
-  x.train <- with(testData, cbind(x, z))
+  x.train <- with(testData, cbind(z, x))
   # colnames(x.train) <- c("x1", "x2", "x3", "z")
   x.test <- x.train
   x.test[,"z"] <- 1 - x.test[,"z"]
@@ -75,10 +76,10 @@ test_that("rbart_vi fit matches manual call", {
   expect_equal(bartFit$yhat.test,  bartcFit$fit$yhat.test)
 })
 
-# commenting this out crossvalidation calls have more control over run time
+# commenting this out until crossvalidation calls have more control over run time
 if (FALSE) test_that("xbart fit matches manual call", {
   set.seed(22)
-  res <- bartCause:::getBartResponseFit(y, z, x, testData,
+  res <- bartCause:::getBartResponseFit(y, z, x, data = testData,
                                         estimand = "ate", group.by = NULL, commonSup.rule = "none", commonSup.cut = NA,
                                         n.chains = 1L, n.threads = 1L, n.burn = 3L, n.samples = 13L, n.trees = 7L,
                                         crossvalidate = TRUE)
