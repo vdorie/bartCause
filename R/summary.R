@@ -213,13 +213,14 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
            samples.icate = extract(object, "icate", "all"),
            samples.cate  = extract(object, "cate"),
            samples.sate  = extract(object, "sate"),
-           sigma         = object$fit.rsp$sigma,
+           sigma         = extract(object, "sigma", combineChains = FALSE),
            samples.obs   = combineChains(object$mu.hat.obs),
            samples.cf    = combineChains(object$mu.hat.cf),
            n.obs = n.obs
     ))
     estimateCall[[i + 1L]] <- parse(text = varName)[[1L]]
   }
+  
   for (i in seq_along(intervalVariables)) {
     varName <- intervalVariables[i]
     switch(varName,

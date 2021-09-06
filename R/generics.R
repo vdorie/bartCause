@@ -178,13 +178,7 @@ predict.bartcFit <-
     if (!is.null(dim(p.score))) p.score <- apply(p.score, length(dim(p.score)), mean)
     x.new[[p.scoreName]] <- p.score
   }
-  
-  if (inherits(object$fit.rsp, "mstan4bartFit")) {
-    responseIsBinary <- object$fit.rsp$family$family != "gaussian"
-  } else {
-    responseIsBinary <- is.null(object$fit.rsp[["sigma"]])
-  }
-  
+    
   if (!is.null(object$group.by)) {
     if (use.ranef) {
       predictArgs <- list(object$fit.rsp, x.new, group.by, combineChains = FALSE, ...)
@@ -301,7 +295,7 @@ fitted.bartcFit <-
 extract.bartcFit <-
   function(object,
            type = c("pate", "sate", "cate", "mu.obs", "mu.cf", "mu.0", "mu.1", "y.cf",
-                    "y.0", "y.1", "icate", "ite", "p.score", "p.weights"),
+                    "y.0", "y.1", "icate", "ite", "p.score", "p.weights", "sigma"),
            sample = c("inferential", "all"),
            combineChains = TRUE,
            ...)
@@ -316,6 +310,17 @@ extract.bartcFit <-
   
   if (type == "p.weights" && is.null(object$p.score))
     stop("p.score cannot be NULL to extract p.weights")
+  
+  if (type == "sigma") {
+    if (responseIsBinary(object))
+      stop("binary response model does not have a residual standard deviation parameter (sigma)")
+    sigma <-
+      if (inherits(object$fit.rsp, "mstan4bartFit"))
+        t(object$fit.rsp$stan["aux.1",,])
+      else
+        object$fit.rsp$sigma
+    return(if (combineChains) combineChains(sigma) else sigma)
+  }
   
   group.effects <- if (!is.null(object[["group.effects"]])) object[["group.effects"]] else FALSE
   
@@ -425,9 +430,7 @@ extract.bartcFit <-
 
 sampleFromPPD <- function(object, ev)
 {
-  responseIsBinary <- is.null(object$fit.rsp[["sigma"]])
-  
-  if (responseIsBinary) {
+  if (responseIsBinary(object)) {
     if (length(dim(ev)) > 2L) {
       result <- array(rbinom(length(ev), 1L, ev), dim(ev), dimnames = dimnames(ev))
     } else {
@@ -472,7 +475,6 @@ refit.bartcFit <- function(object, newresp = NULL,
   weights <- object$data.rsp@weights
   if (!is.null(weights)) weights <- weights / sum(weights)
   
-  responseIsBinary <- is.null(object$fit.rsp[["sigma"]])
   group.effects <- if (!is.null(object[["group.effects"]])) object[["group.effects"]] else FALSE
   group.by <- if (!is.null(object[["group.by"]])) object[["group.by"]] else NULL
   

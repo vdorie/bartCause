@@ -24,7 +24,7 @@ extract(object, \dots)
 \method{extract}{bartcFit}(object,
         type = c("pate", "sate", "cate", "mu.obs", "mu.cf", "mu.0",
                  "mu.1", "y.cf", "y.0", "y.1", "icate", "ite",
-                 "p.score", "p.weights"),
+                 "p.score", "p.weights", "sigma"),
         sample = c("inferential", "all"),
         combineChains = TRUE,
         \dots)
@@ -107,6 +107,7 @@ refit(object, newresp, \dots)
     \item \code{"p.score"} - probability that each observation is assigned to the treatment group
     \item \code{"p.weights"} - weights assigned to each individual difference if the response method
                                is \code{"p.weight"}
+    \item \code{"sigma"} - residual standard deviation from continuous response models
   }
   
   \code{refit} exists to allow the same regressions to be used to calculate estimates under different

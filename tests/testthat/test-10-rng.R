@@ -1,6 +1,3 @@
-require(bartCause)
-require(testthat)
-
 context("rng")
 
 source(system.file("common", "linearData.R", package = "bartCause"))
