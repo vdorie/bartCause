@@ -2,12 +2,12 @@ context("binary outcomes")
 
 source(system.file("common", "binaryData.R", package = "bartCause"))
 
+set.seed(22)
+bartcFit <- bartc(y, z, x, data = testData,
+                  method.rsp = "bart", method.trt = "bart", verbose = FALSE,
+                  n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L)
+
 test_that("binary outcome model matches manual", {
-  set.seed(22)
-  bartcFit <- bartc(y, z, x, data = testData,
-                    method.rsp = "bart", method.trt = "bart", verbose = FALSE,
-                    n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L)
-  
   set.seed(22)
   fit.trt <- dbarts::bart2(z ~ x, testData, verbose = FALSE,
                            n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L)
@@ -24,6 +24,12 @@ test_that("binary outcome model matches manual", {
   expect_equal(extract(bartcFit, type = "mu.0"),
                pnorm(fit.rsp$yhat.test)[,seq.int(nrow(testData$x) + 1L, nrow(x.test))])
 })
+
+test_that("summary works for binary outcomes", {
+  sum <- summary(bartcFit)
+  expect_is(sum, "bartcFit.summary")
+})
+
 
 test_that("binary outcome runs with tmle", {
   oldWarn <- getOption("warn")

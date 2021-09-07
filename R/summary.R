@@ -205,6 +205,9 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
                               atc = object$trt <= 0)
   n.obs <- sum(inferentialSubset)
   
+  if (responseIsBinary(object))
+    estimateVariables <- setdiff(estimateVariables, "sigma")
+    
   # load whatever we might need
   for (i in seq_along(estimateVariables)) {
     varName <- estimateVariables[i]
@@ -220,6 +223,9 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
     ))
     estimateCall[[i + 1L]] <- parse(text = varName)[[1L]]
   }
+  
+  if (responseIsBinary(object))
+    estimateCall["sigma"] <- list(NULL)
   
   for (i in seq_along(intervalVariables)) {
     varName <- intervalVariables[i]
