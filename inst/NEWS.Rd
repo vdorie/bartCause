@@ -33,6 +33,9 @@
             renamed to \code{crossvalidate}. Accepts one of \code{TRUE},
             \code{FALSE}, \code{"trt"}, or \code{"rsp"}. This feature
             is experimental and discouraged from use.
+      \item Confounder expressions that can evaluate successfully in the calling
+            environment but yield a warning are now treated as if they threw
+            an error.
     }
   }
   \subsection{BUG-FIXES}{

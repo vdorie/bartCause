@@ -21,16 +21,16 @@ getGroupBy <- function(data, subset, group.by)
 getTreatmentDataCall <- function(fn, treatment, confounders, parametric, data, subset, weights, group.by, use.ranef, use.lmer)
 {
   matchedCall <- match.call()
-  tryResult <- tryCatch(confounders.literal <- confounders, error = function(e) e)
-  if (!inherits(tryResult, "error")) {
+  tryResult <- tryCatch(confounders.literal <- confounders, error = function(e) e, warning = function(w) w)
+  if (!inherits(tryResult, "error") && !inherits(tryResult, "warning")) {
     if (is.language(confounders.literal))
       matchedCall$confounders <- confounders.literal
     else if (is.character(confounders.literal))
       matchedCall$confounders <- str2lang(confounders.literal)
   }
   if (!is.null(matchedCall[["parametric"]])) {
-    tryResult <- tryCatch(parametric.literal <- parametric, error = function(e) e)
-    if (!inherits(tryResult, "error")) {
+    tryResult <- tryCatch(parametric.literal <- parametric, error = function(e) e, warning = function(w) w)
+    if (!inherits(tryResult, "error") && !inherits(tryResult, "warning")) {
       if (is.language(parametric.literal))
         matchedCall$parametric <- parametric.literal
       else if (is.character(parametric.literal))
@@ -83,16 +83,16 @@ getTreatmentDataCall <- function(fn, treatment, confounders, parametric, data, s
 getResponseDataCall <- function(fn, response, treatment, confounders, parametric, data, subset, weights, p.score, group.by, use.ranef)
 {
   matchedCall <- match.call()
-  tryResult <- tryCatch(confounders.literal <- confounders, error = function(e) e)
-  if (!inherits(tryResult, "error")) {
+  tryResult <- tryCatch(confounders.literal <- confounders, error = function(e) e, warning = function(w) w)
+  if (!inherits(tryResult, "error") && !inherits(tryResult, "warning")) {
     if (is.language(confounders.literal))
       matchedCall$confounders <- confounders.literal
     else if (is.character(confounders.literal))
       matchedCall$confounders <- str2lang(confounders.literal)
   }
   if (!is.null(matchedCall[["parametric"]])) {
-    tryResult <- tryCatch(parametric.literal <- parametric, error = function(e) e)
-    if (!inherits(tryResult, "error")) {
+    tryResult <- tryCatch(parametric.literal <- parametric, error = function(e) e, warning = function(w) w)
+    if (!inherits(tryResult, "error") && !inherits(tryResult, "warning")) {
       if (is.language(parametric.literal))
         matchedCall$parametric <- parametric.literal
       else if (is.character(parametric.literal))
