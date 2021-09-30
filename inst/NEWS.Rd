@@ -36,6 +36,9 @@
       \item Confounder expressions that can evaluate successfully in the calling
             environment but yield a warning are now treated as if they threw
             an error.
+      \item \code{summary} for models fit with \code{group.effects} as
+            \code{TRUE} will use the level names of the grouping factor
+            when reporting the sub-group estimates.
     }
   }
   \subsection{BUG-FIXES}{

@@ -271,6 +271,7 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
       names(interval) <- c("ci.lower", "ci.upper")
       c(estimate, interval, n = n.obs)
     })))
+    row.names(estimates) <- levels(object$group.by)
     
     # combine back to get whole if possible
     if (object$method.rsp %in% "bart") {
@@ -281,7 +282,7 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
       estimate <- eval(estimateCall)
       interval <- eval(intervalCall)
       
-      totalName <- "tot"
+      totalName <- "total"
       while (totalName %in% rownames(estimates))
         totalName <- paste0(totalName, ".")
       estimates[totalName,] <- c(estimate, interval, n.obs)
