@@ -207,7 +207,7 @@ getTreatmentLiteralCall <- function(fn, treatment, confounders, parametric, subs
     confounderNames <- colnames(confounders)
     
     if (is.null(confounderNames))
-      confounderNames <- paste0("V", seq_len(ncol(confounders)))
+      confounderNames <- paste0("V", seq_len(NCOL(confounders)))
     
     while (treatmentName %in% confounderNames)
       treatmentName <- paste0(treatmentName, "z")
@@ -291,7 +291,7 @@ getResponseLiteralCall <- function(fn, response, treatment, confounders, paramet
     confounderNames <- colnames(confounders)
     
     if (is.null(confounderNames))
-      confounderNames <- paste0("V", seq_len(ncol(confounders)))
+      confounderNames <- paste0("V", seq_len(NCOL(confounders)))
     
     while (responseName %in% confounderNames)
       responseName <- paste0(responseName, "y")
