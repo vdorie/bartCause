@@ -56,6 +56,7 @@ optimizeBARTCall <- function(bartCall, env)
   kRange <- range(fit.init$k)
   kRange <- 0.5 * 2.5 * diff(kRange) * c(-1, 1) + mean(kRange)
   kRange[1L] <- max(kRange[1L], 0.1)
+  if (kRange[2L] < kRange[1L]) kRange[2L] <- kRange[1L] * 2
   evalEnv$kRange <- kRange
   evalEnv$xbartCall <- xbartCall
   
@@ -133,19 +134,22 @@ bayesOptimize <- function(f, x.0, n.iter = 50L, tau = 10, theta = 1, sigma.sq = 
   
   x <- x.0
   f.x <- f(x.0)
-  if (any(is.infinite(f.x) | is.na(f.x))) {
-    x   <-   x[is.finite(f.x) & !is.na(f.x)]
-    f.x <- f.x[is.finite(f.x) & !is.na(f.x)]
+  valid_points <- !is.infinite(f.x) & !is.na(f.x)
+  if (any(!valid_points)) {
+    x   <-   x[valid_points]
+    f.x <- f.x[valid_points]
   }
   if (length(x) <= 2L) {
     x.new <- seq(min(x.0), max(x.0), length.out = 5L) 
     x <- c(x, x.new)
     f.x <- c(f.x, f(x.new))
-    x   <-   x[is.finite(f.x) & !is.na(f.x)]
-    f.x <- f.x[is.finite(f.x) & !is.na(f.x)]
+    valid_points <- !is.infinite(f.x) & !is.na(f.x)
+    x   <-   x[valid_points]
+    f.x <- f.x[valid_points]
     
-    f.x <- f.x[order(x)]
-    x   <- sort(x)
+    sort_order <- order(x)
+    f.x <- f.x[sort_order]
+    x   <- x[sort_order]
     if (length(x) <= 2L) stop("cannot find valid starting points for optimizer")
   }
   mu    <- mean(f.x)
@@ -227,19 +231,19 @@ bayesOptimize <- function(f, x.0, n.iter = 50L, tau = 10, theta = 1, sigma.sq = 
     i.new <- order(ei, decreasing = TRUE)[seq_len(n.ei)]
     i.ei <- i.new
     
-    o <- order(mu.prop)
-    o <- o[!(o %in% i.new)]
-    i.mu <- o[seq_len(n.mu)]
+    sort_order <- order(mu.prop)
+    sort_order <- sort_order[!(sort_order %in% i.new)]
+    i.mu <- sort_order[seq_len(n.mu)]
     i.new <- c(i.new, i.mu)
     
-    o <- order(abs(curv.prop), decreasing = TRUE)
-    o <- o[!(o %in% i.new)]
-    i.curv <- o[seq_len(n.curv)]
+    sort_order <- order(abs(curv.prop), decreasing = TRUE)
+    sort_order <- sort_order[!(sort_order %in% i.new)]
+    i.curv <- sort_order[seq_len(n.curv)]
     i.new <- c(i.new, i.curv)
     
-    o <- order(sigma.prop, decreasing = TRUE)
-    o <- o[!(o %in% i.new)]
-    i.sigma <- o[seq_len(n.sigma)]
+    sort_order <- order(sigma.prop, decreasing = TRUE)
+    sort_order <- sort_order[!(sort_order %in% i.new)]
+    i.sigma <- sort_order[seq_len(n.sigma)]
     i.new <- c(i.new, i.sigma)
     
     x.new <- x.prop[i.new]
@@ -247,13 +251,14 @@ bayesOptimize <- function(f, x.0, n.iter = 50L, tau = 10, theta = 1, sigma.sq = 
     x <- c(x, x.new)
     f.x <- c(f.x, f(x.new))
     
-    o <- order(x)
-    x <- x[o]
-    f.x <- f.x[o]
+    sort_order <- order(x)
+    x <- x[sort_order]
+    f.x <- f.x[sort_order]
     
-    if (any(is.infinite(f.x) | is.na(f.x))) {
-      x   <-   x[is.finite(f.x) & !is.na(f.x)]
-      f.x <- f.x[is.finite(f.x) & !is.na(f.x)]
+    valid_points <- !is.infinite(f.x) & !is.na(f.x)
+    if (any(!valid_points)) {
+      x   <-   x[valid_points]
+      f.x <- f.x[valid_points]
     }
     
     if (i <= 5L) {
