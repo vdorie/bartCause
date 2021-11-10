@@ -7,6 +7,9 @@
       \item \code{bartc} now accepts a \code{seed} argument that yields
              reproducible results, even when running with multiple threads
              and multiple chains.
+      \item New \code{parametric} argument to \code{bartc} allows for arbitrary
+            linear and multilevel models. Requires the \code{stan4bart} package
+            to be installed.
     }
   }
   \subsection{BUG-FIXES}{
@@ -14,6 +17,10 @@
       \item Now works with response models in \code{"tmle"} and
             \code{"p.weight"} when \code{p.scoreAsCovariate} is \code{FALSE}.
       \item Correctly summarizes the number of samples when \code{n.chains = 1}.
+      \item \code{sumamry} now correctly computes variance expansion for PATE with
+            weighted observations.
+      \item \code{summary} correctly drops observations from averages when
+            common support rules are being used.
     }
   }
 }

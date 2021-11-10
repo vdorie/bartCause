@@ -14,17 +14,18 @@ test_that("semiparametric models are consistent with each other", {
   skip_on_cran()
   skip_if_not_installed("stan4bart")
   
+  seed <- 0
   fit1 <- bartc(y, z, X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10,
-              group.by = g.1,
-              seed = 0,
-              data = test.df,
-              verbose = FALSE)
+                group.by = g.1,
+                seed = seed,
+                data = test.df,
+                verbose = FALSE)
 
   summary1 <- summary(fit1)
   
   fit2 <- bartc(y, z, X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10,
                 parametric = (1 | g.1),
-                seed = 0,
+                seed = seed,
                 data = test.df,
                 verbose = FALSE)
   
@@ -43,7 +44,7 @@ test_that("semiparametric models are consistent with each other", {
   
   fit3 <- bartc(y, z, X1 + X2 + X3 + X5 + X6 + X7 + X8 + X9 + X10,
                 parametric = X4 + (1 | g.1),
-                seed = 0,
+                seed = seed,
                 data = test.df,
                 verbose = FALSE)
   
@@ -67,8 +68,30 @@ test_that("semiparametric models are consistent with each other", {
   expect_in_range(summary2$estimates$estimate, c(5.0, 5.5))
   expect_in_range(summary3$estimates$estimate, c(5.0, 5.5))
   
-  expect_in_range(summary1$estimates$sd, c(0.6, 0.7))
-  expect_in_range(summary2$estimates$sd, c(0.6, 0.7))
-  expect_in_range(summary3$estimates$sd, c(0.6, 0.7))
+  expect_in_range(summary1$estimates$sd, c(0.55, 0.7))
+  expect_in_range(summary2$estimates$sd, c(0.55, 0.7))
+  expect_in_range(summary3$estimates$sd, c(0.55, 0.7))
 })
+
+
+test_that("semiparametric predict works", {
+  skip_if_not_installed("stan4bart")
+  
+  seed <- 0
+  fit <- bartc(y, z, X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10,
+               parametric = (1 | g.1),
+               seed = seed,
+               data = test.df,
+               verbose = FALSE,
+               iter = 10, warmup = 3, chains = 2,
+               bart_args = list(keepTrees = TRUE, n.trees = 7))
+  
+  expect_true(is.finite(fitted(fit)))
+  
+  samples.train <- extract(fit, "icate")
+  samples.test  <- predict(fit, test.df, type = "icate")
+  
+  expect_true(sqrt(mean((samples.train - samples.test)^2)) <= 1e-10)
+})
+
 

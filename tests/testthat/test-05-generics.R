@@ -28,6 +28,15 @@ samples.cf  <- bartFit$yhat.test
 samples.mu.0 <- obsCfToTrtCtl(samples.obs, samples.cf, 1 - testData$z)
 samples.mu.1 <- obsCfToTrtCtl(samples.obs, samples.cf, testData$z)
 
+test_that("combine chains works as expected", {
+  combineChains <- bartCause:::combineChains
+  
+  mu.obs <- extract(fit, "mu.obs")
+  expect_equal(as.vector(mu.obs), as.vector(aperm(fit$mu.hat.obs, c(2, 1, 3))))
+  sigma <- extract(fit, "sigma")
+  expect_equal(sigma, as.vector(t(fit$fit.rsp$sigma)))
+})
+
 test_that("fitted matches manual fit", {
   cate <- fitted(fit, "cate")
   mu.1 <- fitted(fit, "mu.1")
@@ -147,6 +156,7 @@ test_that("summary works with different styles", {
   expect_is(summary(fit, ci.style = "hpd"),   "bartcFit.summary")
   expect_is(summary(fit, pate.style = "ppd"), "bartcFit.summary")
   
+  
   oldWarn <- getOption("warn")
   if (!requireNamespace("tmle", quietly = TRUE))
     options(warn = -1)
@@ -159,6 +169,35 @@ test_that("summary works with different styles", {
   
   expect_is(summary(fit), "bartcFit.summary")
   expect_is(summary(fit, pate.style = "ppd"), "bartcFit.summary")
+  
+  
+  set.seed(22)
+  unweighted_fit <- bartc(y, z, x, data = testData, method.trt = "glm", verbose = FALSE,
+                          n.chains = 2L, n.threads = 1L, n.burn = 0L, n.samples = 7L, n.trees = 13L)
+
+
+  expect_is(unweighted_summary <- summary(unweighted_fit, pate.style = "var.exp"), "bartcFit.summary")
+  
+  set.seed(22)
+  weighted_fit <- bartc(y, z, x, data = testData, method.trt = "glm", verbose = FALSE,
+                        weights = rep(1, length(testData$y)),
+                        n.chains = 2L, n.threads = 1L, n.burn = 0L, n.samples = 7L, n.trees = 13L)
+  expect_is(weighted_summary <- summary(weighted_fit, pate.style = "var.exp"), "bartcFit.summary")
+  
+  expect_equal(unweighted_summary$estimate$est, weighted_summary$estimate$est)
+  expect_equal(unweighted_summary$estimate$sd, weighted_summary$estimate$sd)
+  
+  icates <- extract(unweighted_fit, "icate")
+  n.samples <- dim(icates)[1L]
+  n.obs <- dim(icates)[2L]
+  
+  var_tot <- var(as.vector(icates))
+  var_w <- var(extract(unweighted_fit, "cate"))
+  var_b <- mean(apply((icates - apply(icates, 1, mean))^2, 1, sum) / (n.obs - 1))
+  
+  
+  expect_equal(sqrt(var_w + var_b), unweighted_summary$estimate$sd)
+  expect_equal(var_tot, (var_w * (n.samples - 1) / n.samples + var_b * (n.obs - 1) / n.obs) * n.obs * n.samples / (n.obs * n.samples - 1))
 })
 
 test_that("summary gives consistent answers with grouped data", {
@@ -180,4 +219,54 @@ test_that("summary gives consistent answers with grouped data", {
   expect_equal(unname(sapply(extract(inGroupFit, "cate"), mean)),
                head(sum.g.cate$estimates$estimate, -1L))
 })
+
+test_that("common support cutoffs are being applied consistently", {
+  n.chains <- 2L
+  n.samples <- 7L
+  n.obs <- length(testData$y)
+  fit <- bartc(y, z, x, data = testData, estimand = "ate",
+               method.trt = "bart", method.rsp = "bart", verbose = FALSE,
+               commonSup.rule = "sd", seed = 5,
+               n.chains = n.chains, n.threads = 1L, n.burn = 0L, n.samples = n.samples,
+               n.trees = 13L)
+  
+  sum.cate <- summary(fit, target = "cate")
+  sum.sate <- summary(fit, target = "sate")
+  
+  icates <- extract(fit, "icate", "all")[,fit$commonSup.sub]
+  y.obs <- as.vector(testData$y)
+  
+  
+  oldSeed <- .GlobalEnv$.Random.seed
+  .GlobalEnv$.Random.seed <- fit$seed
+  
+  mu.cf <- extract(fit, "mu.cf", combineChains = TRUE)
+  mu.cf <- aperm(array(mu.cf, c(n.samples, n.chains, n.obs)), c(2L, 1L, 3L))
+  expect_equal(mu.cf, extract(fit, "mu.cf", combineChains = FALSE))
+  
+  sigma <- rep(extract(fit, "sigma", combineChains = FALSE), times = n.samples)
+  
+  epsilon <- rnorm(prod(dim(mu.cf)), 0, sigma)
+  
+  .GlobalEnv$.Random.seed <- oldSeed
+  
+  y.cf <- mu.cf + epsilon
+  expect_equal(y.cf, extract(fit, "y.cf", combineChains = FALSE))
+  y.cf <- matrix(aperm(y.cf, c(2L, 1L, 3L)), nrow = n.samples * n.chains)
+  expect_equal(y.cf, extract(fit, "y.cf", combineChains = TRUE))
+  
+  ites <- t((y.obs - t(y.cf)) * ifelse(testData$z == 1, 1, -1))
+  ites <- ites[,fit$commonSup.sub]
+  
+  expect_equal(sd(apply(ites, 1, mean)), sd(extract(fit, "sate")))
+  
+  expect_true(!is.nan(sum.cate$estimates$est) && is.finite(sum.cate$estimates$est))
+  expect_true(!is.nan(sum.sate$estimates$est) && is.finite(sum.sate$estimates$est))
+  expect_equal(sum.cate$estimates$est, mean(icates))
+  expect_equal(sum.cate$estimates$sd, sd(apply(icates, 1, mean)))
+  expect_equal(sum.sate$estimates$est, mean(icates))
+  expect_equal(sum.sate$estimates$sd,
+               sqrt(sum.cate$estimates$sd^2 + mean(extract(fit, "sigma")^2) / sum(fit$commonSup.sub)))
+})
+
 

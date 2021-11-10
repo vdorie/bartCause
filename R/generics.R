@@ -1,21 +1,15 @@
-combineChains <- function(samples) {
-  if (is.null(dim(samples)) || length(dim(samples)) == 2L) return(samples)
+combineChains <- function(samples, n.chains) {
+  if (is.null(dim(samples)) || length(dim(samples)) <= 1L) return(samples)
+  if (length(dim(samples)) == 2L) {
+    if (n.chains == 1L) return(samples)
+    else return(as.vector(t(samples)))
+  }
   
   x <- NULL
   res <- evalx(dim(samples), matrix(aperm(samples, c(2L, 1L, 3L)), prod(x[1L:2L]), x[3L]))
   if (!is.null(dimnames(samples)))
   dimnames(res) <- evalx(dimnames(samples), list(NULL, x[[length(x)]]))
   res
-}
-
-uncombineChains <- function(samples, n.chains) {
-  if (is.null(dim(samples))) {
-    if (n.chains == 1L) samples else matrix(samples, n.chains, length(samples) %/% n.chains)
-  } else {
-    res <- if (n.chains == 1L) samples else aperm(array(samples, c(dim(samples)[1L] %/% n.chains, n.chains, ncol(samples))), c(2L, 1L, 3L))
-    if (!is.null(dimnames(samples))) dimnames(res) <- list(NULL, NULL, dimnames(samples)[[2L]])
-    res
-  }
 }
 
 multiplyArrayByVec <- function(x, v) {
@@ -46,8 +40,10 @@ averageDifferences <- function(samples.indiv.diff, treatmentRows, weights, estim
   origDims <- dim(samples.indiv.diff)
   
   if (!is.null(weights)) {
-    weights <- rep_len(weights, origDims[3L])
-    weights <- weights / sum(weights)
+    n.obs <- origDims[3L]
+    weights <- rep_len(weights, n.obs)
+    # sum to n for now because we will be taking means in just a sec
+    weights <- n.obs * weights / sum(weights)
     samples.indiv.diff <- multiplyArrayByVec(samples.indiv.diff, weights)
   }
   
@@ -99,18 +95,23 @@ predict.bartcFit <-
   if (!is.character(type) || type[1L] %not_in% eval(formals(predict.bartcFit)$type))
     stop("type must be in '", paste0(eval(formals(predict.bartcFit)$type), collapse = "', '"), "'")
   type <- type[1L]
+
+  predictors.rsp <- if (inherits(object$fit.rsp, "mstan4bartFit")) names(object$fit.rsp$frame) else colnames(object$data.rsp@x)
   
   if (type != "p.score") {
     if (object$method.rsp != "bart")
       stop("predict(type = '", type, "', ...) requires method.rsp == 'bart'; other methods not designed to make individual predictions")
     
-    if (is.null(object$fit.rsp$fit))
+    if (inherits(object$fit.rsp, "mstan4bartFit") && is.null(object$fit.rsp$sampler.bart))
+      stop("predict with method.rsp = 'bart' and parametric argument requires response model to be fit with bart_args = list(keepTrees == TRUE)")
+    if (!inherits(object$fit.rsp, "mstan4bartFit") && is.null(object$fit.rsp$fit))
       stop("predict with method.rsp = 'bart' requires response model to be fit with keepTrees == TRUE")
     
     p.scoreName <- "ps"
-    while (paste0(p.scoreName, "ps") %in% colnames(object$data.rsp@x)) p.scoreName <- paste0(p.scoreName, "ps")
+    while (any(startsWith(predictors.rsp, p.scoreName)) &&
+           paste0(p.scoreName, "ps") %in% predictors.rsp) p.scoreName <- paste0(p.scoreName, "ps")
     
-    p.scoreAsCovariate <- !is.null(object$p.score) && p.scoreName %in% colnames(object$data.rsp@x)
+    p.scoreAsCovariate <- !is.null(object$p.score) && p.scoreName %in% predictors.rsp
     if (p.scoreAsCovariate && object$method.trt == "given")
       stop("predict requires fitting propensity scores to use in response model, however no treatment model exists");
   }
@@ -145,7 +146,9 @@ predict.bartcFit <-
         p.score <- predict(object$fit.trt, x.new, ...)
       }
     } else {
-      if (is.null(object$fit.trt$fit))
+      if (inherits(object$fit.trt, "mstan4bartFit") && is.null(object$fit.trt$sampler.bart))
+        stop("predict with method.trt = '", object$method.trt, "' and a parametric argument requires treatment model to be fit with bart_args = list(keepTrees == TRUE)")
+      if (!inherits(object$fit.trt, "mstan4bartFit") && is.null(object$fit.trt$fit))
         stop("predict with method.trt = '", object$method.trt, "' requires treatment model to be fit with keepTrees == TRUE")
       
       if (!is.null(object[["group.by"]])) {
@@ -165,14 +168,15 @@ predict.bartcFit <-
           p.score <- predict(object$fit.trt, x.new, combine_chains = FALSE, ...)
           p.score <- aperm(p.score, c(3L, 2L, 1L))
         } else {
-          p.score <- predict(object$fit.trt, x.new, ...)
+          p.score <- predict(object$fit.trt, x.new, combineChains = FALSE, ...)
         }
       }
     }
   }
   
+  n.chains <- object$n.chains
   if (type == "p.score")
-    return(if (combineChains) combineChains(p.score) else p.score)
+    return(if (combineChains && object$method.trt %not_in% "glm") combineChains(p.score, n.chains) else p.score)
   
   if (p.scoreAsCovariate) {
     if (!is.null(dim(p.score))) p.score <- apply(p.score, length(dim(p.score)), mean)
@@ -193,7 +197,7 @@ predict.bartcFit <-
     predictArgs <- list(object$fit.rsp, x.new, combineChains = FALSE, ...)
   }
   
-  if (inherits(predictArgs[[1L]], "mstan4bart") && any(names(predictArgs) == "combineChains"))
+  if (inherits(predictArgs[[1L]], "mstan4bartFit") && any(names(predictArgs) == "combineChains"))
       evalx(names(predictArgs), x[x == "combineChains"] <- "combine_chains")
   
   if (type %in% c("mu", "y")) {
@@ -202,7 +206,7 @@ predict.bartcFit <-
     
     mu <- do.call("predict", predictArgs)
     
-    if (inherits(predictArgs[[1L]], "mstan4bart"))
+    if (inherits(predictArgs[[1L]], "mstan4bartFit"))
       mu <- aperm(mu, c(3L, 2L, 1L))
     
     if (type == "y")
@@ -213,14 +217,14 @@ predict.bartcFit <-
     predictArgs[[2L]][[object$name.trt]] <- 0
     mu.0 <- do.call("predict", predictArgs)
     
-    if (inherits(predictArgs[[1L]], "mstan4bart"))
+    if (inherits(predictArgs[[1L]], "mstan4bartFit"))
       mu.0 <- aperm(mu.0, c(3L, 2L, 1L))
   }
   if (type %in% c("mu.1", "y.1", "icate", "ite")) {
     predictArgs[[2L]][[object$name.trt]] <- 1
     mu.1 <- do.call("predict", predictArgs)
     
-    if (inherits(predictArgs[[1L]], "mstan4bart"))
+    if (inherits(predictArgs[[1L]], "mstan4bartFit"))
       mu.1 <- aperm(mu.1, c(3L, 2L, 1L))
   }
   
@@ -240,7 +244,7 @@ predict.bartcFit <-
            y.1   = y.1,
            ite   = y.1 - y.0)
     
-  if (combineChains) combineChains(result) else result
+  if (combineChains) combineChains(result, n.chains) else result
 }
 
 fitted.bartcFit <-
@@ -311,15 +315,16 @@ extract.bartcFit <-
   if (type == "p.weights" && is.null(object$p.score))
     stop("p.score cannot be NULL to extract p.weights")
   
+  n.chains <- object$n.chains
   if (type == "sigma") {
     if (responseIsBinary(object))
       stop("binary response model does not have a residual standard deviation parameter (sigma)")
     sigma <-
       if (inherits(object$fit.rsp, "mstan4bartFit"))
-        t(object$fit.rsp$stan["aux.1",,])
+        t(extract(object$fit.rsp, "sigma", combine_chains = FALSE))
       else
         object$fit.rsp$sigma
-    return(if (combineChains) combineChains(sigma) else sigma)
+    return(if (combineChains) combineChains(sigma, n.chains) else sigma)
   }
   
   group.effects <- if (!is.null(object[["group.effects"]])) object[["group.effects"]] else FALSE
@@ -414,9 +419,10 @@ extract.bartcFit <-
   
   if (is.null(result)) return(NULL)
   
-  if (combineChains) result <- combineChains(result)
+  if (combineChains) result <- combineChains(result, n.chains)
   
-  subset <- rep_len(TRUE, dim(result)[length(dim(result))])
+  try_result <- tryCatch(subset <- rep_len(TRUE, dim(result)[length(dim(result))]), error = \(e) e)
+  if (inherits(try_result, "error")) browser()
   if (sample == "inferential") {
     if (object$estimand == "att") subset <- object$trt > 0
     else if (object$estimand == "atc") subset <- object$trt <= 0
@@ -438,7 +444,11 @@ sampleFromPPD <- function(object, ev)
     }
   } else {
     n.obs <- dim(ev)[length(dim(ev))]
-    result <- ev + rnorm(n.obs * length(object$fit.rsp$sigma), 0, rep_len(object$fit.rsp$sigma, n.obs * length(object$fit.rsp$sigma)))
+    sigma <- extract(object, "sigma", combineChains = FALSE)
+    sigma <- rep_len(sigma, n.obs * length(sigma))
+    epsilon <- rnorm(length(sigma), 0, sigma)
+    dim(epsilon) <- dim(ev)
+    result <- ev + epsilon 
   }
   
   result
