@@ -20,7 +20,8 @@
       \item \code{sumamry} now correctly computes variance expansion for PATE with
             weighted observations.
       \item \code{summary} correctly drops observations from averages when
-            common support rules are being used.
+            common support rules are being used. Bug report thanks to Marcela
+            Veselkova.
     }
   }
 }

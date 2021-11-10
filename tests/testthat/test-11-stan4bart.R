@@ -92,6 +92,9 @@ test_that("semiparametric predict works", {
   samples.test  <- predict(fit, test.df, type = "icate")
   
   expect_true(sqrt(mean((samples.train - samples.test)^2)) <= 1e-10)
+  
+  expect_is(sum <- summary(fit), "bartcFit.summary")
+  expect_true(is.finite(sum$estimates$estimate))
 })
 
 

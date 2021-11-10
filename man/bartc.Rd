@@ -207,7 +207,7 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
   
   \code{bartc} uses the \code{stan4bart} package, when available, to fit semi-
   parametric surfaces. Equations can be given as to \code{\link{lm}}. Grouping
-  structures are also permitted, and use the syntax of \code{\link{lmer}}.
+  structures are also permitted, and use the syntax of \code{\link[lme4]{lmer}}.
   
   \strong{Generics}
   

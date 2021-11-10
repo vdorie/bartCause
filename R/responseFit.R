@@ -42,7 +42,7 @@ getStan4BartResponseFit <- function(response, treatment, confounders, parametric
     
     dataEnv <- if (dataAreMissing) callingEnv else list2env(data, parent = callingEnv)
     
-    massign[dbartsDataCall, df, treatmentName, missingRows] <- eval(literalCall, envir = dataEnv)
+    massign[stan4bartCall, df, treatmentName, missingRows] <- eval(literalCall, envir = dataEnv)
     
     evalEnv <- sys.frame(sys.nframe())
   }

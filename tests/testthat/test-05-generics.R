@@ -260,11 +260,11 @@ test_that("common support cutoffs are being applied consistently", {
   
   expect_equal(sd(apply(ites, 1, mean)), sd(extract(fit, "sate")))
   
-  expect_true(!is.nan(sum.cate$estimates$est) && is.finite(sum.cate$estimates$est))
-  expect_true(!is.nan(sum.sate$estimates$est) && is.finite(sum.sate$estimates$est))
-  expect_equal(sum.cate$estimates$est, mean(icates))
+  expect_true(!is.nan(sum.cate$estimates$estimate) && is.finite(sum.cate$estimates$estimate))
+  expect_true(!is.nan(sum.sate$estimates$estimate) && is.finite(sum.sate$estimates$estimate))
+  expect_equal(sum.cate$estimates$estimate, mean(icates))
   expect_equal(sum.cate$estimates$sd, sd(apply(icates, 1, mean)))
-  expect_equal(sum.sate$estimates$est, mean(icates))
+  expect_equal(sum.sate$estimates$estimate, mean(icates))
   expect_equal(sum.sate$estimates$sd,
                sqrt(sum.cate$estimates$sd^2 + mean(extract(fit, "sigma")^2) / sum(fit$commonSup.sub)))
 })
