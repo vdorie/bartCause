@@ -200,6 +200,15 @@ test_that("summary works with different styles", {
   expect_equal(var_tot, (var_w * (n.samples - 1) / n.samples + var_b * (n.obs - 1) / n.obs) * n.obs * n.samples / (n.obs * n.samples - 1))
 })
 
+test_that("summary works with att/atc", {
+  fit <- bartc(y, z, x, data = testData, estimand = "att",
+               method.trt = "bart", method.rsp = "bart", verbose = FALSE,
+               n.chains = 2L, n.threads = 1L, n.burn = 0L, n.samples = 7L, n.trees = 13L)
+  expect_is(summary(fit, "pate"), "bartcFit.summary")
+  expect_is(summary(fit, "sate"), "bartcFit.summary")
+  expect_is(summary(fit, "cate"), "bartcFit.summary")
+})
+
 test_that("summary gives consistent answers with grouped data", {
   inGroupFit <- bartc(y, z, x, data = testData, estimand = "ate",
                       group.by = g, group.effects = TRUE,

@@ -201,8 +201,9 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
                               ate = rep(TRUE, length(y)),
                               att = object$trt >  0,
                               atc = object$trt <= 0)
-  inferentialSubset <- inferentialSubset & object$commonSup.sub
-  n.obs <- sum(inferentialSubset)
+  inferentialSubset <- inferentialSubset
+  keepSubset <- object$commonSup.sub
+  n.obs <- sum(inferentialSubset & keepSubset)
   
   if (responseIsBinary(object))
     estimateVariables <- setdiff(estimateVariables, "sigma")
@@ -216,8 +217,8 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
            samples.cate  = extract(object, "cate"),
            samples.sate  = extract(object, "sate"),
            sigma         = extract(object, "sigma"),
-           samples.obs   = extract(object, "mu.obs"),
-           samples.cf    = extract(object, "mu.cf"),
+           samples.obs   = extract(object, "mu.obs", "all"),
+           samples.cf    = extract(object, "mu.cf", "all"),
            weights       = weights,
            n.obs = n.obs
     ))
@@ -239,10 +240,9 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
       weights <- weights[inferentialSubset]
       weights <- weights / sum(weights)
     }
-    for (varName in intersect(estimateVariables, c("samples.icate", "samples.obs", "samples.cf"))) {
-      var <- get(varName)[,inferentialSubset,drop = FALSE]
-      assign(varName, var)
-    }
+    for (varName in intersect(estimateVariables, c("samples.icate", "samples.obs", "samples.cf")))
+      assign(varName, get(varName)[,keepSubset & inferentialSubset,drop = FALSE])
+    
     estimate <- eval(estimateCall)
     interval <- eval(intervalCall)
     names(interval) <- c("ci.lower", "ci.upper")
@@ -251,7 +251,7 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
   } else {
     estimates <- as.data.frame(t(sapply(seq_along(levels(object$group.by)), function(i) {
       level <- levels(object$group.by)[i]
-      levelObs <- object$group.by == level & inferentialSubset & object$commonSup.sub
+      levelObs <- object$group.by == level & inferentialSubset & keepSubset
       
       if (!is.null(weights)) {
         weights <- weights[levelObs]
@@ -378,7 +378,11 @@ print.bartcFit.summary <- function(x, ...)
       "  model.rsp: ", x$method.rsp, "\n",
       "  model.trt: ", x$method.trt, "\n\n", sep = "", ...)
   
-  cat("Treatment effect (", x$ci.info$target, "):\n", ..., sep = "")
+  target <- switch(x$ci.info$target,
+                   pate = "population average",
+                   sate = "sample average",
+                   cate = "conditional average")
+  cat("Treatment effect (", target, "):\n", ..., sep = "")
   
   print(x$estimates, digits = digits, ...)
   if (!is.null(x$estimates[["n"]]) && any(x$estimates[["n"]] <= 10L) && x$n.obs > 10L)
@@ -413,7 +417,7 @@ print.bartcFit <- function(x, digits = max(3L, getOption("digits") - 3L), ...)
   if (!is.null(x$call))
     cat("Call:\n", paste0(deparse(x$call), collapse = "\n  "), "\n\n", sep = "")
   
-  target <- if (x$method.rsp %in% c("p.weight", "tmle")) "pate" else "cate"
+  target <- if (x$method.rsp %in% c("p.weight", "tmle")) "population average" else "conditional average"
   cat("Treatment effect (", x$estimand, ", ", target, "): ", format(fitted(x, target), digits = digits), "\n", sep = "", ...)
   
   invisible(x)
