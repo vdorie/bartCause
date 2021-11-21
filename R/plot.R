@@ -1,19 +1,26 @@
 plot_sigma <- function(x, main = "Traceplot sigma", xlab = "iteration", ylab = "sigma", lty = 1:x$n.chains, ...) {
   if (!inherits(x, "bartcFit"))
     stop("plot.sigma requires an object of class 'bartcFit'")
-  if (is.null(x$fit.rsp$sigma))
+  
+  if (responseIsBinary(x))
     stop("residual standard deviation plot requires a continuous response")
   
-  first.sigma <- x$fit.rsp$first.sigma
-  
-  if (is.null(dim(x$fit.rsp$sigma))) {
-    sigma <- c(first.sigma, x$fit.rsp$sigma)
-    numBurnIn  <- length(first.sigma)
-    numSamples <- length(sigma)
+  if (inherits(x$fit.rsp, "stan4bartFit")) {
+    warmup.sigma <- t(extract(x$fit.rsp, "sigma", combine_chains = FALSE, include_warmup = "only"))
+    sample.sigma <- t(extract(x$fit.rsp, "sigma", combine_chains = FALSE, include_warmup = FALSE))
   } else {
-    sigma <- cbind(first.sigma, x$fit.rsp$sigma)
-    numBurnIn  <- ncol(first.sigma)
-    numSamples <- ncol(sigma)
+    warmup.sigma <- x$fit.rsp$first.sigma
+    sample.sigma <- x$fit.rsp$sigma
+  }
+  
+  if (is.null(dim(sample.sigma))) {
+    sigma <- c(warmup.sigma, sample.sigma)
+    numBurnIn  <- length(warmup.sigma)
+    numSamples <- length(sample.sigma)
+  } else {
+    sigma <- cbind(warmup.sigma, sample.sigma)
+    numBurnIn  <- ncol(warmup.sigma)
+    numSamples <- ncol(sample.sigma)
   }
   
   plot(NULL, xlim = c(1L, numSamples), ylim = range(sigma), main = main, xlab = xlab, ylab = ylab, ...)

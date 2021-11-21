@@ -27,7 +27,7 @@ getStan4BartResponseFit <- function(response, treatment, confounders, parametric
   stan4bartCall <- NULL; treatmentName <- NULL; missingRows <- NULL
   if (!dataAreMissing && is.data.frame(data)) {
     evalEnv <- NULL
-    dataCall <- addCallArgument(redirectCall(matchedCall, quoteInNamespace(getResponseDataCall)), "fn", quote(stan4bart::mstan4bart))
+    dataCall <- addCallArgument(redirectCall(matchedCall, quoteInNamespace(getResponseDataCall)), "fn", quote(stan4bart::stan4bart))
     dataCall <- addCallDefaults(dataCall, eval(quoteInNamespace(getStan4BartResponseFit)))
     dataCall$group.by <- NULL
     dataCall$use.ranef <- NULL
@@ -35,7 +35,7 @@ getStan4BartResponseFit <- function(response, treatment, confounders, parametric
     massign[stan4bartCall, evalEnv, treatmentName, missingRows] <- eval(dataCall, envir = callingEnv)
   } else {
     df <- NULL
-    literalCall <- addCallArgument(redirectCall(matchedCall, quoteInNamespace(getResponseLiteralCall)), "fn", quote(stan4bart::mstan4bart))
+    literalCall <- addCallArgument(redirectCall(matchedCall, quoteInNamespace(getResponseLiteralCall)), "fn", quote(stan4bart::stan4bart))
     literalCall <- addCallDefaults(literalCall, eval(quoteInNamespace(getStan4BartResponseFit)))
     literalCall$group.by <- NULL
     literalCall$use.ranef <- NULL
@@ -115,7 +115,7 @@ getBartResponseFit <- function(response, treatment, confounders, parametric, dat
       stop("`group.by` must be missing or NULL if `parametric` is supplied; for varying intercepts, add (1 | group) to parametric equation")
     if (requireNamespace("stan4bart", quietly = TRUE) == FALSE)
       stop("semiparametric BART treatment model requires stan4bart package to be available")
-    # fn <- quote(stan4bart::mstan4bart) # not needed
+    # fn <- quote(stan4bart::stan4bart) # not needed
     bartMethod <- "stan4bart"
   } else if (!is.null(matchedCall[["group.by"]]) && use.ranef) {
     fn <- quote(dbarts::rbart_vi)

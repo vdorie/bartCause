@@ -96,15 +96,15 @@ predict.bartcFit <-
     stop("type must be in '", paste0(eval(formals(predict.bartcFit)$type), collapse = "', '"), "'")
   type <- type[1L]
 
-  predictors.rsp <- if (inherits(object$fit.rsp, "mstan4bartFit")) names(object$fit.rsp$frame) else colnames(object$data.rsp@x)
+  predictors.rsp <- if (inherits(object$fit.rsp, "stan4bartFit")) names(object$fit.rsp$frame) else colnames(object$data.rsp@x)
   
   if (type != "p.score") {
     if (object$method.rsp != "bart")
       stop("predict(type = '", type, "', ...) requires method.rsp == 'bart'; other methods not designed to make individual predictions")
     
-    if (inherits(object$fit.rsp, "mstan4bartFit") && is.null(object$fit.rsp$sampler.bart))
+    if (inherits(object$fit.rsp, "stan4bartFit") && is.null(object$fit.rsp$sampler.bart))
       stop("predict with method.rsp = 'bart' and parametric argument requires response model to be fit with bart_args = list(keepTrees == TRUE)")
-    if (!inherits(object$fit.rsp, "mstan4bartFit") && is.null(object$fit.rsp$fit))
+    if (!inherits(object$fit.rsp, "stan4bartFit") && is.null(object$fit.rsp$fit))
       stop("predict with method.rsp = 'bart' requires response model to be fit with keepTrees == TRUE")
     
     p.scoreName <- "ps"
@@ -146,9 +146,9 @@ predict.bartcFit <-
         p.score <- predict(object$fit.trt, x.new, ...)
       }
     } else {
-      if (inherits(object$fit.trt, "mstan4bartFit") && is.null(object$fit.trt$sampler.bart))
+      if (inherits(object$fit.trt, "stan4bartFit") && is.null(object$fit.trt$sampler.bart))
         stop("predict with method.trt = '", object$method.trt, "' and a parametric argument requires treatment model to be fit with bart_args = list(keepTrees == TRUE)")
-      if (!inherits(object$fit.trt, "mstan4bartFit") && is.null(object$fit.trt$fit))
+      if (!inherits(object$fit.trt, "stan4bartFit") && is.null(object$fit.trt$fit))
         stop("predict with method.trt = '", object$method.trt, "' requires treatment model to be fit with keepTrees == TRUE")
       
       if (!is.null(object[["group.by"]])) {
@@ -164,7 +164,7 @@ predict.bartcFit <-
           p.score <- predict(object$fit.trt, x.new.g, combineChains = FALSE, ...)
         }
       } else {
-        if (inherits(object$fit.trt, "mstan4bartFit")) {
+        if (inherits(object$fit.trt, "stan4bartFit")) {
           p.score <- predict(object$fit.trt, x.new, combine_chains = FALSE, ...)
           p.score <- aperm(p.score, c(3L, 2L, 1L))
         } else {
@@ -197,7 +197,7 @@ predict.bartcFit <-
     predictArgs <- list(object$fit.rsp, x.new, combineChains = FALSE, ...)
   }
   
-  if (inherits(predictArgs[[1L]], "mstan4bartFit") && any(names(predictArgs) == "combineChains"))
+  if (inherits(predictArgs[[1L]], "stan4bartFit") && any(names(predictArgs) == "combineChains"))
       evalx(names(predictArgs), x[x == "combineChains"] <- "combine_chains")
   
   if (type %in% c("mu", "y")) {
@@ -206,7 +206,7 @@ predict.bartcFit <-
     
     mu <- do.call("predict", predictArgs)
     
-    if (inherits(predictArgs[[1L]], "mstan4bartFit"))
+    if (inherits(predictArgs[[1L]], "stan4bartFit"))
       mu <- aperm(mu, c(3L, 2L, 1L))
     
     if (type == "y")
@@ -217,14 +217,14 @@ predict.bartcFit <-
     predictArgs[[2L]][[object$name.trt]] <- 0
     mu.0 <- do.call("predict", predictArgs)
     
-    if (inherits(predictArgs[[1L]], "mstan4bartFit"))
+    if (inherits(predictArgs[[1L]], "stan4bartFit"))
       mu.0 <- aperm(mu.0, c(3L, 2L, 1L))
   }
   if (type %in% c("mu.1", "y.1", "icate", "ite")) {
     predictArgs[[2L]][[object$name.trt]] <- 1
     mu.1 <- do.call("predict", predictArgs)
     
-    if (inherits(predictArgs[[1L]], "mstan4bartFit"))
+    if (inherits(predictArgs[[1L]], "stan4bartFit"))
       mu.1 <- aperm(mu.1, c(3L, 2L, 1L))
   }
   
@@ -320,7 +320,7 @@ extract.bartcFit <-
     if (responseIsBinary(object))
       stop("binary response model does not have a residual standard deviation parameter (sigma)")
     sigma <-
-      if (inherits(object$fit.rsp, "mstan4bartFit"))
+      if (inherits(object$fit.rsp, "stan4bartFit"))
         t(extract(object$fit.rsp, "sigma", combine_chains = FALSE))
       else
         object$fit.rsp$sigma
@@ -346,7 +346,7 @@ extract.bartcFit <-
     }
   }
   
-  weights <- if (inherits(object$fit.rsp, "mstan4bartFit")) object$fit.rsp$weights else object$data.rsp@weights
+  weights <- if (inherits(object$fit.rsp, "stan4bartFit")) object$fit.rsp$weights else object$data.rsp@weights
   if (!is.null(weights)) {
     if (length(weights) == 0L) weights <- NULL
     else weights <- weights / sum(weights)
@@ -355,7 +355,7 @@ extract.bartcFit <-
   oldSeed <- .GlobalEnv$.Random.seed
   .GlobalEnv$.Random.seed <- object$seed
   
-  n.obs     <- length(if (inherits(object$fit.rsp, "mstan4bartFit")) object$fit.rsp$y else object$data.rsp@y)
+  n.obs     <- length(if (inherits(object$fit.rsp, "stan4bartFit")) object$fit.rsp$y else object$data.rsp@y)
   n.samples <- tail(dim(object$mu.hat.cf), 1L)
   n.chains  <- object$n.chains
   trtSign <- ifelse(object$trt == 1, 1, -1)

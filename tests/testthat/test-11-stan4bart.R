@@ -30,14 +30,14 @@ test_that("semiparametric models are consistent with each other", {
                 verbose = FALSE)
   
   summary2 <- summary(fit2)
-  expect_true(inherits(fit2$fit.trt, "mstan4bartFit"))
+  expect_true(inherits(fit2$fit.trt, "stan4bartFit"))
   expect_equal(fit2$fit.trt$call$formula, str2lang("z ~ (1 | g.1) + bart(X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + 
     X9 + X10)"))
   data_frame <- test.df[setdiff(names(test.df), "y")]
   fit_frame <- fit2$fit.trt$frame[names(data_frame)]
   expect_equal(fit_frame, data_frame)
   
-  expect_true(inherits(fit2$fit.rsp, "mstan4bartFit"))
+  expect_true(inherits(fit2$fit.rsp, "stan4bartFit"))
   expect_equal(fit2$fit.rsp$call$formula, str2lang("y ~ z + ps + bart(X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + 
     X9 + X10) + (1 | g.1)"))
   expect_equal(fit2$fit.rsp$frame[names(test.df)], test.df)
@@ -49,14 +49,14 @@ test_that("semiparametric models are consistent with each other", {
                 verbose = FALSE)
   
   summary3 <- summary(fit3)
-  expect_true(inherits(fit3$fit.trt, "mstan4bartFit"))
+  expect_true(inherits(fit3$fit.trt, "stan4bartFit"))
   expect_equal(fit3$fit.trt$call$formula, str2lang("z ~ X4 + (1 | g.1) + bart(X1 + X2 + X3 + X5 + X6 + X7 + X8 + 
     X9 + X10)"))
   data_frame <- test.df[setdiff(names(test.df), "y")]
   fit_frame <- fit3$fit.trt$frame[names(data_frame)]
   expect_equal(fit_frame, data_frame)
   
-  expect_true(inherits(fit3$fit.rsp, "mstan4bartFit"))
+  expect_true(inherits(fit3$fit.rsp, "stan4bartFit"))
   expect_equal(fit3$fit.rsp$call$formula, str2lang("y ~ z + ps + bart(X1 + X2 + X3 + X5 + X6 + X7 + X8 + 
     X9 + X10) + (X4 + (1 | g.1))"))
   expect_equal(fit3$fit.rsp$frame[names(test.df)], test.df)

@@ -193,9 +193,9 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
   estimateCall <- quote(getATEEstimate())
   intervalCall <- quote(getATEInterval())
   
-  weights <- if (inherits(object$fit.rsp, "mstan4bartFit")) object$fit.rsp$weights else object$data.rsp@weights
+  weights <- if (inherits(object$fit.rsp, "stan4bartFit")) object$fit.rsp$weights else object$data.rsp@weights
   if (!is.null(weights) && length(weights) == 0L) weights <- NULL
-  y <- if (inherits(object$fit.rsp, "mstan4bartFit")) object$fit.rsp$y else object$data.rsp@y
+  y <- if (inherits(object$fit.rsp, "stan4bartFit")) object$fit.rsp$y else object$data.rsp@y
   
   inferentialSubset <- switch(object$estimand,
                               ate = rep(TRUE, length(y)),
