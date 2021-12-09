@@ -1,4 +1,4 @@
-getGLMTreatmentFit <- function(treatment, confounders, parametric, data, subset, weights, group.by = NULL, use.ranef = TRUE, ...)
+getGLMTreatmentFit <- function(response, treatment, confounders, parametric, data, subset, weights, group.by = NULL, use.ranef = TRUE, ...)
 {
   treatmentIsMissing    <- missing(treatment)
   confoundersAreMissing <- missing(confounders)
@@ -27,13 +27,25 @@ getGLMTreatmentFit <- function(treatment, confounders, parametric, data, subset,
 
   glmCall <- evalEnv <- NULL
   if (!dataAreMissing && is.data.frame(data)) {
-    evalEnv <- NULL
+    dataEnv <- NULL
+    if (grepl("(?<![\\w\\.])\\.(?![\\w\\.])", deparse(matchedCall$confounders), perl = TRUE)) {
+      mfCall <- quote(stats::model.frame(a ~ b, data = data))
+      mfCall[[2L]][[2L]] <- matchedCall$response
+      mfCall[[2L]][[3L]] <- matchedCall$confounders
+      mf <- eval(mfCall)
+      data <- data[,setdiff(colnames(data), deparse(attr(attr(mf, "terms"), "variables")[[2L]]))]
+      dataEnv <- new.env(parent = callingEnv)
+      dataEnv[[deparse(matchedCall$data)]] <- data
+    }
     
+    evalEnv <- NULL
     dataCall <- addCallArgument(redirectCall(matchedCall, quoteInNamespace(getTreatmentDataCall)), "fn", fn)
     dataCall <- addCallDefaults(dataCall, eval(quoteInNamespace(getGLMTreatmentFit)))
     dataCall[["use.lmer"]] <- useLmer
     
     massign[glmCall, evalEnv] <- eval(dataCall, envir = callingEnv)
+    
+    if (!is.null(dataEnv)) evalEnv <- dataEnv
   } else {
     df <- NULL
     literalCall <- addCallArgument(redirectCall(matchedCall, quoteInNamespace(getTreatmentLiteralCall)), "fn", fn)
@@ -59,7 +71,7 @@ getGLMTreatmentFit <- function(treatment, confounders, parametric, data, subset,
   list(fit = glmFit, p.score = fitted(glmFit), samples = NULL)
 }
 
-getBartTreatmentFit <- function(treatment, confounders, parametric, data, subset, weights, group.by = NULL, use.ranef = TRUE,
+getBartTreatmentFit <- function(response, treatment, confounders, parametric, data, subset, weights, group.by = NULL, use.ranef = TRUE,
                                 crossvalidate = FALSE, ...)
 {
   treatmentIsMissing    <- missing(treatment)
@@ -93,12 +105,27 @@ getBartTreatmentFit <- function(treatment, confounders, parametric, data, subset
   
   bartCall <- NULL
   if (!dataAreMissing && is.data.frame(data)) {
-    evalEnv <- NULL
+    # if the confounders contain a '.', they can end up including the response variable.
+    # This regex looks for dots that are not preceeded or followed by valid variable name
+    # name characters. It can miss some cases, e.g. '_.' doesn't parse, but it should work
+    # most of the time.
+    dataEnv <- NULL
+    if (grepl("(?<![\\w\\.])\\.(?![\\w\\.])", deparse(matchedCall$confounders), perl = TRUE)) {
+      mfCall <- quote(stats::model.frame(a ~ b, data = data))
+      mfCall[[2L]][[2L]] <- matchedCall$response
+      mfCall[[2L]][[3L]] <- matchedCall$confounders
+      mf <- eval(mfCall)
+      data <- data[,setdiff(colnames(data), deparse(attr(attr(mf, "terms"), "variables")[[2L]]))]
+      dataEnv <- new.env(parent = callingEnv)
+      dataEnv[[deparse(matchedCall$data)]] <- data
+    }
     dataCall <- addCallArgument(redirectCall(matchedCall, quoteInNamespace(getTreatmentDataCall)), "fn", fn)
     dataCall <- addCallDefaults(dataCall, eval(quoteInNamespace(getBartTreatmentFit)))
     dataCall[["use.lmer"]] <- FALSE
     
     massign[bartCall, evalEnv] <- eval(dataCall, envir = callingEnv)
+    
+    if (!is.null(dataEnv)) evalEnv <- dataEnv
   } else {
     df <- NULL
     literalCall <- addCallArgument(redirectCall(matchedCall, quoteInNamespace(getTreatmentLiteralCall)), "fn", fn)

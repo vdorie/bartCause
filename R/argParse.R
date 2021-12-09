@@ -69,7 +69,7 @@ getTreatmentDataCall <- function(fn, treatment, confounders, parametric, data, s
       formula[[3L]][[2L]] <- matchedCall$parametric
       formula[[3L]][[3L]] <- matchedCall$confounders
     }
-  }
+  } 
   
   environment(formula) <- parent.frame(1L)
   

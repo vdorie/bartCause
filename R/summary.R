@@ -417,8 +417,15 @@ print.bartcFit <- function(x, digits = max(3L, getOption("digits") - 3L), ...)
   if (!is.null(x$call))
     cat("Call:\n", paste0(deparse(x$call), collapse = "\n  "), "\n\n", sep = "")
   
-  target <- if (x$method.rsp %in% c("p.weight", "tmle")) "population average" else "conditional average"
-  cat("Treatment effect (", x$estimand, ", ", target, "): ", format(fitted(x, target), digits = digits), "\n", sep = "", ...)
+  if (x$method.rsp %in% c("p.weight", "tmle")) {
+    target <- "pate"
+    target_str <- "population average"
+  } else {
+    target <- "cate"
+    target_str <- "conditional average"
+  }
+  cat("Treatment effect (", x$estimand, ", ", target_str, "): ", format(fitted(x, target), digits = digits), "\n", sep = "", ...)
   
   invisible(x)
 }
+

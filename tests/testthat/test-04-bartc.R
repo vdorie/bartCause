@@ -225,3 +225,11 @@ test_that("bartc model argument overrides work correctly", {
   expect_true( is.null(bartcFit$fit.rsp$k))
 })
 
+test_that("bartc works with '.' as confounders", {
+  testDF <- with(testData, data.frame(y = y, z = z, x = x))
+  bartcFit <- bartc(y, z, ., data = testDF,
+                    method.rsp = "bart", method.trt = "bart", verbose = FALSE,
+                    n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L)
+  expect_true(!("y" %in% dimnames(bartcFit$fit.trt$varcount)[[3L]]))
+})
+
