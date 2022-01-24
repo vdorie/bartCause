@@ -149,7 +149,7 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
 \details{
   \code{bartc} represents a collection of methods that primarily use the
   Bayesian Additive Regression Trees (BART) algorithm to estimate causal
-  treatment effects with binary treatment variables and continuous
+  treatment effects with binary treatment variables and continuous or binary
   outcomes. This requires models to be fit to the response surface (distribution
   of the response as a function of treatment and confounders,
   \eqn{p(Y(1), Y(0) | X)} and optionally for treatment assignment mechanism
