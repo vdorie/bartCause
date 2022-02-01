@@ -25,12 +25,14 @@ plot_sigma <- function(x, main = "Traceplot sigma", xlab = "iteration", ylab = "
   
   plot(NULL, xlim = c(1L, numSamples), ylim = range(sigma), main = main, xlab = xlab, ylab = ylab, ...)
   abline(v = numBurnIn, col = "red", lwd = 0.5)
+
+  numTotalSamples <- numBurnIn + numSamples
   
   if (NCOL(sigma) > 1L) {
     for (i in seq_len(x$n.chains))
-      lines(seq_len(numSamples), sigma[i,], lty = lty[i], ...)
+      lines(seq_len(numTotalSamples), sigma[i,], lty = lty[i], ...)
   } else {
-    lines(seq_len(numSamples), sigma, lty = lty[1L], ...)
+    lines(seq_len(numTotalSamples), sigma, lty = lty[1L], ...)
   }
   
   invisible(NULL)

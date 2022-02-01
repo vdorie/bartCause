@@ -169,6 +169,7 @@ y <- mu.0 * (1 - z) + mu.1 * z + rnorm(n, 0, sigma)
 
 # run with low parameters only for example
 fit <- bartc(y, z, x, n.samples = 100L, n.burn = 15L, n.chains = 2L,
+             n.threads = 1L,
              commonSup.rule = "sd")
 
 
