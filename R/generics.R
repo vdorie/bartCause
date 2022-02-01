@@ -421,7 +421,7 @@ extract.bartcFit <-
   
   if (combineChains) result <- combineChains(result, n.chains)
   
-  try_result <- tryCatch(subset <- rep_len(TRUE, dim(result)[length(dim(result))]), error = \(e) e)
+  try_result <- tryCatch(subset <- rep_len(TRUE, dim(result)[length(dim(result))]), error = function(e) e)
   if (inherits(try_result, "error")) browser()
   if (sample == "inferential") {
     if (object$estimand == "att") subset <- object$trt > 0
