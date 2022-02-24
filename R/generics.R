@@ -352,7 +352,7 @@ extract.bartcFit <-
     else weights <- weights / sum(weights)
   }
   
-  oldSeed <- .GlobalEnv$.Random.seed
+  oldSeed <- .GlobalEnv[[".Random.seed"]]
   .GlobalEnv$.Random.seed <- object$seed
   
   n.obs     <- length(if (inherits(object$fit.rsp, "stan4bartFit")) object$fit.rsp$y else object$data.rsp@y)
@@ -368,7 +368,10 @@ extract.bartcFit <-
   if (type == "pate")
     y.obs.ppd <- sampleFromPPD(object, object$mu.hat.obs)
   
-  .GlobalEnv$.Random.seed <- oldSeed
+  if (!is.null(oldSeed))
+    .GlobalEnv$.Random.seed <- oldSeed
+  else
+    rm(list = ".Random.seed", envir = .GlobalEnv)
   
   obsCfToTrtCtl <- function(obs, cf, trt) {
     if (is.null(dim(obs))) {

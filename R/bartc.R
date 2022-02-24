@@ -193,7 +193,10 @@ bartc <- function(
   if (!is.na(seed)) {
     result$seed <- .GlobalEnv$.Random.seed
     
-    .GlobalEnv[[".Random.seed"]] <- oldSeed
+    if (!is.null(oldSeed))
+      .GlobalEnv[[".Random.seed"]] <- oldSeed
+    else
+      rm(list = ".Random.seed", envir = .GlobalEnv) # unset the seed
   } else {
     if (!exists(".Random.seed", .GlobalEnv)) runif(1L)
     result$seed <- .GlobalEnv$.Random.seed
