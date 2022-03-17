@@ -185,6 +185,9 @@ pruneCallArguments <- function(call, ignoreDots = FALSE)
 
 subTermInLanguage <- function(lang, oldTerm, newTerm)
 {
+  if (length(lang) == 1L && is.symbol(lang))
+    return(if (lang == oldTerm) newTerm else lang)
+
   for (i in seq_along(lang)) {
     if (is.symbol(lang[[i]])) {
       if (lang[[i]] == oldTerm) lang[[i]] <- newTerm
@@ -192,7 +195,7 @@ subTermInLanguage <- function(lang, oldTerm, newTerm)
       lang[[i]] <- subTermInLanguage(lang[[i]], oldTerm, newTerm)
     }
   }
-  return(lang)
+  lang
 }
 
 setDefaultsFromFormals <- function(call, formals, ...)
