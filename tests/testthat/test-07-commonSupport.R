@@ -11,6 +11,7 @@ test_that("sd common support diagnostic works", {
   fit <- bartc(y, z, x, data = testData,
                method.rsp = "p.weight", method.trt = "bart", estimand = "att", verbose = FALSE,
                n.burn = 0L, n.samples = 3L, n.trees = 7L, n.chains = 1L, n.threads = 1L,
+               n.thin = 1L,
                group.by = g,
                commonSup.rule = "sd", maxIter = 2L)
   expect_is(fit, "bartcFit")
@@ -19,6 +20,7 @@ test_that("sd common support diagnostic works", {
   fit <- bartc(y, z, x, data = testData,
                method.rsp = "p.weight", method.trt = "bart", estimand = "att", verbose = FALSE,
                n.burn = 0L, n.samples = 3L, n.trees = 7L, n.chains = 1L, n.threads = 1L,
+               n.thin = 1L,
                group.by = g, group.effects = TRUE,
                commonSup.rule = "sd", maxIter = 2L)
   expect_is(fit, "bartcFit")
@@ -33,6 +35,7 @@ test_that("chisq common support diagnostic works", {
   expect_is(bartc(y, z, x, data = testData,
                   method.rsp = "p.weight", method.trt = "bart", estimand = "att", verbose = FALSE,
                   n.burn = 0L, n.samples = 3L, n.trees = 7L, n.chains = 1L, n.threads = 1L,
+                  n.thin = 1L,
                   group.by = g,
                   commonSup.rule = "chisq", maxIter = 2L), "bartcFit")
 })

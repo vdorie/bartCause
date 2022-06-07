@@ -184,7 +184,7 @@ getBartResponseFit <- function(response, treatment, confounders, parametric, dat
   ## redirect to pull in any args passed
   use.ranef <- !is.null(matchedCall[["group.by"]]) && use.ranef
   if (!use.ranef) {
-    bartCall <- if (!use.ranef) redirectCall(matchedCall, dbarts::bart2)
+    bartCall <- redirectCall(matchedCall, dbarts::bart2)
   } else {
     group.by <- eval(redirectCall(matchedCall, quoteInNamespace(getGroupBy)), envir = callingEnv)
     if (!is.null(missingData)) {

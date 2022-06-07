@@ -1,4 +1,4 @@
-optimizeBARTCall <- function(bartCall, env)
+optimizeBARTCall <- function(bartCall, env, kRange = NULL)
 {
   initCall <- bartCall
     

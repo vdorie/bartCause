@@ -143,7 +143,7 @@ predict.bartcFit <-
           p.score <- predict(object$fit.trt, x.new.g, type = "response", ...)
         }
       } else {
-        p.score <- predict(object$fit.trt, x.new, ...)
+        p.score <- predict(object$fit.trt, x.new, type = "response", ...)
       }
     } else {
       if (inherits(object$fit.trt, "stan4bartFit") && is.null(object$fit.trt$sampler.bart))
