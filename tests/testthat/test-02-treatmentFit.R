@@ -67,3 +67,31 @@ if (FALSE) test_that("xbart fit matches manual call", {
   rm(k, xVal)
 })
 
+test_that("glm fit fails for non-binary treatment with literals", {
+  testData$z <- testData$z + 1
+  expect_error(bartCause:::getGLMTreatmentFit(y, z, x, data = testData))
+})
+
+test_that("bart fit fails for non-binary treatment with literals", {
+  testData$z <- testData$z + 1
+  expect_error(bartCause:::getBartTreatmentFit(y, z, x, data = testData, n.chains = 1L, n.threads = 1L, n.burn = 3L, n.samples = 13L, n.trees = 7L))
+})
+
+test_that("glm fit fails for non-binary treatment with data.frame", {
+  data <- data.frame(z = testData$z + 1, y = testData$y, x = testData$x)
+  z <- testData$z + 1
+  x <- testData$x
+  y <- testData$y
+
+  expect_error(bartCause:::getGLMTreatmentFit(response = y, treatment = z, confounders = x.1 + x.2 + x.3, data = data))
+})
+
+test_that("glm fit fails for non-binary treatment with data.frame", {
+  data <- data.frame(z = testData$z + 1, y = testData$y, x = testData$x)
+  z <- testData$z + 1
+  x <- testData$x
+  y <- testData$y
+
+  expect_error(bartCause:::getBartTreatmentFit(y, z, x, data = data, n.chains = 1L, n.threads = 1L, n.burn = 3L, n.samples = 13L, n.trees = 7L))
+})
+

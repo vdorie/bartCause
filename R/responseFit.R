@@ -212,9 +212,8 @@ getBartResponseFit <- function(response, treatment, confounders, parametric, dat
   evalEnv <- new.env(parent = callingEnv)
   evalEnv[["responseData"]] <- responseData
   
-  
-  responseIsBinary <- unique(responseData@y)
-  responseIsBinary <- length(responseIsBinary) == 2L && min(responseIsBinary) == 0 && max(responseIsBinary) == 1
+  #responseIsBinary <- unique(responseData@y)
+  #responseIsBinary <- length(responseIsBinary) == 2L && min(responseIsBinary) == 0 && max(responseIsBinary) == 1
   
   if (crossvalidate)
     bartCall <- optimizeBARTCall(bartCall, evalEnv)

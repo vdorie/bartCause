@@ -46,6 +46,11 @@ getGLMTreatmentFit <- function(response, treatment, confounders, parametric, dat
     massign[glmCall, evalEnv] <- eval(dataCall, envir = callingEnv)
     
     if (!is.null(dataEnv)) evalEnv <- dataEnv
+
+    df <- evalEnv[[as.character(dataCall$data)]]
+    treatment <- df[[matchedCall$treatment]]
+    if (!all(treatment %in% c(0, 1)))
+      stop("response must be in {0, 1}")
   } else {
     df <- NULL
     literalCall <- addCallArgument(redirectCall(matchedCall, quoteInNamespace(getTreatmentLiteralCall)), "fn", fn)
@@ -55,12 +60,15 @@ getGLMTreatmentFit <- function(response, treatment, confounders, parametric, dat
     literalCall[["use.lmer"]] <- useLmer
     
     massign[glmCall, df] <- eval(literalCall, envir = dataEnv)
+
+    treatment <- df[[matchedCall$treatment]]
+    if (!all(treatment %in% c(0, 1)))
+      stop("response must be in {0, 1}")
     
     evalEnv <- new.env(parent = callingEnv)
     evalEnv[["df"]] <- df
   }
   
-    
   extraArgs <- matchedCall[names(matchedCall) %not_in% names(glmCall) | names(matchedCall) == ""]
   
   glmCall <- addCallArguments(glmCall, extraArgs)
@@ -126,6 +134,11 @@ getBartTreatmentFit <- function(response, treatment, confounders, parametric, da
     massign[bartCall, evalEnv] <- eval(dataCall, envir = callingEnv)
     
     if (!is.null(dataEnv)) evalEnv <- dataEnv
+
+    df <- evalEnv[[as.character(dataCall$data)]]
+    treatment <- df[[matchedCall$treatment]]
+    if (!all(treatment %in% c(0, 1)))
+      stop("response must be in {0, 1}")
   } else {
     df <- NULL
     literalCall <- addCallArgument(redirectCall(matchedCall, quoteInNamespace(getTreatmentLiteralCall)), "fn", fn)
@@ -135,6 +148,10 @@ getBartTreatmentFit <- function(response, treatment, confounders, parametric, da
     dataEnv <- if (dataAreMissing) callingEnv else list2env(data, parent = callingEnv)
     
     massign[bartCall, df] <- eval(literalCall, envir = dataEnv)
+
+    treatment <- df[[matchedCall$treatment]]
+    if (!all(treatment %in% c(0, 1)))
+      stop("response must be in {0, 1}")
     
     evalEnv <- new.env(parent = callingEnv)
     evalEnv[["df"]] <- df
