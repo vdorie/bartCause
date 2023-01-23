@@ -61,7 +61,7 @@ getGLMTreatmentFit <- function(response, treatment, confounders, parametric, dat
     
     massign[glmCall, df] <- eval(literalCall, envir = dataEnv)
 
-    treatment <- df[[matchedCall$treatment]]
+    treatment <- df[[deparse(glmCall[[2L]][[2L]])]]
     if (!all(treatment %in% c(0, 1)))
       stop("response must be in {0, 1}")
     
@@ -149,7 +149,7 @@ getBartTreatmentFit <- function(response, treatment, confounders, parametric, da
     
     massign[bartCall, df] <- eval(literalCall, envir = dataEnv)
 
-    treatment <- df[[matchedCall$treatment]]
+    treatment <- df[[deparse(bartCall[[2L]][[2L]])]]
     if (!all(treatment %in% c(0, 1)))
       stop("response must be in {0, 1}")
     

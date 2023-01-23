@@ -72,6 +72,10 @@ test_that("glm fit fails for non-binary treatment with literals", {
   expect_error(bartCause:::getGLMTreatmentFit(y, z, x, data = testData))
 })
 
+test_that("glm fit fails for non-binary treatment with expressions", {
+  expect_error(bartCause:::getGLMTreatmentFit(y, z + 1, x, data = testData))
+})
+
 test_that("bart fit fails for non-binary treatment with literals", {
   testData$z <- testData$z + 1
   expect_error(bartCause:::getBartTreatmentFit(y, z, x, data = testData, n.chains = 1L, n.threads = 1L, n.burn = 3L, n.samples = 13L, n.trees = 7L))
