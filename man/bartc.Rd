@@ -334,31 +334,31 @@ Chipman, H., George, E. and McCulloch R. (2010)
   BART: Bayesian additive regression trees.
   \emph{The Annals of Applied Statistics} \bold{4(1)}, 266--298.
   The Institute of Mathematical Statistics.
-  \url{https://doi.org/10.1214/09-AOAS285}.
+  \doi{10.1214/09-AOAS285}.
 
 Hill, J. L. (2011)
   Bayesian Nonparametric Modeling for Causal Inference.
   \emph{Journal of Computational and Graphical Statistics} \bold{20(1)}, 217--240.
   Taylor & Francis.
-  \url{https://doi.org/10.1198/jcgs.2010.08162}.
+  \doi{10.1198/jcgs.2010.08162}.
 
 Hill, J. L. and Su Y. S. (2013)
   Assessing Lack of Common Support in Causal Inference Using Bayesian Nonparametrics: Implications for Evaluating the Effect of Breastfeeding on Children's Cognitive Outcomes
   \emph{The Annals of Applied Statistics} \bold{7(3)}, 1386--1420.
   The Institute of Mathematical Statistics.
-  \url{https://doi.org/10.1214/13-AOAS630}.
+  \doi{10.1214/13-AOAS630}.
 
 Carnegie, N. B. (2019)
   Comment: Contributions of Model Features to BART Causal Inference Performance Using ACIC 2016 Competition Data
   \emph{Statistical Science} \bold{34(1)}, 90--93.
   The Institute of Mathematical Statistics.
-  \url{https://doi.org/10.1214/18-STS682}
+  \doi{10.1214/18-STS682}
 
 Hahn, P. R., Murray, J. S., and Carvalho, C. M. (2020)
   Bayesian Regression Tree Models for Causal Inference: Regularization, Confounding, and Heterogeneous Effects (with Discussion).
   \emph{Bayesian Analysis} \bold{15(3)}, 965--1056.
   International Society for Bayesian Analysis.
-  \url{https://doi.org/10.1214/19-BA1195}.
+  \doi{10.1214/19-BA1195}.
 }
 \author{
 Vincent Dorie: \email{vdorie@gmail.com}.
