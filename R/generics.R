@@ -392,7 +392,7 @@ extract.bartcFit <-
     samples.indiv.diff <- multiplyArrayByVec(with(object,
       switch(type,
              pate = y.obs.ppd - y.cf,
-             sate = subtractArrayFromVec(y.obs, y.cf),
+             sate = mu.hat.obs - y.cf,
              cate = mu.hat.obs - mu.hat.cf)),
       trtSign)
     
@@ -413,9 +413,9 @@ extract.bartcFit <-
            mu.1        = obsCfToTrtCtl(mu.hat.obs, mu.hat.cf, trt),
            mu.0        = obsCfToTrtCtl(mu.hat.obs, mu.hat.cf, 1 - trt),
            y.cf        = y.cf,
-           y.1         = obsCfToTrtCtl(y.obs, y.cf, trt),
-           y.0         = obsCfToTrtCtl(y.obs, y.cf, 1 - trt),
-           ite         = multiplyArrayByVec(subtractArrayFromVec(y.obs, y.cf), trtSign),
+           y.1         = obsCfToTrtCtl(mu.hat.obs, y.cf, trt),
+           y.0         = obsCfToTrtCtl(mu.hat.obs, y.cf, 1 - trt),
+           ite         = multiplyArrayByVec(mu.hat.obs - y.cf, trtSign),
            icate       = multiplyArrayByVec(mu.hat.obs - mu.hat.cf, trtSign),
            p.score     = object$samples.p.score,
            p.weights   = getPWeights(estimand, trt, weights, if (!is.null(samples.p.score)) samples.p.score else p.score, fitPars$p.scoreBounds)))
