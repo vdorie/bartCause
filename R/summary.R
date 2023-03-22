@@ -67,11 +67,11 @@ getPATEEstimate.bart.var.exp = function(samples.icate, weights)
   n.samples <- nrow(samples.icate)
   
   if (!is.null(weights)) {
-    cate.samples <- apply(weights * t(samples.icate), 2L, sum)
-    est <- mean(cate.samples)
+    samples.cate <- apply(weights * t(samples.icate), 2L, sum)
+    est <- mean(samples.cate)
     
-    var.between.samples <- var(cate.samples)
-    variance.samples <- apply(weights * t(samples.icate - cate.samples)^2, 2L, sum) * n.obs / sum(weights) / (n.obs - 1)
+    var.between.samples <- var(samples.cate)
+    variance.samples <- apply(weights * t(samples.icate - samples.cate)^2, 2L, sum) * n.obs / sum(weights) / (n.obs - 1)
   } else {
     est <- mean(samples.icate)
     
@@ -85,8 +85,13 @@ getPATEEstimate.bart.var.exp = function(samples.icate, weights)
   c(estimate = est, sd = sqrt(var.between.samples + var.within.samples))
 },
 
-getPATEEstimate.bart.ppd = function(samples.cate, weights, sigma, samples.obs, samples.cf, n.obs)
+getPATEEstimate.bart.ppd = function(samples.icate, weights, sigma, samples.obs, samples.cf, n.obs)
 {
+  if (!is.null(weights)) {
+    samples.cate <- apply(weights * t(samples.icate), 2L, sum)
+  } else {
+    samples.cate <- rowMeans(samples.icate)
+  }
   est <- mean(samples.cate)
   
   sd <- sqrt(var(samples.cate) +
@@ -110,14 +115,19 @@ getPATEIntervalFunction.bart = function(ci.style)
          hpd   = function(ci.level, samples.pate) getHPDInterval(samples.pate, ci.level))
 },
 
-getSATEEstimate.bart = function(samples.cate, weights, sigma, samples.cf, n.obs)
+getSATEEstimate.bart = function(samples.iscate, weights, sigma, samples.cf, n.obs)
 {
-  est <- mean(samples.cate)
+  if (!is.null(weights)) {
+    samples.scate <- apply(weights * t(samples.iscate), 2L, sum)
+  } else {
+    samples.scate <- rowMeans(samples.iscate)
+  }
+  est <- mean(samples.scate)
   
-  sd <- sqrt(var(samples.cate) +
-    if (!is.null(sigma))
+  sd <- sqrt(var(samples.scate) +
+    if (!is.null(sigma)) {
       mean(sigma^2) / n.obs
-    else {
+    } else {
       samples.var <- samples.cf * (1 - samples.cf)
       if (!is.null(weights))
         mean(apply(weights * samples.var, 2L, sum) / n.obs)
@@ -135,8 +145,14 @@ getSATEIntervalFunction.bart = function(ci.style)
          hpd   = function(ci.level, samples.sate) getHPDInterval(samples.sate, ci.level))
 },
 
-getCATEEstimate.bart = function(samples.cate)
+getCATEEstimate.bart = function(samples.icate, weights)
 {
+  if (!is.null(weights)) {
+    samples.cate <- apply(weights * t(samples.icate), 2L, sum)
+  } else {
+    samples.cate <- rowMeans(samples.icate)
+  }
+  samples.cate <- rowMeans(samples.icate)
   c(estimate = mean(samples.cate), sd = sd(samples.cate))
 },
 
@@ -144,8 +160,8 @@ getCATEIntervalFunction.bart = function(ci.style)
 {
   switch(ci.style,
          norm  = function(ci.probs, estimate) estimate[["estimate"]] + estimate[["sd"]] * qnorm(ci.probs),
-         quant = function(ci.probs, samples.sate) unname(quantile(samples.cate, ci.probs)),
-         hpd   = function(ci.level, samples.sate) getHPDInterval(samples.cate, ci.level))
+         quant = function(ci.probs, samples.cate) unname(quantile(samples.cate, ci.probs)),
+         hpd   = function(ci.level, samples.cate) getHPDInterval(samples.cate, ci.level))
 })
 
 getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
@@ -216,6 +232,8 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
            samples.icate = extract(object, "icate", "all"),
            samples.cate  = extract(object, "cate"),
            samples.sate  = extract(object, "sate"),
+           samples.scate  = rowMeans(multiplyArrayByVec(subtractArrayFromVec(y, extract(object, "mu.cf", "all")), 2 * object$trt - 1)),
+           samples.iscate = multiplyArrayByVec(subtractArrayFromVec(y, extract(object, "mu.cf", "all")), 2 * object$trt - 1),
            sigma         = extract(object, "sigma"),
            samples.obs   = extract(object, "mu.obs", "all"),
            samples.cf    = extract(object, "mu.cf", "all"),
@@ -234,13 +252,13 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
            samples.pate = samples.pate <- extract(object, "pate"))
     intervalCall[[i + 1L]] <- str2lang(varName)
   }
-  
+
   if (!groupEstimates) {
     if (!is.null(weights)) {
       weights <- weights[inferentialSubset]
       weights <- weights / sum(weights)
     }
-    for (varName in intersect(estimateVariables, c("samples.icate", "samples.obs", "samples.cf")))
+    for (varName in intersect(estimateVariables, c("samples.icate", "samples.obs", "samples.cf", "samples.iscate")))
       assign(varName, get(varName)[,keepSubset & inferentialSubset,drop = FALSE])
     
     estimate <- eval(estimateCall)
@@ -260,10 +278,10 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
       
       # go through and subset variables that are grouped, sometimes in lists
       # sometimes in vectors
-      for (varName in c("samples.tmle", "samples.cate", "samples.pate"))
+      for (varName in c("samples.tmle", "samples.cate", "samples.pate", "samples.scate"))
         if (varName %in% estimateVariables || varName %in% intervalVariables)
           assign(varName, get(varName)[[i]])
-      for (varName in c("samples.icate", "samples.obs", "samples.cf")) {
+      for (varName in c("samples.icate", "samples.obs", "samples.cf", "samples.iscate")) {
         if (varName %in% estimateVariables || varName %in% intervalVariables) {
           var <- get(varName)
           assign(varName, ifelse_3(is.null(dim(var)), length(dim(var)) == 2L,

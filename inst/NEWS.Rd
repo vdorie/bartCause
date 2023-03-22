@@ -1,6 +1,14 @@
 \name{NEWS}
 \title{bartCause News}
 \encoding{UTF-8}
+\section{CHANGES IN VERSION 1.0-6}{
+  \subsection{BUG-FIXES}{
+    \itemize{
+      \item \code{summary} now correctly computes SATE.
+      \item \code{summary} now correctly computes sub-group averages.
+    }
+  }
+}
 \section{CHANGES IN VERSION 1.0-5}{
   \subsection{NEW FEATURES}{
     \itemize{

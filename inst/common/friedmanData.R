@@ -1,8 +1,8 @@
-generateFriedmanData <- function(n, ranef = FALSE, causal = FALSE, binary = FALSE) {
+generateFriedmanData <- function(n, ranef = FALSE, causal = FALSE, binary = FALSE, seed = 99) {
   f <- function(x)
     10 * sin(pi * x[,1] * x[,2]) + 20 * (x[,3] - 0.5)^2 + 10 * x[,4] + 5 * x[,5]
   
-  set.seed(99)
+  set.seed(seed)
   sigma <- 1.0
   
   x <- matrix(runif(n * 10), n, 10)
