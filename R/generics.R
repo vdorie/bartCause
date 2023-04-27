@@ -485,7 +485,11 @@ refit.bartcFit <- function(object, newresp = NULL,
   
   
   treatmentRows <- object$trt > 0
-  weights <- object$data.rsp@weights
+  if("dbartsData" %in% class(object$data.rsp)) {
+    weights <- object$data.rsp@weights
+  } else {
+    weights <- object$data.rsp$weights
+  }
   if (!is.null(weights)) weights <- weights / sum(weights)
   
   group.effects <- if (!is.null(object[["group.effects"]])) object[["group.effects"]] else FALSE
