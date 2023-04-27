@@ -485,7 +485,7 @@ refit.bartcFit <- function(object, newresp = NULL,
   
   
   treatmentRows <- object$trt > 0
-  if("dbartsData" %in% class(object$data.rsp)) {
+  if (inherits(object$data.rsp, "dbartsData")) {
     weights <- object$data.rsp@weights
   } else {
     weights <- object$data.rsp$weights
