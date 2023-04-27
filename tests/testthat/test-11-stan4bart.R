@@ -97,4 +97,29 @@ test_that("semiparametric predict works", {
   expect_true(is.finite(sum$estimates$estimate))
 })
 
+test_that("refit works with common support", {
+  skip_on_cran()
+  skip_if_not_installed("stan4bart")
+  
+  sdcut <- 0.5
+  chisqcut <- 0.3
+  
+  fit_sd <- bartc(y, z, X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10,
+                  parametric = (1 | g.1), data = test.df,
+                  verbose = FALSE, seed = 5,
+                  commonSup.rule = "sd", commonSup.cut = sdcut)
+  
+  fit_chisq <- bartc(y, z, X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10,
+                     parametric = (1 | g.1), data = test.df,
+                     verbose = FALSE, seed = 5,
+                     commonSup.rule = "chisq", commonSup.cut = chisqcut)
+  
+  refit_chisq <- refit(fit_chisq, commonSup.rule = "chisq", commonSup.cut = chisqcut)
+  
+  refit_sd <- refit(fit_sd, commonSup.rule = "sd", commonSup.cut = sdcut)
+  
+  expect_equal(fit_sd$commonSup.sub, refit_sd$commonSup.sub)
+  expect_equal(fit_chisq$commonSup.sub, refit_chisq$commonSup.sub)
+})
+
 
