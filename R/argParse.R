@@ -120,12 +120,13 @@ getResponseDataCall <- function(fn, response, treatment, confounders, parametric
     } else {
       if (!is.null(matchedCall[["group.by"]]))
         stop("group.by must be missing or NULL if parametric is supplied; for varying intercepts, add (1 | group) to parametric equation")
-      formula <- response ~ treatment + bart(confounders) + parametric
+      formula <- response ~ treatment + bart(confounders + treatment) + parametric
       # ~(response, RHS)
       formula[[2L]] <- matchedCall$response
       # formula[[3L]] := +(treatment + bart(confounders), parametric)
       formula[[3L]][[3L]] <- matchedCall$parametric
-      formula[[3L]][[2L]][[3L]][[2L]] <- matchedCall$confounders
+      formula[[3L]][[2L]][[3L]][[2L]][[3L]] <- matchedCall$treatment
+      formula[[3L]][[2L]][[3L]][[2L]][[2L]] <- matchedCall$confounders
       formula[[3L]][[2L]][[2L]] <- matchedCall$treatment
     }
   } else {
@@ -172,13 +173,35 @@ getResponseDataCall <- function(fn, response, treatment, confounders, parametric
       if (!is.null(matchedCall[["group.by"]]))
         stop("group.by must be missing or NULL if parametric is supplied; for varying intercepts, add (1 | group) to parametric equation")
       
-      formula <- response ~ treatment + p.score + bart(confounders) + parametric
-      # ~(response, RHS)
-      formula[[2L]] <- matchedCall$response
-      formula[[3L]][[3L]] <- matchedCall$parametric
-      formula[[3L]][[2L]][[3L]][[2L]] <- matchedCall$confounders
-      formula[[3L]][[2L]][[2L]][[3L]] <- str2lang(pScoreName)
-      formula[[3L]][[2L]][[2L]][[2L]] <- matchedCall$treatment
+      if (exists("pScoreName")) {
+        formula <- response ~ treatment + p.score + bart(confounders + treatment + p.score) + parametric
+        formula[[2L]] <- matchedCall$response
+        # formula[[3L]] is all of RHS
+        # modify parse tree from end of RHS back, since the tails of binary ops are scalars
+        formula[[3L]][[3L]] <- matchedCall$parametric
+        
+        # formula[[3L]][[2L]][[3L]] - all of bart(); formula[[3L]][[2L]][[3L]][[2L]] - what's inside
+        formula[[3L]][[2L]][[3L]][[2L]][[3L]] <- str2lang(pScoreName)
+        formula[[3L]][[2L]][[3L]][[2L]][[2L]][[3L]] <- matchedCall$treatment
+        formula[[3L]][[2L]][[3L]][[2L]][[2L]][[2L]] <- matchedCall$confounders
+
+        # linear model part
+        formula[[3L]][[2L]][[2L]][[3L]] <- str2lang(pScoreName)
+        formula[[3L]][[2L]][[2L]][[2L]] <- matchedCall$treatment
+      } else {
+        formula <- response ~ treatment + bart(confounders + treatment) + parametric
+        formula[[2L]] <- matchedCall$response
+        # formula[[3L]] is all of RHS
+        # modify parse tree from end of RHS back, since the tails of binary ops are scalars
+        formula[[3L]][[3L]] <- matchedCall$parametric
+        
+        # formula[[3L]][[2L]][[3L]] - all of bart(); formula[[3L]][[2L]][[3L]][[2L]] - what's inside
+        formula[[3L]][[2L]][[3L]][[2L]][[3L]] <- matchedCall$treatment
+        formula[[3L]][[2L]][[3L]][[2L]][[2L]] <- matchedCall$confounders
+
+        # linear model part
+        formula[[3L]][[2L]][[2L]] <- matchedCall$treatment
+      }
     }
   }
   
@@ -190,7 +213,6 @@ getResponseDataCall <- function(fn, response, treatment, confounders, parametric
   
   #responseVar <- as.vector(evalEnv[[deparse(result$data)]][[result[[2L]][[2L]]]])
   responseVar <- as.vector(get(deparse(result$data), envir = evalEnv)[[result[[2L]][[2L]]]])
-  if (length(responseVar) == 0L) browser()
   list(call = result, env = evalEnv, trt = deparse(matchedCall$treatment), missingRows = is.na(responseVar))
 }
 
@@ -199,7 +221,7 @@ getTreatmentLiteralCall <- function(fn, treatment, confounders, parametric, subs
 {
   matchedCall <- match.call()
   if (is.null(matchedCall[["group.by"]])) group.by <- NULL
-  
+
   x <- NULL # R CMD check
   treatmentName <- "z"
   
@@ -361,12 +383,19 @@ getResponseLiteralCall <- function(fn, response, treatment, confounders, paramet
         df <- cbind(df, p.score)
         colnames(df)[ncol(df)] <- pScoreName
       }
+
+      allParametricNames <- c(treatmentName, pScoreName, parametricNames)
+      nonParametricNames <- c(confounderNames, treatmentName, pScoreName)
+    } else {
+      allParametricNames <- c(treatmentName, parametricNames)
+      nonParametricNames <- c(confounderNames, treatmentName)
     }
-    
+
+
     formula <- response ~ parametrics + bart(nonParametrics)
     formula[[2L]] <- str2lang(responseName)
-    formula[[3L]][[2L]] <- str2lang(paste0(setdiff(colnames(df), c(responseName, confounderNames)), collapse = " + "))
-    formula[[3L]][[3L]][[2L]] <- str2lang(paste0(confounderNames, collapse = " + "))
+    formula[[3L]][[2L]] <- str2lang(paste0(allParametricNames, collapse = " + "))
+    formula[[3L]][[3L]][[2L]] <- str2lang(paste0(nonParametricNames, collapse = " + "))
   }
   
   result <- quote(functionName(formula, data = df))

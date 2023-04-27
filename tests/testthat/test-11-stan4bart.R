@@ -30,6 +30,7 @@ test_that("semiparametric models are consistent with each other", {
                 verbose = FALSE)
   
   summary2 <- summary(fit2)
+
   expect_true(inherits(fit2$fit.trt, "stan4bartFit"))
   expect_equal(fit2$fit.trt$call$formula, str2lang("z ~ (1 | g.1) + bart(X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + 
     X9 + X10)"))
@@ -39,7 +40,7 @@ test_that("semiparametric models are consistent with each other", {
   
   expect_true(inherits(fit2$fit.rsp, "stan4bartFit"))
   expect_equal(fit2$fit.rsp$call$formula, str2lang("y ~ z + ps + bart(X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + 
-    X9 + X10) + (1 | g.1)"))
+    X9 + X10 + z + ps) + (1 | g.1)"))
   expect_equal(fit2$fit.rsp$frame[names(test.df)], test.df)
   
   fit3 <- bartc(y, z, X1 + X2 + X3 + X5 + X6 + X7 + X8 + X9 + X10,
@@ -58,43 +59,60 @@ test_that("semiparametric models are consistent with each other", {
   
   expect_true(inherits(fit3$fit.rsp, "stan4bartFit"))
   expect_equal(fit3$fit.rsp$call$formula, str2lang("y ~ z + ps + bart(X1 + X2 + X3 + X5 + X6 + X7 + X8 + 
-    X9 + X10) + (X4 + (1 | g.1))"))
+    X9 + X10 + z + ps) + (X4 + (1 | g.1))"))
   expect_equal(fit3$fit.rsp$frame[names(test.df)], test.df)
 
   
   expect_in_range <- function(x, r) expect_true(all(x >= r[1L] & x <= r[2L]))
   
-  expect_in_range(summary1$estimates$estimate, c(5.0, 5.6))
-  expect_in_range(summary2$estimates$estimate, c(5.0, 5.6))
-  expect_in_range(summary3$estimates$estimate, c(5.0, 5.6))
+  expect_in_range(summary1$estimates$estimate, c(4.8, 5.4))
+  expect_in_range(summary2$estimates$estimate, c(4.8, 5.4))
+  expect_in_range(summary3$estimates$estimate, c(4.8, 5.4))
   
-  expect_in_range(summary1$estimates$sd, c(0.55, 0.72))
-  expect_in_range(summary2$estimates$sd, c(0.55, 0.72))
-  expect_in_range(summary3$estimates$sd, c(0.55, 0.72))
+  expect_in_range(summary1$estimates$sd, c(0.7, 0.85))
+  expect_in_range(summary2$estimates$sd, c(0.7, 0.85))
+  expect_in_range(summary3$estimates$sd, c(0.7, 0.85))
 })
 
+test_that("semiparametric model does not have constant treatment effect", {
+  skip_if_not_installed("stan4bart")
+  
+  p.score <- fitted(glm(z ~ X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10, data = test.df, family = binomial))
+
+  fit <- bartc(y, z, X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10,
+               parametric = (1 | g.1),
+               seed = 0,
+               data = test.df,
+               method.trt = p.score,
+               iter = 20, warmup = 10, chains = 1,
+               verbose = FALSE)
+  
+  icate <- extract(fit, type = "icate")
+  expect_true(sd(colMeans(icate)) > 0.2)
+})
 
 test_that("semiparametric predict works", {
   skip_if_not_installed("stan4bart")
   
-  seed <- 0
   fit <- bartc(y, z, X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10,
                parametric = (1 | g.1),
-               seed = seed,
+               seed = 0,
                data = test.df,
                verbose = FALSE,
                iter = 10, warmup = 3, chains = 2,
                bart_args = list(keepTrees = TRUE, n.trees = 7))
   
   expect_true(is.finite(fitted(fit)))
+
+  p.score.train <- extract(fit, type = "p.score")
+  p.score.test <- predict(fit, test.df, type = "p.score")
   
-  samples.train <- extract(fit, "icate")
-  samples.test  <- predict(fit, test.df, type = "icate")
+  expect_true(sqrt(mean((p.score.train - p.score.test)^2)) <= 1e-10)
   
-  expect_true(sqrt(mean((samples.train - samples.test)^2)) <= 1e-10)
+  icate.train <- extract(fit, type = "icate")
+  icate.test  <- predict(fit, test.df, type = "icate")
   
-  expect_is(sum <- summary(fit), "bartcFit.summary")
-  expect_true(is.finite(sum$estimates$estimate))
+  expect_true(sqrt(mean((icate.train - icate.test)^2)) <= 1e-10)
 })
 
 test_that("refit works with common support", {

@@ -2,10 +2,18 @@
 \title{bartCause News}
 \encoding{UTF-8}
 \section{CHANGES IN VERSION 1.0-6}{
+  \subsection{USER-VISIBLE CHANGES}{
+    \itemize{
+      \item Treatment and propensity score (when applicable) are now added
+            to parametric model. Thanks to Joshua Bon for noticing their
+            absence.
+    }
+  }
   \subsection{BUG-FIXES}{
     \itemize{
       \item \code{summary} now correctly computes SATE.
       \item \code{summary} now correctly computes sub-group averages.
+      \item Propensity score samples correctly stored for stan4bart models.
     }
   }
 }

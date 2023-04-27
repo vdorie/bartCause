@@ -170,10 +170,16 @@ getBartTreatmentFit <- function(response, treatment, confounders, parametric, da
   bartFit <- eval(bartCall, envir = evalEnv)
   combineChains <- if (is.null(matchedCall[["combineChains"]])) FALSE else list(...)[["combineChains"]]
   
-  if (bartMethod %in% "stan4bart")
+  if (bartMethod %in% "stan4bart") {
     samples <- extract(bartFit, combine_chains = combineChains)
-  else
+    if (length(dim(samples)) == 3L) {
+      samples <- aperm(samples, c(3L, 2L, 1L))
+    } else {
+      samples <- t(samples)
+    }
+  } else {
     samples <- extract(bartFit, combineChains = combineChains)
+  }
   
   result <- 
     list(fit = bartFit,
