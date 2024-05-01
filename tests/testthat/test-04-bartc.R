@@ -105,7 +105,11 @@ test_that("bartc runs with all response settings and one chain", {
   expect_is(bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "p.weight", verbose = FALSE,
                   n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L),
             "bartcFit")
-  
+})
+
+test_that("bartc runs with all response settings and one chain for method tmle", {
+  skip_on_cran()
+
   oldWarn <- getOption("warn")
   if (!requireNamespace("tmle", quietly = TRUE))
     options(warn = -1)
@@ -124,7 +128,11 @@ test_that("bartc runs with all response settings and two chains", {
   expect_is(bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "p.weight", verbose = FALSE,
                   n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L),
             "bartcFit")
+})
   
+test_that("bartc runs with all response settings and two chains for method tmle", {
+  skip_on_cran()
+
   oldWarn <- getOption("warn")
   if (!requireNamespace("tmle", quietly = TRUE))
     options(warn = -1)
@@ -147,18 +155,6 @@ test_that("bartc runs with all response settings and group.by set", {
                   group.by = g, group.effects = TRUE,
                   n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L),
             "bartcFit")
-  
-  oldWarn <- getOption("warn")
-  if (!requireNamespace("tmle", quietly = TRUE))
-    options(warn = -1)
-  
-  expect_is(bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "tmle", verbose = FALSE,
-                  group.by = g, group.effects = TRUE,
-                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L, maxIter = 5L),
-            "bartcFit")
-  
-  options(warn = oldWarn)
-  
   expect_is(bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "bart", verbose = FALSE,
                   group.by = g, group.effects = TRUE,
                   n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L),
@@ -167,7 +163,17 @@ test_that("bartc runs with all response settings and group.by set", {
                   group.by = g, group.effects = TRUE,
                   n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L),
             "bartcFit")
-  
+
+  # check a bart/bart with fixed effects
+  expect_is(bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "bart", verbose = FALSE,
+                  group.by = g, group.effects = FALSE, use.ranef = FALSE,
+                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L),
+            "bartcFit")
+})
+
+test_that("bartc runs with all response settings and group.by set for method tmle", {
+  skip_on_cran()
+
   oldWarn <- getOption("warn")
   if (!requireNamespace("tmle", quietly = TRUE))
     options(warn = -1)
@@ -178,12 +184,6 @@ test_that("bartc runs with all response settings and group.by set", {
             "bartcFit")
   
   options(warn = oldWarn)
-  
-  # check a bart/bart with fixed effects
-  expect_is(bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "bart", verbose = FALSE,
-                  group.by = g, group.effects = FALSE, use.ranef = FALSE,
-                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L),
-            "bartcFit")
 })
 
 test_that("bartc runs with missing data", {
@@ -196,17 +196,6 @@ test_that("bartc runs with missing data", {
                   group.by = g, group.effects = TRUE,
                   n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L),
             "bartcFit")
-  
-  oldWarn <- getOption("warn")
-  if (!requireNamespace("tmle", quietly = TRUE))
-    options(warn = -1)
-  
-  expect_is(bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "tmle", verbose = FALSE,
-                  group.by = g, group.effects = TRUE,
-                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L, maxIter = 5L),
-            "bartcFit")
-  
-  options(warn = oldWarn)
 })
 
 test_that("bartc model argument overrides work correctly", {
@@ -233,3 +222,17 @@ test_that("bartc works with '.' as confounders", {
   expect_true(!("y" %in% dimnames(bartcFit$fit.trt$varcount)[[3L]]))
 })
 
+test_that("bartc runs with missing data for method tmle", {
+  skip_on_cran()
+
+  oldWarn <- getOption("warn")
+  if (!requireNamespace("tmle", quietly = TRUE))
+    options(warn = -1)
+  
+  expect_is(bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "tmle", verbose = FALSE,
+                  group.by = g, group.effects = TRUE,
+                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L, maxIter = 5L),
+            "bartcFit")
+  
+  options(warn = oldWarn)
+})

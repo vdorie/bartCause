@@ -154,22 +154,7 @@ test_that("summary works with different styles", {
   expect_is(summary(fit, ci.style = "norm"),  "bartcFit.summary")
   expect_is(summary(fit, ci.style = "quant"), "bartcFit.summary")
   expect_is(summary(fit, ci.style = "hpd"),   "bartcFit.summary")
-  expect_is(summary(fit, pate.style = "ppd"), "bartcFit.summary")
-  
-  
-  oldWarn <- getOption("warn")
-  if (!requireNamespace("tmle", quietly = TRUE))
-    options(warn = -1)
-  
-  fit <- bartc(y, z, x, data = testData, method.trt = "glm", method.rsp = "tmle", verbose = FALSE,
-               group.by = g, group.effects = TRUE ,use.ranef = FALSE,
-               n.chains = 2L, n.threads = 1L, n.burn = 0L, n.samples = 7L, n.trees = 13L)
-  
-  options(warn = oldWarn)
-  
-  expect_is(summary(fit), "bartcFit.summary")
-  expect_is(summary(fit, pate.style = "ppd"), "bartcFit.summary")
-  
+  expect_is(summary(fit, pate.style = "ppd"), "bartcFit.summary")  
   
   set.seed(22)
   unweighted_fit <- bartc(y, z, x, data = testData, method.trt = "glm", verbose = FALSE,
@@ -198,6 +183,23 @@ test_that("summary works with different styles", {
   
   expect_equal(sqrt(var_w + var_b), unweighted_summary$estimate$sd)
   expect_equal(var_tot, (var_w * (n.samples - 1) / n.samples + var_b * (n.obs - 1) / n.obs) * n.obs * n.samples / (n.obs * n.samples - 1))
+})
+
+test_that("summary works with different styles for method tmle", {
+  skip_on_cran()
+
+  oldWarn <- getOption("warn")
+  if (!requireNamespace("tmle", quietly = TRUE))
+    options(warn = -1)
+  
+  fit <- bartc(y, z, x, data = testData, method.trt = "glm", method.rsp = "tmle", verbose = FALSE,
+               group.by = g, group.effects = TRUE ,use.ranef = FALSE,
+               n.chains = 2L, n.threads = 1L, n.burn = 0L, n.samples = 7L, n.trees = 13L)
+  
+  options(warn = oldWarn)
+  
+  expect_is(summary(fit), "bartcFit.summary")
+  expect_is(summary(fit, pate.style = "ppd"), "bartcFit.summary")
 })
 
 test_that("summary works with att/atc", {

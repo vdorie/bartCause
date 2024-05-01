@@ -1,7 +1,14 @@
 \name{NEWS}
 \title{bartCause News}
 \encoding{UTF-8}
-\section{CHANGES IN VERSION 1.0-6}{
+\section{CHANGES IN VERSION 1.0-8}{
+  \subsection{USER-VISIBLE CHANGES}{
+    \itemize{
+      \item Compatible with TMLE >= 2.0.1.
+    }
+  }
+}
+\section{CHANGES IN VERSION 1.0-7}{
   \subsection{USER-VISIBLE CHANGES}{
     \itemize{
       \item Treatment and propensity score (when applicable) are now added

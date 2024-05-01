@@ -58,7 +58,7 @@ plot_support(x, main = "Common Support Scatterplot",
     For line plots, use \code{col} vector to distinguish between groups (if any).
   }
   \item{breaks}{
-    Argument to code{\link{hist}}.
+    Argument to \code{\link{hist}}.
   }
   \item{type}{
     The individual quantity to be plotted. See \code{\link[=bartc-generics]{fitted}}.
@@ -123,20 +123,20 @@ plot_support(x, main = "Common Support Scatterplot",
   are controlled by the \code{xvar} and \code{yvar} arguments respectively and can be of the form:
 
 \itemize{
-  \item{\code{"tree.XX"}}{ - Variable number \code{"XX"} as selected by variable importance in predicting
+  \item \code{"tree.XX"} - Variable number \code{"XX"} as selected by variable importance in predicting
     individual treatment effects using a tree fit by \code{\link{rpart}}. \code{"XX"} must be a number
-    not exceeding the number of continuous variables used to fit the response model.}
-  \item{\code{"pca.XX"}}{ - \code{"XX"}th principal component axis.}
-  \item{\code{"css"}}{ - The common support statistic.}
-  \item{\code{"y"}}{ - Observed response variable.}
-  \item{\code{"y0"}}{ - Predicted values for the response under the control as obtained by \code{\link{fitted}}.}
-  \item{\code{"y1"}}{ - Predicted values for the response under the treatment  \code{\link{fitted}}.}
-  \item{\code{"indiv.diff"}}{ - Individual treatment effect estimates, or \eqn{\hat{y}(1) - \hat{y}(0)}.}
-  \item{\code{"p.score"}}{ - Propensity score used to fit the response model (if applicable).}
-  \item{\code{"p.weights"}}{ - Weights used when taking average of individual differences for response method
-    \code{"p.weight"}.}
-  \item{predictor columns}{ - Given by name or number.}
-  \item{supplied vector}{ - Any vector of length equal to the number of observations.}
+    not exceeding the number of continuous variables used to fit the response model.
+  \item \code{"pca.XX"} - \code{"XX"}th principal component axis.
+  \item \code{"css"} - The common support statistic.
+  \item \code{"y"} - Observed response variable.
+  \item \code{"y0"} - Predicted values for the response under the control as obtained by \code{\link{fitted}}.
+  \item \code{"y1"} - Predicted values for the response under the treatment  \code{\link{fitted}}.
+  \item \code{"indiv.diff"} - Individual treatment effect estimates, or \eqn{\hat{y}(1) - \hat{y}(0)}.
+  \item \code{"p.score"} - Propensity score used to fit the response model (if applicable).
+  \item \code{"p.weights"} - Weights used when taking average of individual differences for response method
+    \code{"p.weight"}.
+  \item predictor columns - Given by name or number.
+  \item supplied vector - Any vector of length equal to the number of observations.
 }
 }
 \value{
