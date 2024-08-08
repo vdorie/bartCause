@@ -521,7 +521,9 @@ getTMLEEstimates <- function(y, z, weights, estimand, mu.hat.0, mu.hat.1, p.scor
             res <- tmle(Y = y, A = z, W = W, Q = Q[,,i], g1W = if (!is.null(dim(p.score))) p.score[,i] else p.score)
             unlist(res$estimates[[switch(estimand, ate = "ATE", att = "ATT", atc = "ATC")]][c("psi", "var.psi")])
           })
-        }), error = I)
+        }), error = function(x) x)
+
+        if (inherits(tryResult, "error")) stop("multithreaded tmle failed with error: ", tryResult$message)
     
         stopCluster(cluster)
         
