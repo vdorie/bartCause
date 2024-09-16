@@ -243,7 +243,7 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
     estimateCall[[i + 1L]] <- str2lang(varName)
   }
   
-  if (responseIsBinary(object))
+  if (responseIsBinary(object) && "sigma" %in% names(formals(getATEEstimate)))
     estimateCall["sigma"] <- list(NULL)
   
   for (i in seq_along(intervalVariables)) {

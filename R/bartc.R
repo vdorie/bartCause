@@ -208,9 +208,9 @@ bartc <- function(
 
 responseIsBinary <- function(object) {
   if (inherits(object$fit.rsp, "stan4bartFit")) {
-    responseIsBinary <- object$fit.rsp$family$family != "gaussian"
+    object$fit.rsp$family$family != "gaussian"
   } else {
-    responseIsBinary <- is.null(object$fit.rsp[["sigma"]])
+    is.null(object$fit.rsp[["sigma"]])
   }
 }
 

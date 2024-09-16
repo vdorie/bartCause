@@ -26,8 +26,9 @@ test_that("binary outcome model matches manual", {
 })
 
 test_that("summary works for binary outcomes", {
-  sum <- summary(bartcFit)
-  expect_is(sum, "bartcFit.summary")
+  expect_is(summary(bartcFit), "bartcFit.summary")
+  expect_is(summary(bartcFit, target = "sate"), "bartcFit.summary")
+  expect_is(summary(bartcFit, target = "cate"), "bartcFit.summary")
 })
 
 

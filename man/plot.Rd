@@ -124,7 +124,7 @@ plot_support(x, main = "Common Support Scatterplot",
 
 \itemize{
   \item \code{"tree.XX"} - Variable number \code{"XX"} as selected by variable importance in predicting
-    individual treatment effects using a tree fit by \code{\link{rpart}}. \code{"XX"} must be a number
+    individual treatment effects using a tree fit by \code{\link[rpart]{rpart}}. \code{"XX"} must be a number
     not exceeding the number of continuous variables used to fit the response model.
   \item \code{"pca.XX"} - \code{"XX"}th principal component axis.
   \item \code{"css"} - The common support statistic.

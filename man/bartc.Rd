@@ -109,7 +109,7 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
   \item{use.ranef}{
     Logical specifying if \code{group.by} variable - when present - should be
     included as a "random" or "fixed" effect. If true,
-    \code{\link[=rbart_vi]{rbart}} will be used for BART models. Using random
+    \code{\link[dbarts:rbart_vi]{rbart}} will be used for BART models. Using random
     effects for treatment assignment mechanisms of type \code{"glm"} require
     that the \code{\link[lme4:lme4-package]{lme4}} package be available.
   }
@@ -136,14 +136,14 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
     Optional integer specifying the desired pRNG \link[=set.seed]{seed}. It should not be needed
     when running single-threaded - \code{\link{set.seed}} will suffice, and can be used to
     obtain reproducible results when multi-threaded. See Reproducibility section of
-    \code{\link{bart2}}.
+    \code{\link[dbarts]{bart2}}.
   }
   \item{args.rsp, args.trt, \dots}{ 
     Further arguments to the treatment and response model fitting algorithms.
     Arguments passed to the main function as \dots will be used in both models.
     \code{args.rsp} and \code{args.trt} can be used to set parameters in a
     single fit, and will override other values. See \code{\link{glm}} and
-    \code{\link{bart2}} for reference.
+    \code{\link[dbarts]{bart2}} for reference.
   }
 }
 \details{
@@ -253,7 +253,7 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
   Some default arguments are unconventional or are passed in a unique fashion.
   
   \itemize{
-    \item If \code{n.chains} is missing, unlike in \code{\link{bart2}} a default
+    \item If \code{n.chains} is missing, unlike in \code{\link[dbarts]{bart2}} a default
           of 10 is used.
     \item For \code{method.rsp == "tmle"}, a special \code{arg.trt} of
           \code{posteriorOfTMLE} determines if the TMLE correction should be
@@ -289,7 +289,7 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
   \item{\code{estimand}}{character string specifying the targeted causal
                          effect}
   \item{\code{fit.rsp}}{object containing the fitted response model}
-  \item{\code{data.rsp}}{\code{\link{dbartsData}} object used when fitting the
+  \item{\code{data.rsp}}{\code{\link[dbarts]{dbartsData}} object used when fitting the
                          response model}
   \item{\code{fit.trt}}{object containing the fitted treatment model}
   \item{\code{group.by}}{optional factor vector containing the groups in which
@@ -364,7 +364,7 @@ Hahn, P. R., Murray, J. S., and Carvalho, C. M. (2020)
 Vincent Dorie: \email{vdorie@gmail.com}.
 }
 \seealso{
-\code{\link{bart2}}
+\code{\link[dbarts]{bart2}}
 }
 \examples{
 ## fit a simple linear model
