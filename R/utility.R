@@ -57,6 +57,15 @@ evalx <- function(x, e, forceX = FALSE) {
   }
 }
 
+"%as_x_in%" <- function(a, expr) {
+  mc <- match.call()
+  calling_env <- parent.frame()
+  
+  expr <- evalx.recurse(mc$a, mc$expr)
+  eval(expr, calling_env)
+}
+
+
 ifelse_3 <- function(a, b, c, d, e) {
   mc <- match.call(); env <- parent.frame()
   if (eval(mc[["a"]], env)) {
@@ -262,7 +271,7 @@ addDimsToSubset <- function(e) {
   env <- parent.frame()
   
   tryResult <- tryCatch(result <- eval(subDims(e, env), env), error = function(e) e)
-  if (inherits(tryResult, "error")) browser()
+  if (inherits(tryResult, "error")) stop(tryResult)
   result
 }
 
@@ -282,3 +291,29 @@ getArrayIndicesForOffset <- function(i, d)
 anyBars <- function(expr)
   any(c("|", "||") %in% all.names(expr))
 
+issueWarningForUnknownArguments <- function() {
+  matchedCall <- match.call(
+    sys.function(sys.parent(1L)),
+    sys.call(sys.parent(1L))
+  )
+  matchedFunction <- sys.function(sys.parent(1L))
+
+  x <- NULL # for R CMD check
+  if (
+    length(
+      unknownArgs <-
+        names(matchedCall)[-1L]
+        %as_x_in%
+        x[x %not_in% names(formals(matchedFunction))]
+    ) > 0L
+  )
+  {
+    warning(
+      'In ', deparse(matchedCall), ' :\n  ',
+     'called with unknown argument(s): "',
+      paste0(unknownArgs, collapse = '", "'),
+      '"',
+      call. = FALSE
+    )
+  }
+}

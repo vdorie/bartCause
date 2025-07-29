@@ -1,6 +1,15 @@
 \name{NEWS}
 \title{bartCause News}
 \encoding{UTF-8}
+\section{CHANGES IN VERSION 1.0-10}{
+  \subsection{USER-VISIBLE CHANGES}{
+    \itemize{
+      \item Generics that accept \code{...} arguments but do not use them will
+            now issue warnings when called with unknown arguments. Suggestion
+            thanks to Joshua Bon.
+    }
+  }
+}
 \section{CHANGES IN VERSION 1.0-8}{
   \subsection{USER-VISIBLE CHANGES}{
     \itemize{

@@ -304,6 +304,8 @@ extract.bartcFit <-
            combineChains = TRUE,
            ...)
 {
+  issueWarningForUnknownArguments()
+
   if (!is.character(type) || type[1L] %not_in% eval(formals(extract.bartcFit)$type))
     stop("type must be in '", paste0(eval(formals(extract.bartcFit)$type), collapse = "', '"), "'")
   type <- type[1L]
@@ -314,7 +316,7 @@ extract.bartcFit <-
   
   if (type == "p.weights" && is.null(object$p.score))
     stop("p.score cannot be NULL to extract p.weights")
-  
+
   n.chains <- object$n.chains
   if (type == "sigma") {
     if (responseIsBinary(object))
@@ -464,6 +466,8 @@ refit.bartcFit <- function(object, newresp = NULL,
                            commonSup.rule = c("none", "sd", "chisq"),
                            commonSup.cut  = c(NA_real_, 1, 0.05), ...)
 {
+  issueWarningForUnknownArguments()
+
   matchedCall <- match.call()
   if (!is.null(newresp)) warning("'newresp' argument ignored, provided only for generic signature compatibility")
   

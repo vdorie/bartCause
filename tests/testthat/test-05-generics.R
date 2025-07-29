@@ -28,6 +28,13 @@ samples.cf  <- bartFit$yhat.test
 samples.mu.0 <- obsCfToTrtCtl(samples.obs, samples.cf, 1 - testData$z)
 samples.mu.1 <- obsCfToTrtCtl(samples.obs, samples.cf, testData$z)
 
+test_that("generics issue warnings with unknown arguments", {
+  expect_warning(
+    extract(fit, value = "icate"),
+    "called with unknown argument\\(s\\)"
+  )
+})
+
 test_that("combine chains works as expected", {
   combineChains <- bartCause:::combineChains
   
