@@ -500,7 +500,7 @@ refit.bartcFit <- function(object, newresp = NULL,
   group.by <- if (!is.null(object[["group.by"]])) object[["group.by"]] else NULL
   
   if (object$method.rsp == "bart") {
-    samples.indiv.diff <- extract(object, value = "icate", combineChains = FALSE)
+    samples.indiv.diff <- extract(object, type = "icate", combineChains = FALSE)
     
     object$est <- with(object,
       getEstimateSamples(samples.indiv.diff, treatmentRows, weights, estimand, group.by, group.effects, commonSup.sub))
