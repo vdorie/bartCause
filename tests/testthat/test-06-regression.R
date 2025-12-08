@@ -41,7 +41,9 @@ test_that("bart w/TMLE matches old", {
                n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L, n.trees = 5L, n.reps = 5L)
 
   tmle_version <- packageVersion("tmle")
-  if (tmle_version >= "2.0.1") {
+  if (tmle_version >= "2.1") {
+    expect_equal(fitted(fit, "pate"), 0.461439134984203)
+  } else if (tmle_version >= "2.0.1") {
     expect_equal(fitted(fit, "pate"), 0.445429512755897)
   } else if (tmle_version >= "1.5.0") {
     expect_equal(fitted(fit, "pate"), 0.30048319956979)

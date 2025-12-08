@@ -454,7 +454,10 @@ getPWeightResponseFit <-
             fitPars = namedList(yBounds, p.scoreBounds))
 }
 
-getTMLEEstimates <- function(y, z, weights, estimand, mu.hat.0, mu.hat.1, p.score, yBounds, p.scoreBounds, depsilon, maxIter, n.threads)
+getTMLEEstimates <- function(
+  y, z, weights, estimand, mu.hat.0, mu.hat.1, p.score, yBounds, p.scoreBounds,
+  depsilon, maxIter, n.threads
+)
 {
   if (!is.character(estimand) || estimand[1L] %not_in% c("ate", "att", "atc"))
     stop("estimand must be one of 'ate', 'att', or 'atc'")
