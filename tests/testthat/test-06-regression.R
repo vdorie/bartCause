@@ -7,7 +7,7 @@ test_that("naive bart matches old", {
   fit <- bartc(y, z, x, data = testData,
                method.rsp = "bart", method.trt = "none", estimand = "att", verbose = FALSE,
                n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L, n.trees = 5L)
-  expect_equal(fitted(fit, "cate"), -0.237484791465709)
+  expect_equal(fitted(fit, "cate"), -0.326553652236675)
 })
 
 test_that("bart on p.score matches old", {
@@ -15,7 +15,7 @@ test_that("bart on p.score matches old", {
   fit <- bartc(y, z, x, data = testData,
                method.rsp = "bart", method.trt = "bart", estimand = "att", verbose = FALSE,
                n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L, n.trees = 5L, n.reps = 5L)
-  expect_equal(fitted(fit, "cate"), 0.0213594201614189)
+  expect_equal(fitted(fit, "cate"), 0.561281171149986)
 })
 
 test_that("bart w/p.weighting matches old", {
@@ -23,7 +23,7 @@ test_that("bart w/p.weighting matches old", {
   fit <- bartc(y, z, x, data = testData,
                method.rsp = "p.weight", method.trt = "bart", estimand = "att", verbose = FALSE,
                n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L, n.trees = 5L, n.reps = 5L)
-  expect_equal(fitted(fit, "pate"), 0.0211982499681833)
+  expect_equal(fitted(fit, "pate"), 0.523724511949516)
 })
 
 test_that("bart w/TMLE matches old", {
@@ -41,7 +41,9 @@ test_that("bart w/TMLE matches old", {
                n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L, n.trees = 5L, n.reps = 5L)
 
   tmle_version <- packageVersion("tmle")
-  if (tmle_version >= "2.0.1") {
+  if (tmle_version >= "2.1") {
+    expect_equal(fitted(fit, "pate"), 2.30786600337103)
+  } else if (tmle_version >= "2.0.1") {
     expect_equal(fitted(fit, "pate"), 0.445429512755897)
   } else if (tmle_version >= "1.5.0") {
     expect_equal(fitted(fit, "pate"), 0.30048319956979)

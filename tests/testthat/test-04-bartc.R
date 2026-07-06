@@ -114,9 +114,14 @@ test_that("bartc runs with all response settings and one chain for method tmle",
   if (!requireNamespace("tmle", quietly = TRUE))
     options(warn = -1)
   
-  expect_is(bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "tmle", verbose = FALSE,
-                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L),
-            "bartcFit")
+  expect_is(
+    bartc(
+      y, z, x, data = testData, method.trt = "bart", method.rsp = "tmle",
+      verbose = FALSE, n.burn = 3L, n.samples = 13L, n.trees = 7L,
+      n.chains = 1L, n.threads = 1L
+    ),
+    "bartcFit"
+  )
   
   options(warn = oldWarn)
 })
@@ -137,9 +142,14 @@ test_that("bartc runs with all response settings and two chains for method tmle"
   if (!requireNamespace("tmle", quietly = TRUE))
     options(warn = -1)
   
-  expect_is(bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "tmle", verbose = FALSE,
-                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L),
-                  "bartcFit")
+  expect_is(
+    bartc(
+      y, z, x, data = testData, method.trt = "bart", method.rsp = "tmle",
+      verbose = FALSE, n.burn = 3L, n.samples = 13L, n.trees = 7L,
+      n.chains = 2L, n.threads = 1L
+    ),
+    "bartcFit"
+  )
 
   options(warn = oldWarn)
 })

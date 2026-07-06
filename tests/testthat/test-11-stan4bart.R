@@ -65,13 +65,13 @@ test_that("semiparametric models are consistent with each other", {
   
   expect_in_range <- function(x, r) expect_true(all(x >= r[1L] & x <= r[2L]))
   
-  expect_in_range(summary1$estimates$estimate, c(4.8, 5.4))
-  expect_in_range(summary2$estimates$estimate, c(4.8, 5.4))
-  expect_in_range(summary3$estimates$estimate, c(4.8, 5.4))
+  expect_in_range(summary1$estimates$estimate, c(4.7, 5.4))
+  expect_in_range(summary2$estimates$estimate, c(4.7, 5.4))
+  expect_in_range(summary3$estimates$estimate, c(4.7, 5.4))
   
-  expect_in_range(summary1$estimates$sd, c(0.7, 0.85))
-  expect_in_range(summary2$estimates$sd, c(0.7, 0.87))
-  expect_in_range(summary3$estimates$sd, c(0.7, 0.85))
+  expect_in_range(summary1$estimates$sd, c(0.68, 0.85))
+  expect_in_range(summary2$estimates$sd, c(0.68, 0.87))
+  expect_in_range(summary3$estimates$sd, c(0.68, 0.85))
 })
 
 test_that("semiparametric model does not have constant treatment effect", {

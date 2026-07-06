@@ -154,15 +154,22 @@ getBartResponseFit <- function(response, treatment, confounders, parametric, dat
     evalEnv <- sys.frame(sys.nframe())
   }
   
-  responseData <- eval(dbartsDataCall, envir = evalEnv)
+  ## dbarts >= 1.0-0 no longer silently drops rows with a missing response, so
+  ## restrict the training data to the complete cases ourselves; the missing rows
+  ## are carried through the test set below to recover their counterfactuals
   n <- length(missingRows)
+  callSubset <- if (is.null(dbartsDataCall$subset)) seq_len(n) else eval(dbartsDataCall$subset, envir = evalEnv)
+  if (any(missingRows))
+    dbartsDataCall$subset <- intersect(callSubset, which(!missingRows))
+  responseData <- eval(dbartsDataCall, envir = evalEnv)
   n.obs <- nrow(responseData@x)
-  
+
   missingData <- NULL
   if (any(missingRows)) {
     ## replace response with inverted missing-ness so we can get a data object for use later
-    evalEnv[[deparse(dbartsDataCall$data)]][[deparse(dbartsDataCall[[2L]][[2L]])]] <- 
+    evalEnv[[deparse(dbartsDataCall$data)]][[deparse(dbartsDataCall[[2L]][[2L]])]] <-
       ifelse(missingRows, 0, NA)
+    dbartsDataCall$subset <- intersect(callSubset, which(missingRows))
     missingData <- eval(dbartsDataCall, envir = evalEnv)
     n.mis <- nrow(missingData@x)
   }
@@ -454,7 +461,10 @@ getPWeightResponseFit <-
             fitPars = namedList(yBounds, p.scoreBounds))
 }
 
-getTMLEEstimates <- function(y, z, weights, estimand, mu.hat.0, mu.hat.1, p.score, yBounds, p.scoreBounds, depsilon, maxIter, n.threads)
+getTMLEEstimates <- function(
+  y, z, weights, estimand, mu.hat.0, mu.hat.1, p.score, yBounds, p.scoreBounds,
+  depsilon, maxIter, n.threads
+)
 {
   if (!is.character(estimand) || estimand[1L] %not_in% c("ate", "att", "atc"))
     stop("estimand must be one of 'ate', 'att', or 'atc'")
