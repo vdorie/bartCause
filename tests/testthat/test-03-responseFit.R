@@ -36,10 +36,12 @@ test_that("p.weight fits", {
   testCall$weights <- quote(w)
   expect_is(eval(testCall), "bartcFit")
 
-  ## As of dbarts 1.0-0 a weighted binary (probit) BART has no tractable latent
-  ## form and is refused, so a weighted BART propensity model now errors.
+  ## As of dbarts 1.0-0 a weighted probit BART has no tractable latent form and
+  ## is refused, so a BART propensity model is fit unweighted and says so once;
+  ## the weights still enter the treatment-effect estimators.
   testCall$method.trt <- "bart"
-  expect_error(eval(testCall), "probit models do not support weights")
+  expect_message(expect_is(eval(testCall), "bartcFit"),
+                 "propensity score model is fit unweighted")
 
   ## multiple chains
   testCall$n.chains  <- 4L
@@ -56,7 +58,8 @@ test_that("p.weight fits", {
   expect_is(eval(testCall), "bartcFit")
 
   testCall$method.trt <- "bart"
-  expect_error(eval(testCall), "probit models do not support weights")
+  expect_message(expect_is(eval(testCall), "bartcFit"),
+                 "propensity score model is fit unweighted")
 })
 
 source(system.file("common", "groupedData.R", package = "bartCause"))

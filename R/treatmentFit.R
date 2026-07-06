@@ -163,7 +163,15 @@ getBartTreatmentFit <- function(response, treatment, confounders, parametric, da
   
   chainsArgument <- if (bartMethod %in% "stan4bart") "chains" else "n.chains"
   if (is.null(bartCall[[chainsArgument]])) bartCall[[chainsArgument]] <- 10L
-  
+
+  ## dbarts 1.0-0 refuses a weighted probit (no tractable latent form), so the
+  ## dbarts-backed propensity models are fit unweighted; the weights carry the
+  ## design information in the treatment-effect estimators (p.weights, tmle).
+  if (bartMethod %in% c("bart", "rbart") && !is.null(bartCall[["weights"]])) {
+    bartCall[["weights"]] <- NULL
+    message("propensity score model is fit unweighted; weights enter the treatment-effect estimators")
+  }
+
   if (crossvalidate)
     bartCall <- optimizeBARTCall(bartCall, evalEnv)
   

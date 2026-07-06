@@ -50,6 +50,9 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
   \item{weights}{
     An optional vector of population weights used in model fitting and
     estimating the treatment effect. Can refer to \code{data} if provided.
+    BART-based treatment models fit the propensity score unweighted (a weighted
+    probit has no tractable latent-variable form); the weights enter the
+    treatment-effect estimators.
   }
   \item{method.rsp}{
     A character string specifying which method to use when fitting the response
