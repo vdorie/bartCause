@@ -23,8 +23,10 @@ obsCfToTrtCtl <- function(obs, cf, trt) {
   }
 }
 
-samples.obs <- bartFit$yhat.train
-samples.cf  <- bartFit$yhat.test
+# dbarts >= 1.0-0 combines chains in $yhat.train/$yhat.test (now 2-D); pull the
+# 3-D [n.chains, n.samples, n.obs] form via extract() to match bartCause's convention
+samples.obs <- dbarts::extract(bartFit, sample = "train", combineChains = FALSE)
+samples.cf  <- dbarts::extract(bartFit, sample = "test",  combineChains = FALSE)
 samples.mu.0 <- obsCfToTrtCtl(samples.obs, samples.cf, 1 - testData$z)
 samples.mu.1 <- obsCfToTrtCtl(samples.obs, samples.cf, testData$z)
 
@@ -42,6 +44,14 @@ test_that("combine chains works as expected", {
   expect_equal(as.vector(mu.obs), as.vector(aperm(fit$mu.hat.obs, c(2, 1, 3))))
   sigma <- extract(fit, "sigma")
   expect_equal(sigma, as.vector(t(fit$fit.rsp$sigma)))
+})
+
+test_that("sigma extract honors combineChains (dbarts 1.0-0 stores it pre-combined)", {
+  s.split <- extract(fit, "sigma", combineChains = FALSE)
+  s.comb  <- extract(fit, "sigma", combineChains = TRUE)
+  expect_equal(dim(s.split), c(fit$n.chains, 50L))  # per-chain [n.chains, n.samples]
+  expect_null(dim(s.comb))                           # combined is a flat vector
+  expect_equal(as.vector(t(s.split)), as.numeric(s.comb))
 })
 
 test_that("fitted matches manual fit", {

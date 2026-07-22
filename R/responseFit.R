@@ -175,15 +175,19 @@ getBartResponseFit <- function(response, treatment, confounders, parametric, dat
   }
   
   if (is.null(missingData)) {
-    responseData@x.test <- responseData@x
+    ## dbarts 1.0-0 stores @x as a dbartsMixedMatrix, which supports reads but not
+    ## matrix-style subassignment; coerce to a base matrix to flip the treatment
+    responseData@x.test <- as.matrix(responseData@x)
     responseData@x.test[,treatmentName] <- 1 - responseData@x.test[,treatmentName]
   } else {
     ## structure so that first part is a counterfactual estimate ordered as are all observations
-    responseData@x.test <- matrix(0, n + n.mis, ncol(responseData@x), dimnames = dimnames(responseData@x))
-    responseData@x.test[which(!missingRows),] <- responseData@x
-    responseData@x.test[which( missingRows),] <- missingData@x
-    responseData@x.test[seq.int(n + 1L, n + n.mis),] <- missingData@x
-    
+    responseX <- as.matrix(responseData@x)
+    missingX  <- as.matrix(missingData@x)
+    responseData@x.test <- matrix(0, n + n.mis, ncol(responseX), dimnames = dimnames(responseX))
+    responseData@x.test[which(!missingRows),] <- responseX
+    responseData@x.test[which( missingRows),] <- missingX
+    responseData@x.test[seq.int(n + 1L, n + n.mis),] <- missingX
+
     cfRows <- rep_len(TRUE, n)
     responseData@x.test[cfRows,treatmentName] <- 1 - responseData@x.test[cfRows,treatmentName]
   }

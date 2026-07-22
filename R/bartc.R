@@ -188,7 +188,9 @@ bartc <- function(
     if (use.ranef) result[["use.ranef"]] <- use.ranef
     if (group.effects) result[["group.effects"]] <- group.effects
   }
-  result$n.chains <- if (length(dim(fit$yhat.train)) > 2L) dim(fit$yhat.train)[1L] else 1L
+  ## dbarts >= 1.0-0 combines chains in fit$yhat.train (now 2-D), so derive the
+  ## chain count from bartCause's own 3-D mu.hat.obs [n.chains, n.samples, n.obs]
+  result$n.chains <- if (length(dim(mu.hat.obs)) > 2L) dim(mu.hat.obs)[1L] else 1L
   
   if (!is.na(seed)) {
     result$seed <- .GlobalEnv$.Random.seed

@@ -229,7 +229,9 @@ test_that("bartc works with '.' as confounders", {
   bartcFit <- bartc(y, z, ., data = testDF,
                     method.rsp = "bart", method.trt = "bart", verbose = FALSE,
                     n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L)
-  expect_true(!("y" %in% dimnames(bartcFit$fit.trt$varcount)[[3L]]))
+  # dbarts >= 1.0-0 combines chains: varcount is 2-D [n.chains*n.samples, nvars]
+  # with variable names in dimnames[[2L]] (was 3-D with names in [[3L]])
+  expect_true(!("y" %in% dimnames(bartcFit$fit.trt$varcount)[[2L]]))
 })
 
 test_that("bartc runs with missing data for method tmle", {

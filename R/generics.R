@@ -322,10 +322,15 @@ extract.bartcFit <-
     if (responseIsBinary(object))
       stop("binary response model does not have a residual standard deviation parameter (sigma)")
     sigma <-
-      if (inherits(object$fit.rsp, "stan4bartFit"))
+      if (inherits(object$fit.rsp, "stan4bartFit")) {
         t(extract(object$fit.rsp, "sigma", combine_chains = FALSE))
-      else
-        object$fit.rsp$sigma
+      } else {
+        ## dbarts 1.0-0 returns sigma pre-combined as a length n.chains*n.samples
+        ## (chain-major) vector; reshape to [n.chains, n.samples] so combineChains
+        ## = FALSE yields per-chain draws and = TRUE recombines to the same vector
+        s <- object$fit.rsp$sigma
+        if (is.null(dim(s)) && n.chains > 1L) matrix(s, nrow = n.chains, byrow = TRUE) else s
+      }
     return(if (combineChains) combineChains(sigma, n.chains) else sigma)
   }
   

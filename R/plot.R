@@ -113,8 +113,10 @@ plot_support <- function(x, main = "Common Support Scatterplot",
   
   matchedCall <- match.call()
     
-  x.matrix <- x$data.rsp@x
-  
+  ## dbarts 1.0-0 stores @x as a dbartsMixedMatrix; coerce to a base matrix so the
+  ## downstream crossprod / %*% / data.frame / apply operations work
+  x.matrix <- as.matrix(x$data.rsp@x)
+
   subset <- rep_len(TRUE, nrow(x.matrix))
   if (sample == "inferential") {
     if (x$estimand == "att") subset <- x$trt > 0
