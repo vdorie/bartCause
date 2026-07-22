@@ -210,7 +210,7 @@ predict.bartcFit <-
       mu <- aperm(mu, c(3L, 2L, 1L))
     
     if (type == "y")
-      y <- sampleFromPPD(object, y)
+      y <- sampleFromPPD(object, mu)
   }
   
   if (type %in% c("mu.0", "y.0", "icate", "ite")) {
@@ -512,8 +512,8 @@ refit.bartcFit <- function(object, newresp = NULL,
    
   
   } else if (object$method.rsp == "p.weight") {
-    mu.hat.0 <- extract(object, "mu.hat.0", combineChains = FALSE)
-    mu.hat.1 <- extract(object, "mu.hat.1", combineChains = FALSE)
+    mu.hat.0 <- extract(object, "mu.0", combineChains = FALSE)
+    mu.hat.1 <- extract(object, "mu.1", combineChains = FALSE)
     if (length(dim(mu.hat.0)) > 2L) {
       mu.hat.0 <- aperm(mu.hat.0, c(3L, 1L, 2L))
       mu.hat.1 <- aperm(mu.hat.1, c(3L, 1L, 2L))
@@ -522,47 +522,51 @@ refit.bartcFit <- function(object, newresp = NULL,
       mu.hat.1 <- t(mu.hat.1)
     }
     
-    p.score <- if (!is.null(object$samples.p.score)) object$samples.p.score else object$p.score
-    if (!is.null(dim(p.score)) && length(dim(p.score)) < length(dim(mu.hat.0))) {
+    ## NB: the local variable cannot be named 'p.score' -- object$p.score also
+    ## exists (the flat, posterior-averaged score), and with(object, ...) below
+    ## would have this local shadowed by that field, silently reusing the
+    ## averaged score for every posterior draw instead of the per-draw samples
+    p.score.samples <- if (!is.null(object$samples.p.score)) object$samples.p.score else object$p.score
+    if (!is.null(dim(p.score.samples)) && length(dim(p.score.samples)) < length(dim(mu.hat.0))) {
       # chains were collapsed
       n.chains  <- dim(mu.hat.0)[2L]
       n.samples <- dim(mu.hat.0)[3L]
       n.obs     <- dim(mu.hat.0)[1L]
-      p.score   <- aperm(array(p.score, c(n.chains, n.obs, n.samples)), c(3L, 1L, 2L))
+      p.score.samples <- aperm(array(p.score.samples, c(n.chains, n.obs, n.samples)), c(3L, 1L, 2L))
     } else {
-      if (!is.null(dim(p.score)))
-        p.score <- if (length(dim(p.score)) > 2L) aperm(p.score, c(3L, 1L, 2L)) else t(p.score)
+      if (!is.null(dim(p.score.samples)))
+        p.score.samples <- if (length(dim(p.score.samples)) > 2L) aperm(p.score.samples, c(3L, 1L, 2L)) else t(p.score.samples)
     }
-    
+
     if (is.null(object$group.by) || !group.effects) {
       if (any(object$commonSup.sub != TRUE)) {
         addDimsToSubset(mu.hat.0 <- mu.hat.0[commonSup.sub, drop = FALSE])
         addDimsToSubset(mu.hat.1 <- mu.hat.1[commonSup.sub, drop = FALSE])
-           
-        p.score <- addDimsToSubset(p.score[commonSup.sub, drop = FALSE])
-      
+
+        p.score.samples <- addDimsToSubset(p.score.samples[commonSup.sub, drop = FALSE])
+
         if (!is.null(weights)) weights <- weights[commonSup.sub]
       }
-      
-      object$est <- with(object, getPWeightEstimates(data.rsp@y[commonSup.sub], trt[commonSup.sub], weights, estimand, mu.hat.0, mu.hat.1, p.score, fitPars$yBounds, fitPars$p.scoreBounds))
+
+      object$est <- with(object, getPWeightEstimates(data.rsp@y[commonSup.sub], trt[commonSup.sub], weights, estimand, mu.hat.0, mu.hat.1, p.score.samples, fitPars$yBounds, fitPars$p.scoreBounds))
     } else {
       object$est <- lapply(levels(object$group.by), function(level) {
         levelRows <- object$group.by == level & object$commonSup.sub
-        
+
         addDimsToSubset(mu.hat.0 <- mu.hat.0[levelRows, drop = FALSE])
         addDimsToSubset(mu.hat.1 <- mu.hat.1[levelRows, drop = FALSE])
-        addDimsToSubset(p.score  <- p.score[levelRows, drop = FALSE])
-      
+        addDimsToSubset(p.score.samples  <- p.score.samples[levelRows, drop = FALSE])
+
         if (!is.null(weights)) weights <- weights[levelRows]
-      
-        with(object, getPWeightEstimates(data.rsp@y[levelRows], trt[levelRows], weights, estimand, mu.hat.0, mu.hat.1, p.score,
+
+        with(object, getPWeightEstimates(data.rsp@y[levelRows], trt[levelRows], weights, estimand, mu.hat.0, mu.hat.1, p.score.samples,
                                          fitPars$yBounds, fitPars$p.scoreBounds))
       })
       names(object$est) <- levels(object$group.by)
     }
   } else if (object$method.rsp == "tmle") {
-    mu.hat.0 <- extract(object, "mu.hat.0", combineChains = FALSE)
-    mu.hat.1 <- extract(object, "mu.hat.1", combineChains = FALSE)
+    mu.hat.0 <- extract(object, "mu.0", combineChains = FALSE)
+    mu.hat.1 <- extract(object, "mu.1", combineChains = FALSE)
     if (length(dim(mu.hat.0)) > 2L) {
       mu.hat.0 <- aperm(mu.hat.0, c(3L, 1L, 2L))
       mu.hat.1 <- aperm(mu.hat.1, c(3L, 1L, 2L))
@@ -571,41 +575,49 @@ refit.bartcFit <- function(object, newresp = NULL,
       mu.hat.1 <- t(mu.hat.1)
     }
     
-    p.score <- if (!is.null(object$samples.p.score)) object$samples.p.score else object$p.score
-    if (!is.null(dim(p.score)) && length(dim(p.score)) < length(dim(mu.hat.0))) {
+    ## see the p.weight branch above: keep this off the name 'p.score' so it
+    ## isn't shadowed by object$p.score inside with(object, ...) below
+    p.score.samples <- if (!is.null(object$samples.p.score)) object$samples.p.score else object$p.score
+    if (!is.null(dim(p.score.samples)) && length(dim(p.score.samples)) < length(dim(mu.hat.0))) {
       # chains were collapsed
       n.chains  <- dim(mu.hat.0)[2L]
       n.samples <- dim(mu.hat.0)[3L]
       n.obs     <- dim(mu.hat.0)[1L]
-      p.score   <- aperm(array(p.score, c(n.chains, n.obs, n.samples)), c(3L, 1L, 2L))
+      p.score.samples <- aperm(array(p.score.samples, c(n.chains, n.obs, n.samples)), c(3L, 1L, 2L))
     } else {
-      if (!is.null(dim(p.score)))
-        p.score <- if (length(dim(p.score)) > 2L) aperm(p.score, c(3L, 1L, 2L)) else t(p.score)
+      if (!is.null(dim(p.score.samples)))
+        p.score.samples <- if (length(dim(p.score.samples)) > 2L) aperm(p.score.samples, c(3L, 1L, 2L)) else t(p.score.samples)
     }
-    
+
     if (is.null(object$group.by) || !group.effects) {
       if (any(object$commonSup.sub != TRUE)) {
         addDimsToSubset(mu.hat.0 <- mu.hat.0[commonSup.sub, drop = FALSE])
         addDimsToSubset(mu.hat.1 <- mu.hat.1[commonSup.sub, drop = FALSE])
-           
-        addDimsToSubset(p.score <- p.score[commonSup.sub, drop = FALSE])
-      
+
+        addDimsToSubset(p.score.samples <- p.score.samples[commonSup.sub, drop = FALSE])
+
         if (!is.null(weights)) weights <- weights[commonSup.sub]
       }
-      
-      object$est <- with(object, getTMLEEstimates(data.rsp@y[commonSup.sub], trt[commonSup.sub], weights, estimand, mu.hat.0, mu.hat.1, p.score, fitPars$yBounds, fitPars$p.scoreBounds, fitPars$depsilon, fitPars))
+
+      ## fitPars doesn't carry the n.threads originally used to fit; re-derive
+      ## single-threaded rather than spawn a fresh parallel cluster as a side
+      ## effect of what should be a lightweight commonSup.rule recompute
+      object$est <- with(object, getTMLEEstimates(data.rsp@y[commonSup.sub], trt[commonSup.sub], weights, estimand, mu.hat.0, mu.hat.1, p.score.samples,
+                                                  fitPars$yBounds, fitPars$p.scoreBounds, fitPars$depsilon, fitPars$maxIter,
+                                                  n.threads = 1L))
     } else {
       object$est <- lapply(levels(object$group.by), function(level) {
         levelRows <- object$group.by == level & object$commonSup.sub
-        
-        addDimsToSubset(yhat.0 <- yhat.0[levelRows, drop = FALSE])
-        addDimsToSubset(yhat.1 <- yhat.1[levelRows, drop = FALSE])
-        addDimsToSubset(p.score <- p.score[levelRows, drop = FALSE])
-      
+
+        addDimsToSubset(mu.hat.0 <- mu.hat.0[levelRows, drop = FALSE])
+        addDimsToSubset(mu.hat.1 <- mu.hat.1[levelRows, drop = FALSE])
+        addDimsToSubset(p.score.samples <- p.score.samples[levelRows, drop = FALSE])
+
         if (!is.null(weights)) weights <- weights[levelRows]
-      
-        with(object, getTMLEEstimates(data.rsp@y[levelRows], trt[levelRows], weights, estimand, mu.hat.0, mu.hat.1, p.score,
-                                      fitPars$yBounds, fitPars$p.scoreBounds, fitPars$depsilon, fitPars$maxIter))
+
+        with(object, getTMLEEstimates(data.rsp@y[levelRows], trt[levelRows], weights, estimand, mu.hat.0, mu.hat.1, p.score.samples,
+                                      fitPars$yBounds, fitPars$p.scoreBounds, fitPars$depsilon, fitPars$maxIter,
+                                      n.threads = 1L))
       })
       names(object$est) <- levels(object$group.by)
     }

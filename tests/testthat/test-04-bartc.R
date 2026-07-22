@@ -240,11 +240,23 @@ test_that("bartc runs with missing data for method tmle", {
   oldWarn <- getOption("warn")
   if (!requireNamespace("tmle", quietly = TRUE))
     options(warn = -1)
-  
+
   expect_is(bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "tmle", verbose = FALSE,
                   group.by = g, group.effects = TRUE,
                   n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L, maxIter = 5L),
             "bartcFit")
-  
+
   options(warn = oldWarn)
+})
+
+test_that("bartc honors the subset argument", {
+  sub <- seq_len(60L)
+  set.seed(22)
+  fit <- bartc(y, z, x, data = testData, subset = sub, method.trt = "bart", method.rsp = "bart", verbose = FALSE,
+               n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L)
+
+  expect_equal(length(fit$trt), 60L)
+  expect_equal(as.numeric(fit$data.rsp@y), testData$y[sub])
+  expect_equal(as.numeric(fit$trt), testData$z[sub])
+  expect_equal(dim(fit$mu.hat.obs), c(13L, 60L))
 })

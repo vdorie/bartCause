@@ -156,5 +156,64 @@ test_that("predict works with grouped data, bart trt model", {
   expect_equal(icate, icate.new)
 })
 
+test_that("predict handles response types y, y.0, y.1, and ite", {
+  n.samples <- 7L
+  n.chains  <- 2L
+  fit <- bartc(y, z, x, method.trt = "glm", method.rsp = "bart",
+               n.chains = n.chains, n.threads = 1L, n.burn = 0L, n.samples = n.samples, n.trees = 13L,
+               keepTrees = TRUE, verbose = FALSE)
+
+  mu   <- predict(fit, cbind(x.new, z = 1), type = "mu",   combineChains = FALSE)
+  mu.0 <- predict(fit, x.new, type = "mu.0", combineChains = FALSE)
+  mu.1 <- predict(fit, x.new, type = "mu.1", combineChains = FALSE)
+  sigma <- extract(fit, "sigma", combineChains = FALSE)
+
+  set.seed(101)
+  y.pred <- predict(fit, cbind(x.new, z = 1), type = "y", combineChains = FALSE)
+  expect_equal(dim(y.pred), c(n.chains, n.samples, n.test))
+
+  # regression check: predict(type = "y") used to reference an undefined/wrong
+  # 'y' instead of the just-computed 'mu' and would error or silently reuse
+  # whatever 'y' happened to be visible in the calling frame
+  set.seed(101)
+  sigma.rep <- rep_len(sigma, length(sigma) * n.test)
+  epsilon <- rnorm(length(sigma.rep), 0, sigma.rep)
+  dim(epsilon) <- dim(mu)
+  expect_equal(y.pred, mu + epsilon)
+
+  y.0 <- predict(fit, x.new, type = "y.0", combineChains = FALSE)
+  y.1 <- predict(fit, x.new, type = "y.1", combineChains = FALSE)
+  expect_equal(dim(y.0), dim(mu.0))
+  expect_equal(dim(y.1), dim(mu.1))
+
+  # a single "ite" call draws y.0 then y.1 from the ppd in that order; splitting
+  # the same draws across two calls with a continued RNG stream must reproduce it
+  set.seed(303)
+  ite <- predict(fit, x.new, type = "ite", combineChains = FALSE)
+  set.seed(303)
+  y.0.split <- predict(fit, x.new, type = "y.0", combineChains = FALSE)
+  y.1.split <- predict(fit, x.new, type = "y.1", combineChains = FALSE)
+  expect_equal(ite, y.1.split - y.0.split)
+})
+
+test_that("predict enforces method/keepTrees preconditions", {
+  fit.pweight <- bartc(y, z, x, method.trt = "bart", method.rsp = "p.weight",
+                       n.chains = 1L, n.threads = 1L, n.burn = 0L, n.samples = 7L, n.trees = 13L,
+                       verbose = FALSE)
+  expect_error(predict(fit.pweight, x.new, type = "mu.0"), "requires method.rsp == 'bart'")
+
+  fit.nokeep <- bartc(y, z, x, method.trt = "glm", method.rsp = "bart",
+                      n.chains = 1L, n.threads = 1L, n.burn = 0L, n.samples = 7L, n.trees = 13L,
+                      verbose = FALSE)
+  expect_error(predict(fit.nokeep, x.new, type = "mu.0"), "keepTrees == TRUE")
+
+  fit.none <- bartc(y, z, x, method.trt = "none", method.rsp = "bart", estimand = "att",
+                    n.chains = 1L, n.threads = 1L, n.burn = 0L, n.samples = 7L, n.trees = 13L,
+                    keepTrees = TRUE, verbose = FALSE)
+  expect_error(predict(fit.none, x.new, type = "p.score"), "requires method.trt to specify a model")
+
+  expect_error(predict(fit.none, x.new, type = "not-a-type"), "type must be in")
+})
+
 rm(testData, n.train, x, y, z, g, n.samples, n.chains, x.new, n.test)
 

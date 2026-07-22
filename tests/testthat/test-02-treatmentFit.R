@@ -99,3 +99,29 @@ test_that("glm fit fails for non-binary treatment with data.frame", {
   expect_error(bartCause:::getBartTreatmentFit(y, z, x, data = data, n.chains = 1L, n.threads = 1L, n.burn = 3L, n.samples = 13L, n.trees = 7L))
 })
 
+test_that("glm and bart treatment fits require treatment and confounders", {
+  expect_error(bartCause:::getGLMTreatmentFit(y, confounders = x, data = testData), "'treatment' variable must be specified")
+  expect_error(bartCause:::getGLMTreatmentFit(y, z, data = testData), "'confounders' variable must be specified")
+  expect_error(bartCause:::getBartTreatmentFit(y, confounders = x, data = testData), "'treatment' variable must be specified")
+  expect_error(bartCause:::getBartTreatmentFit(y, z, data = testData), "'confounders' variable must be specified")
+})
+
+test_that("glm fit works with '.' as confounders and a data.frame", {
+  df <- with(testData, data.frame(y = y, z = z, x = x))
+  res <- bartCause:::getGLMTreatmentFit(y, z, ., data = df)
+  manual <- fitted(stats::glm(z ~ x.1 + x.2 + x.3, df, family = stats::binomial))
+  expect_equal(unname(res$p.score), unname(manual))
+})
+
+test_that("bart treatment fit rejects incompatible group.by/parametric/crossvalidate combinations", {
+  expect_error(
+    bartCause:::getBartTreatmentFit(y, z, x, data = testData, parametric = y ~ x, group.by = g),
+    "`group.by` must be missing or NULL if `parametric` is supplied"
+  )
+  expect_error(
+    bartCause:::getBartTreatmentFit(y, z, x, data = testData, group.by = g, crossvalidate = TRUE,
+                                    n.chains = 1L, n.threads = 1L, n.burn = 3L, n.samples = 13L, n.trees = 7L),
+    "crossvalidation not yet supported"
+  )
+})
+

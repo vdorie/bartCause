@@ -167,6 +167,32 @@ test_that("generics work for p.weights", {
   expect_equal(apply(p.weights, length(dim(p.weights)), mean), fitted(pfit, "p.weights", sample = "all"))
 })
 
+test_that("weighted tmle matches a direct getTMLEEstimates recomputation", {
+  skip_on_cran()
+  skip_if_not_installed("tmle")
+
+  # weights route getTMLEEstimates around the 'tmle' package entirely (only
+  # taken when weights are NULL) and into its own from-scratch implementation,
+  # which is otherwise never exercised when the suggested 'tmle' package is on
+  # the machine (the common case)
+  weightedData <- testData
+  weightedData$w <- runif(length(weightedData$y), 0.5, 1.5)
+
+  maxIter <- 20L  # keep the fluctuation loop short; the default (2000) is slow
+  set.seed(22)
+  fit <- bartc(y, z, x, data = weightedData, method.trt = "bart", method.rsp = "tmle", weights = w, verbose = FALSE,
+               n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L, maxIter = maxIter)
+
+  mu.hat.0 <- t(suppressWarnings(extract(fit, "mu.0", combineChains = FALSE)))
+  mu.hat.1 <- t(suppressWarnings(extract(fit, "mu.1", combineChains = FALSE)))
+  p.score  <- t(fit$samples.p.score)
+  w <- weightedData$w / sum(weightedData$w)
+  manual <- bartCause:::getTMLEEstimates(weightedData$y, weightedData$z, w, "ate", mu.hat.0, mu.hat.1, p.score,
+                                         c(.005, .995), c(0.025, 0.975), 0.001, maxIter, n.threads = 1L)
+  expect_equal(fit$est, manual)
+  expect_true(all(is.finite(fit$est)))
+})
+
 test_that("summary works with different styles", {
   expect_is(summary(fit, ci.style = "norm"),  "bartcFit.summary")
   expect_is(summary(fit, ci.style = "quant"), "bartcFit.summary")
@@ -322,8 +348,106 @@ test_that("sate summary is correct quantity", {
 
   fit_sum <- summary(fit, "sate")
   samples.sate <- extract(fit, "sate")
-  
+
   expect_true(abs(fit_sum$estimates$estimate - mean(samples.sate)) < 1e-1)
   expect_true(abs(fit_sum$estimates$sd - sd(samples.sate)) < 1e-1)
+})
+
+source(system.file("common", "groupedData.R", package = "bartCause"))
+
+test_that("refit reproduces estimates when common support rule is unchanged", {
+  set.seed(22)
+  pfit <- bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "p.weight", verbose = FALSE,
+                n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L)
+  expect_equal(suppressWarnings(refit(pfit))$est, pfit$est)
+
+  set.seed(22)
+  tfit <- bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "tmle", verbose = FALSE,
+                n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L)
+  expect_equal(suppressWarnings(refit(tfit))$est, tfit$est)
+})
+
+test_that("refit recomputes bart estimates under a new common support rule", {
+  set.seed(22)
+  fit <- bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "bart", verbose = FALSE,
+               n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L)
+  refitted <- refit(fit, commonSup.rule = "sd")
+
+  expect_equal(refitted$commonSup.rule, "sd")
+  expect_equal(refitted$commonSup.cut, 1)
+
+  # commonSup.sub must be recomputed under the new rule (matches a fresh call),
+  # not just carried over as the all-TRUE default from the original ("none") fit
+  manualSub <- bartCause:::getCommonSupportSubset(fit$sd.obs, fit$sd.cf, "sd", 1, fit$trt, fit$missingRows)
+  expect_equal(refitted$commonSup.sub, manualSub)
+
+  icate <- extract(fit, "icate", combineChains = FALSE)
+  manualEst <- bartCause:::getEstimateSamples(icate, fit$trt > 0, NULL, fit$estimand, NULL, FALSE, manualSub)
+  expect_equal(refitted$est, manualEst)
+})
+
+test_that("refit recomputes grouped bart estimates under a new common support rule", {
+  set.seed(22)
+  fit <- bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "bart", verbose = FALSE,
+               group.by = g, group.effects = TRUE,
+               n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L)
+  refitted <- refit(fit, commonSup.rule = "sd")
+
+  manualSub <- bartCause:::getCommonSupportSubset(fit$sd.obs, fit$sd.cf, "sd", 1, fit$trt, fit$missingRows)
+  icate <- extract(fit, "icate", combineChains = FALSE)
+  manualEst <- bartCause:::getEstimateSamples(icate, fit$trt > 0, NULL, fit$estimand, fit$group.by, TRUE, manualSub)
+  expect_equal(refitted$est, manualEst)
+  expect_equal(length(refitted$est), nlevels(fit$group.by))
+})
+
+test_that("refit recomputes p.weight estimates under a new common support rule", {
+  set.seed(22)
+  pfit <- bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "p.weight", verbose = FALSE,
+                n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L)
+  refitted <- suppressWarnings(refit(pfit, commonSup.rule = "sd"))
+
+  manualSub <- bartCause:::getCommonSupportSubset(pfit$sd.obs, pfit$sd.cf, "sd", 1, pfit$trt, pfit$missingRows)
+  mu.hat.0 <- suppressWarnings(aperm(extract(pfit, "mu.0", combineChains = FALSE), c(3L, 1L, 2L)))
+  mu.hat.1 <- suppressWarnings(aperm(extract(pfit, "mu.1", combineChains = FALSE), c(3L, 1L, 2L)))
+  p.score  <- aperm(pfit$samples.p.score, c(3L, 1L, 2L))
+  manualEst <- bartCause:::getPWeightEstimates(
+    pfit$data.rsp@y[manualSub], pfit$trt[manualSub], NULL, "ate",
+    mu.hat.0[manualSub,,,drop=FALSE], mu.hat.1[manualSub,,,drop=FALSE], p.score[manualSub,,,drop=FALSE],
+    c(.005, .995), c(0.025, 0.975))
+  expect_equal(refitted$est, manualEst)
+})
+
+test_that("refit works for tmle estimates and common support subsetting", {
+  skip_on_cran()
+  skip_if_not_installed("tmle")
+
+  set.seed(22)
+  tfit <- bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "tmle", verbose = FALSE,
+                n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L)
+  refitted <- suppressWarnings(refit(tfit, commonSup.rule = "sd"))
+
+  expect_true(is.matrix(refitted$est))
+  expect_equal(colnames(refitted$est), c("est", "se"))
+  expect_true(all(is.finite(refitted$est)))
+  manualSub <- bartCause:::getCommonSupportSubset(tfit$sd.obs, tfit$sd.cf, "sd", 1, tfit$trt, tfit$missingRows)
+  expect_equal(refitted$commonSup.sub, manualSub)
+
+  # group.by + group.effects branch, previously broken (undefined yhat.0/yhat.1)
+  set.seed(22)
+  gtfit <- bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "tmle", verbose = FALSE,
+                 group.by = g, group.effects = TRUE,
+                 n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L, maxIter = 5L)
+  grefitted <- suppressWarnings(refit(gtfit, commonSup.rule = "sd"))
+  expect_equal(length(grefitted$est), nlevels(gtfit$group.by))
+  expect_true(all(sapply(grefitted$est, function(e) all(is.finite(e)))))
+})
+
+test_that("refit warns about ignored newresp and unknown arguments", {
+  set.seed(22)
+  fit <- bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "bart", verbose = FALSE,
+               n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L)
+
+  expect_warning(refit(fit, newresp = 1), "'newresp' argument ignored")
+  expect_warning(refit(fit, notAnArgument = 1), "called with unknown argument\\(s\\)")
 })
 

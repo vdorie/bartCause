@@ -90,3 +90,49 @@ if (FALSE) test_that("xbart fit matches manual call", {
                                         crossvalidate = TRUE)
 })
 
+test_that("getBartResponseFit requires response, treatment, confounders, and a valid estimand", {
+  expect_error(bartCause:::getBartResponseFit(treatment = z, confounders = x, data = testData),
+               "'response' variable must be specified")
+  expect_error(bartCause:::getBartResponseFit(y, confounders = x, data = testData),
+               "'treatment' variable must be specified")
+  expect_error(bartCause:::getBartResponseFit(y, z, data = testData),
+               "'confounders' variable must be specified")
+  expect_error(bartCause:::getBartResponseFit(y, z, x, data = testData, estimand = "bogus"),
+               "estimand must be one of")
+})
+
+test_that("getBartResponseFit rejects crossvalidate with a varying-intercept model", {
+  expect_error(
+    bartCause:::getBartResponseFit(y, z, x, data = testData, estimand = "ate", group.by = g,
+                                   commonSup.rule = "none", commonSup.cut = NA, crossvalidate = TRUE,
+                                   n.chains = 1L, n.threads = 1L, n.burn = 3L, n.samples = 13L, n.trees = 7L),
+    "crossvalidation not yet supported"
+  )
+})
+
+test_that("getBartResponseFit defaults n.chains to 10 when unspecified", {
+  set.seed(22)
+  res <- bartCause:::getBartResponseFit(y, z, x, data = testData, estimand = "ate", group.by = NULL,
+                                        commonSup.rule = "none", commonSup.cut = NA,
+                                        n.threads = 1L, n.burn = 2L, n.samples = 3L, n.trees = 3L)
+  expect_equal(dim(res$mu.hat.obs), c(10L, 3L, length(testData$y)))
+})
+
+test_that("bartc handles missing response data with a single chain (no combined-chains reshape)", {
+  # regression coverage: the missing-data reshape path in getBartResponseFit has
+  # a 2-D (single chain) branch that combined-chains-only tests never exercised
+  missData <- testData
+  missData$y[seq_len(10L)] <- NA
+
+  fit <- bartc(y, z, x, data = missData, method.trt = "bart", method.rsp = "bart", verbose = FALSE,
+               n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L)
+  expect_is(fit, "bartcFit")
+  expect_equal(fit$n.chains, 1L)
+  expect_equal(dim(fit$mu.hat.obs), c(13L, length(missData$y)))
+  expect_equal(sum(fit$missingRows), 10L)
+
+  icate <- extract(fit, "icate", combineChains = FALSE)
+  expect_false(anyNA(icate))
+  expect_equal(dim(icate), c(13L, length(missData$y)))
+})
+
