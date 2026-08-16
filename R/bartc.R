@@ -1,6 +1,6 @@
 bartc <- function(
   response, treatment, confounders, parametric, data, subset, weights,
-  method.rsp = c("bart", "tmle", "p.weight"),
+  method.rsp = c("bart", "bcf", "tmle", "p.weight"),
   method.trt = c("bart", "glm", "none"),
   estimand   = c("ate", "att", "atc"),
   group.by = NULL,
@@ -106,8 +106,8 @@ bartc <- function(
     stop("p.scoreAsCovariate must be TRUE or FALSE")
   if (method.rsp %in% c("p.weight", "tmle") && method.trt == "none")
     stop("response method '", method.rsp, "' requires propensity score estimation")
-  if (method.rsp == "bart" && p.scoreAsCovariate == FALSE && method.trt != "none")
-    warning("for response method 'bart', propensity score not used unless included as covariate")
+  if (method.rsp %in% c("bart", "bcf") && p.scoreAsCovariate == FALSE && method.trt != "none")
+    warning("for response method '", method.rsp, "', propensity score not used unless included as covariate")
   if (!is.null(matchedCall$p.scoreAsCovariate) && p.scoreAsCovariate == TRUE && method.trt == "none")
     warning("p.scoreAsCovariate == TRUE requires method.trt != 'none'")
   
@@ -120,7 +120,7 @@ bartc <- function(
   }
   
   responseCall <- switch(method.rsp,
-    #bcf      = redirectCall(matchedCall, quoteInNamespace(bcf)),
+    bcf      = redirectCall(matchedCall, quoteInNamespace(getBCFResponseFit)),
     bart     = redirectCall(matchedCall, quoteInNamespace(getBartResponseFit)),
     p.weight = redirectCall(matchedCall, quoteInNamespace(getPWeightResponseFit)),
     tmle     = redirectCall(matchedCall, quoteInNamespace(getTMLEResponseFit)))
@@ -161,6 +161,12 @@ bartc <- function(
   if (!is.null(args.rsp) && length(args.rsp) > 0L)
     responseCall[names(matchedCall[["args.rsp"]])[-1L]] <- matchedCall[["args.rsp"]][-1L]
   
+  ## crossvalidation tunes the tree prior with xbart, which has no multi-forest
+  ## form; refuse it here rather than let the argument reach the fitter as a
+  ## silent no-op. 'trt' still crossvalidates the treatment model only.
+  if (method.rsp == "bcf" && (isTRUE(crossvalidate) || identical(crossvalidate, "rsp")))
+    stop("crossvalidate is not supported for response method 'bcf'; the crossvalidation engine has no multi-forest form, so the tree prior's 'k' cannot be tuned. Use method.rsp = 'bart' to crossvalidate the response model")
+
   if (!is.null(responseCall[["crossvalidate"]]))
     responseCall[["crossvalidate"]] <- if (is.logical(crossvalidate)) crossvalidate else crossvalidate == "rsp"
   

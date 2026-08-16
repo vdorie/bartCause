@@ -298,7 +298,7 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
     row.names(estimates) <- levels(object$group.by)
     
     # combine back to get whole if possible
-    if (object$method.rsp %in% "bart") {
+    if (object$method.rsp %in% c("bart", "bcf")) {
       weights.g <- estimates$n / n.obs
       for (varName in c("samples.cate", "samples.pate"))
         if (varName %in% estimateVariables || varName %in% intervalVariables)

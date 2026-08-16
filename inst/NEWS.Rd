@@ -2,6 +2,20 @@
 \title{bartCause News}
 \encoding{UTF-8}
 \section{CHANGES IN VERSION 1.0-10}{
+  \subsection{NEW FEATURES}{
+    \itemize{
+      \item New \code{bcf} function fits a Bayesian causal forest, with
+            separate prognostic and treatment ensembles combined through
+            per-draw amplitudes. Both counterfactual surfaces, each forest's
+            per-draw fitted values and per-forest variable counts are reported
+            without a test matrix. Returns an object of class \code{bartBCF},
+            with \code{print}, \code{fitted}, \code{extract}, \code{residuals}
+            and \code{predict} methods.
+      \item \code{bartc} accepts \code{method.rsp = "bcf"}, fitting the response
+            surface with a Bayesian causal forest and estimating treatment
+            effects as for \code{"bart"}.
+    }
+  }
   \subsection{USER-VISIBLE CHANGES}{
     \itemize{
       \item Generics that accept \code{...} arguments but do not use them will

@@ -1,4 +1,5 @@
 export(bartc)
+export(bcf)
 export(refit)
 export(plot_sigma, plot_est, plot_indiv, plot_support)
 
@@ -10,11 +11,17 @@ S3method(predict, bartcFit)
 S3method(extract, bartcFit)
 S3method(refit, bartcFit)
 
+S3method(print, bartBCF)
+S3method(fitted, bartBCF)
+S3method(extract, bartBCF)
+S3method(predict, bartBCF)
+S3method(residuals, bartBCF)
+
 importFrom(dbarts, bart2, guessNumCores, xbart, extract)
 export(extract)
 
 importFrom(methods, "slot<-")
-importFrom(stats, glm, binomial, fitted, predict, sd)
+importFrom(stats, glm, binomial, fitted, predict, residuals, sd)
 importFrom(stats, plogis, pnorm, qlogis, qnorm, qchisq)
 importFrom(stats, runif, rbinom, rnorm)
 importFrom(stats, quantile, setNames, coef)

@@ -213,7 +213,13 @@ getResponseDataCall <- function(fn, response, treatment, confounders, parametric
   
   #responseVar <- as.vector(evalEnv[[deparse(result$data)]][[result[[2L]][[2L]]]])
   responseVar <- as.vector(get(deparse(result$data), envir = evalEnv)[[result[[2L]][[2L]]]])
-  list(call = result, env = evalEnv, trt = deparse(matchedCall$treatment), missingRows = is.na(responseVar))
+  ## the propensity score's column name is RETURNED rather than re-derived by a
+  ## fitter: with a confounder named "psps" no ladder over colnames(data@x) can
+  ## tell the score from the confounder, and the bcf fitter has to know which
+  ## column to keep out of the treatment forest. Appended, so the four-target
+  ## massign calls that consume this list positionally never see it.
+  list(call = result, env = evalEnv, trt = deparse(matchedCall$treatment), missingRows = is.na(responseVar),
+       p.score = if (is.null(matchedCall$p.score)) NULL else pScoreName)
 }
 
 # treat args as literals
@@ -404,7 +410,11 @@ getResponseLiteralCall <- function(fn, response, treatment, confounders, paramet
   
   if (!is.null(matchedCall$subset))  result$subset <- subset
   if (!is.null(matchedCall$weights)) result$weights <- weights
-   
-  list(call = result, df = df, trt = treatmentName, missingRows = is.na(as.vector(df[,responseName])))
+
+  ## as in getResponseDataCall: the resolved propensity-score column name is
+  ## appended for the bcf fitter's moderator exclusion, and positional consumers
+  ## of the first four elements are unaffected
+  list(call = result, df = df, trt = treatmentName, missingRows = is.na(as.vector(df[,responseName])),
+       p.score = if (is.null(matchedCall$p.score)) NULL else pScoreName)
 }
 

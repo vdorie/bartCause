@@ -7,7 +7,7 @@
 }
 \usage{
 bartc(response, treatment, confounders, parametric, data, subset, weights,
-      method.rsp = c("bart", "tmle", "p.weight"),
+      method.rsp = c("bart", "bcf", "tmle", "p.weight"),
       method.trt = c("bart", "glm", "none"),
       estimand   = c("ate", "att", "atc"),
       group.by = NULL,
@@ -58,7 +58,9 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
     A character string specifying which method to use when fitting the response
     surface and estimating the treatment effect. Options are: \code{"bart"} -
     fit the response surface with BART and take the average of the individual
-    treatment effect estimates, \code{"p.weight"} - fit the response surface
+    treatment effect estimates, \code{"bcf"} - fit the response surface with a
+    Bayesian causal forest, a separate prognostic and treatment ensemble, and
+    average as for \code{"bart"}, \code{"p.weight"} - fit the response surface
     with BART but compute the treatment effect estimate by using a propensity
     score weighted sum of individual effects, and \code{"tmle"} - as above, but
     further adjust the individual estimates using the Targeted Minimum Loss
@@ -177,6 +179,17 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
           \eqn{\hat{Y}(0)_i}{Y(0)^hat_i}. Treatment effect estimates are
           obtained by averaging the difference of these across the population of
           interest.
+    \item \code{"bcf"} - use a Bayesian causal forest to fit the response
+          surface: a prognostic ensemble and a treatment ensemble with their own
+          priors, combined through per-draw amplitudes, so that the
+          counterfactual is obtained by swapping the amplitude rather than by
+          predicting on a flipped treatment. The treatment is masked out of both
+          forests and the propensity score, when used as a covariate, out of the
+          treatment forest. Treatment effect estimates are averaged as in
+          \code{"bart"}. Missing responses, crossvalidation, \code{parametric},
+          \code{group.by} with \code{use.ranef} equal to \code{TRUE}, and
+          \code{predict} are all refused for this method; see \code{\link{bcf}}
+          for the standalone interface and the reasons.
     \item \code{"p.weight"} - individual effects are estimated as in
           \code{"bart"}, but treatment effect estimates are obtained by using a
           propensity score weighted average. For the average treatment effect on

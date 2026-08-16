@@ -249,12 +249,58 @@ test_that("bartc runs with missing data for method tmle", {
   options(warn = oldWarn)
 })
 
+test_that("bartc runs the bcf response method at one and two chains", {
+  n.obs <- length(testData$y)
+
+  fit <- bartc(y, z, x, data = testData, method.trt = "glm", method.rsp = "bcf", verbose = FALSE,
+               n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L)
+  expect_is(fit, "bartcFit")
+  expect_is(fit$fit.rsp, "bartBCF")
+  expect_equal(fit$method.rsp, "bcf")
+  expect_equal(dim(fit$mu.hat.obs), c(13L, n.obs))
+  expect_equal(dim(fit$mu.hat.cf), c(13L, n.obs))
+  expect_equal(fit$n.chains, 1L)
+  expect_equal(fit$name.trt, "z")
+
+  fit <- bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "bcf", verbose = FALSE,
+               n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L)
+  expect_equal(dim(fit$mu.hat.obs), c(2L, 13L, n.obs))
+  expect_equal(dim(fit$fit.rsp$sigma), c(2L, 13L))
+  # the propensity score reaches the prognostic forest only, on the column the
+  # response builder resolved rather than on one re-derived from the design
+  expect_equal(fit$fit.rsp$name.p.score, "ps")
+  expect_equal(sum(fit$fit.rsp$varcount$tau[,,"ps"]), 0)
+  expect_gt(sum(fit$fit.rsp$varcount$mu[,,"ps"]), 0)
+})
+
+test_that("bartc refuses crossvalidation for the bcf response method", {
+  expect_error(bartc(y, z, x, data = testData, method.rsp = "bcf", crossvalidate = TRUE,
+                     verbose = FALSE, n.burn = 3L, n.samples = 13L, n.trees = 7L,
+                     n.chains = 1L, n.threads = 1L),
+               "crossvalidate is not supported for response method 'bcf'")
+  expect_error(bartc(y, z, x, data = testData, method.rsp = "bcf", crossvalidate = "rsp",
+                     verbose = FALSE, n.burn = 3L, n.samples = 13L, n.trees = 7L,
+                     n.chains = 1L, n.threads = 1L),
+               "crossvalidate is not supported for response method 'bcf'")
+  # the identical call at 'bart' is accepted (crossvalidation itself is slow, so
+  # only the argument's acceptance is checked here)
+  expect_true("bcf" %in% eval(formals(bartCause::bartc)$method.rsp))
+})
+
 test_that("bartc honors the subset argument", {
   sub <- seq_len(60L)
   set.seed(22)
   fit <- bartc(y, z, x, data = testData, subset = sub, method.trt = "bart", method.rsp = "bart", verbose = FALSE,
                n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L)
 
+  expect_equal(length(fit$trt), 60L)
+  expect_equal(as.numeric(fit$data.rsp@y), testData$y[sub])
+  expect_equal(as.numeric(fit$trt), testData$z[sub])
+  expect_equal(dim(fit$mu.hat.obs), c(13L, 60L))
+
+  fit <- bartc(y, z, x, data = testData, subset = sub, method.trt = "bart", method.rsp = "bcf",
+               verbose = FALSE, n.burn = 3L, n.samples = 13L, n.trees = 7L,
+               n.chains = 1L, n.threads = 1L)
   expect_equal(length(fit$trt), 60L)
   expect_equal(as.numeric(fit$data.rsp@y), testData$y[sub])
   expect_equal(as.numeric(fit$trt), testData$z[sub])

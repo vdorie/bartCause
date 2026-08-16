@@ -465,3 +465,59 @@ test_that("refit warns about ignored newresp and unknown arguments", {
   expect_warning(refit(fit, notAnArgument = 1), "called with unknown argument\\(s\\)")
 })
 
+
+test_that("the generics read a bcf fit as they read a bart one", {
+  set.seed(22)
+  bcfFit <- bartc(y, z, x, data = testData, method.trt = "glm", method.rsp = "bcf", verbose = FALSE,
+                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L)
+  n.obs <- length(testData$y)
+
+  # extract's obs/cf pair is the fit's own, and mu.0/mu.1 sort it by condition
+  expect_identical(extract(bcfFit, "mu.obs", combineChains = FALSE), bcfFit$mu.hat.obs)
+  expect_identical(extract(bcfFit, "mu.cf", combineChains = FALSE), bcfFit$mu.hat.cf)
+  mu.1 <- extract(bcfFit, "mu.1", combineChains = FALSE)
+  expect_equal(mu.1[,,bcfFit$trt == 1], bcfFit$mu.hat.obs[,,bcfFit$trt == 1])
+  expect_equal(mu.1[,,bcfFit$trt == 0], bcfFit$mu.hat.cf[,,bcfFit$trt == 0])
+  expect_equal(dim(extract(bcfFit, "icate")), c(26L, n.obs))
+  expect_equal(fitted(bcfFit, "mu.obs"), apply(bcfFit$mu.hat.obs, 3L, mean))
+
+  # sigma is stored as a matrix, so neither reshape branch fires for a bcf fit
+  expect_equal(dim(bcfFit$fit.rsp$sigma), c(2L, 13L))
+  expect_equal(extract(bcfFit, "sigma", combineChains = FALSE), bcfFit$fit.rsp$sigma)
+  expect_equal(extract(bcfFit, "sigma"), as.vector(t(bcfFit$fit.rsp$sigma)))
+
+  # cate is the mean icate over the inferential sample, chain for chain
+  expect_equal(extract(bcfFit, "cate", combineChains = FALSE),
+               bartCause:::getEstimateSamples(extract(bcfFit, "icate", combineChains = FALSE),
+                                              bcfFit$trt > 0, NULL, bcfFit$estimand, NULL, FALSE,
+                                              bcfFit$commonSup.sub))
+  expect_equal(fitted(bcfFit, "cate"), mean(extract(bcfFit, "cate")))
+
+  sfit <- summary(bcfFit)
+  expect_equal(sfit$method.rsp, "bcf")
+  expect_equal(sfit$n.samples, 13L)
+  expect_equal(sfit$n.chains, 2L)
+  expect_true(is.finite(sfit$estimates$estimate))
+
+  expect_error(predict(bcfFit, testData$x), "per-forest saved-tree replay")
+})
+
+test_that("refit recomputes bcf estimates under a new common support rule", {
+  set.seed(22)
+  fit <- bartc(y, z, x, data = testData, method.trt = "glm", method.rsp = "bcf", verbose = FALSE,
+               n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L)
+  refitted <- refit(fit, commonSup.rule = "sd")
+
+  expect_equal(refitted$commonSup.rule, "sd")
+  manualSub <- bartCause:::getCommonSupportSubset(fit$sd.obs, fit$sd.cf, "sd", 1, fit$trt,
+                                                  fit$missingRows)
+  expect_equal(refitted$commonSup.sub, manualSub)
+
+  icate <- extract(fit, "icate", combineChains = FALSE)
+  manualEst <- bartCause:::getEstimateSamples(icate, fit$trt > 0, NULL, fit$estimand, NULL, FALSE,
+                                              manualSub)
+  # the bart arm of refit is the one bcf now takes; without the widening est
+  # stays NULL and this is unreachable
+  expect_equal(refitted$est, manualEst)
+  expect_false(is.null(refitted$est))
+})

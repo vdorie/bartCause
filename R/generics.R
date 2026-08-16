@@ -99,6 +99,10 @@ predict.bartcFit <-
   predictors.rsp <- if (inherits(object$fit.rsp, "stan4bartFit")) names(object$fit.rsp$frame) else colnames(object$data.rsp@x)
   
   if (type != "p.score") {
+    ## bcf is designed to make individual predictions; what it cannot do is make
+    ## them out of sample, so it gets its own refusal rather than the one below
+    if (object$method.rsp == "bcf")
+      stop("predict(type = '", type, "', ...) is not available for method.rsp == 'bcf'; out-of-sample mu(x) and tau(x) need per-forest saved-tree replay, which dbarts does not expose")
     if (object$method.rsp != "bart")
       stop("predict(type = '", type, "', ...) requires method.rsp == 'bart'; other methods not designed to make individual predictions")
     
@@ -505,7 +509,7 @@ refit.bartcFit <- function(object, newresp = NULL,
   group.effects <- if (!is.null(object[["group.effects"]])) object[["group.effects"]] else FALSE
   group.by <- if (!is.null(object[["group.by"]])) object[["group.by"]] else NULL
   
-  if (object$method.rsp == "bart") {
+  if (object$method.rsp %in% c("bart", "bcf")) {
     samples.indiv.diff <- extract(object, type = "icate", combineChains = FALSE)
     
     object$est <- with(object,

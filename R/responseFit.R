@@ -291,6 +291,103 @@ getBartResponseFit <- function(response, treatment, confounders, parametric, dat
   result
 }
 
+## The Bayesian causal forest arm of bartc. Mirrors getBartResponseFit's
+## assembly half -- the same data/literal branch, the same two argParse
+## builders, the same subset resolution, trt, common support and y backfill --
+## and skips its test half entirely: a multi-forest sampler refuses a test
+## surface at creation, so the counterfactual comes from swapping the treatment
+## forest's amplitude instead (see R/bcf.R) and there is no missing-row
+## bookkeeping riding it.
+getBCFResponseFit <- function(response, treatment, confounders, parametric, data, subset, weights, estimand,
+                              group.by = NULL, use.ranef = TRUE,
+                              commonSup.rule, commonSup.cut, p.score, crossvalidate = FALSE,
+                              calculateEstimates = TRUE, ...)
+{
+  treatmentIsMissing    <- missing(treatment)
+  responseIsMissing     <- missing(response)
+  confoundersAreMissing <- missing(confounders)
+  dataAreMissing        <- missing(data)
+
+  matchedCall <- match.call()
+  callingEnv <- parent.frame(1L)
+
+  if (treatmentIsMissing)
+    stop("'treatment' variable must be specified")
+  if (responseIsMissing)
+    stop("'response' variable must be specified")
+  if (confoundersAreMissing)
+    stop("'confounders' variable must be specified")
+
+  if (!is.null(matchedCall[["parametric"]]))
+    stop("response method 'bcf' does not support 'parametric'; semiparametric surfaces are fit by stan4bart, which has no multi-forest form")
+  if (!is.null(matchedCall[["group.by"]]) && use.ranef)
+    stop("response method 'bcf' does not support 'group.by' with use.ranef = TRUE; grouped random effects are refused on a multi-forest sampler, so pass use.ranef = FALSE to enter the grouping factor as a fixed effect")
+  if (isTRUE(crossvalidate))
+    stop("crossvalidation is not supported for response method 'bcf'; the crossvalidation engine has no multi-forest form")
+
+  if (!is.character(estimand) || estimand[1L] %not_in% c("ate", "att", "atc"))
+    stop("estimand must be one of 'ate', 'att', or 'atc'")
+  estimand <- estimand[1L]
+
+  dbartsDataCall <- NULL; treatmentName <- NULL; missingRows <- NULL; p.scoreName <- NULL
+  if (!dataAreMissing && is.data.frame(data)) {
+    evalEnv <- NULL
+    dataCall <- addCallArgument(redirectCall(matchedCall, quoteInNamespace(getResponseDataCall)), "fn", quote(dbarts::dbartsData))
+    dataCall <- addCallDefaults(dataCall, eval(quoteInNamespace(getBCFResponseFit)))
+    massign[dbartsDataCall, evalEnv, treatmentName, missingRows, p.scoreName] <- eval(dataCall, envir = callingEnv)
+  } else {
+    df <- NULL
+    literalCall <- addCallArgument(redirectCall(matchedCall, quoteInNamespace(getResponseLiteralCall)), "fn", quote(dbarts::dbartsData))
+    literalCall <- addCallDefaults(literalCall, eval(quoteInNamespace(getBCFResponseFit)))
+
+    dataEnv <- if (dataAreMissing) callingEnv else list2env(data, parent = callingEnv)
+
+    massign[dbartsDataCall, df, treatmentName, missingRows, p.scoreName] <- eval(literalCall, envir = dataEnv)
+
+    evalEnv <- sys.frame(sys.nframe())
+  }
+
+  if (any(missingRows))
+    stop("response method 'bcf' cannot fit with missing response values; recovering them rides a counterfactual test surface, which a multi-forest sampler refuses at creation, so drop the incomplete rows or use method.rsp = 'bart'")
+
+  ## the full-length treatment, which the basis is built from before it is subset
+  responseFrame <- eval(dbartsDataCall$data, evalEnv)
+  z <- as.vector(eval(str2lang(treatmentName), responseFrame, evalEnv))
+
+  fitArgs <- list(...)
+  if (is.null(fitArgs[["n.chains"]])) fitArgs[["n.chains"]] <- 10L
+  ## the response sampler never prints under bartc, as the bart arm's
+  ## bartCall$verbose <- FALSE has it not
+  fitArgs[["verbose"]] <- FALSE
+
+  ## quote = TRUE: the data call and the matched call are language objects, and
+  ## do.call would otherwise splice them into the constructed call as code
+  fit <- do.call(fitBCF, c(list(dbartsDataCall = dbartsDataCall, evalEnv = evalEnv, z = z,
+                                treatmentName = treatmentName, p.scoreName = p.scoreName,
+                                call = matchedCall),
+                           fitArgs),
+                 quote = TRUE)
+
+  responseData <- fit$data
+  mu.hat.obs <- fit$mu.hat.obs
+  mu.hat.cf  <- fit$mu.hat.cf
+  trt <- fit$trt
+
+  ## missing responses are refused above, so every fitted row is complete; the
+  ## vector is the length of the fitted data rather than of the original frame
+  ## so that the common support cutoffs (and refit's recomputation of them) line
+  ## up with sd.obs under a subset
+  missingRows <- rep_len(FALSE, length(trt))
+
+  sd.obs <- apply(mu.hat.obs, length(dim(mu.hat.obs)), sd)
+  sd.cf  <- apply(mu.hat.cf,  length(dim(mu.hat.obs)), sd)
+
+  commonSup.sub <- getCommonSupportSubset(sd.obs, sd.cf, commonSup.rule, commonSup.cut, trt, missingRows)
+
+  namedList(fit = fit, data = responseData, mu.hat.obs, mu.hat.cf, name.trt = treatmentName, trt,
+            sd.obs, sd.cf, commonSup.sub, missingRows, est = NULL, fitPars = NULL)
+}
+
 boundValues <- function(x, bounds){
   x[x > max(bounds)] <- max(bounds)
   x[x < min(bounds)] <- min(bounds)

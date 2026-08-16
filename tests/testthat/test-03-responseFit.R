@@ -19,6 +19,78 @@ test_that("bart fit matches manual call", {
   expect_equal(bartFit$yhat.test,  bartcFit$fit$yhat.test)
 })
 
+test_that("bcf fit matches manual call", {
+  n <- length(testData$y)
+  set.seed(22)
+  bcfFit <- bartCause:::getBCFResponseFit(y, z, x, data = testData, estimand = "ate",
+                                          group.by = NULL, commonSup.rule = "none", commonSup.cut = NA,
+                                          n.chains = 1L, n.threads = 1L, n.burn = 3L, n.samples = 13L,
+                                          n.trees = 7L, seed = 5L)
+  # the literal builder assembles y ~ z + V1 + V2 + V3, so the design is
+  # (z, V1, V2, V3) and both forests are masked out of the treatment column
+  df <- with(testData, data.frame(y = y, z = z, V1 = x[,1], V2 = x[,2], V3 = x[,3]))
+  data <- dbarts::dbartsData(y ~ z + V1 + V2 + V3, data = df, subset = seq_len(n),
+                             bases = list(NULL, cbind(1 - df$z, df$z)))
+  control <- dbarts::dbartsControl(n.chains = 1L, n.threads = 1L, n.trees = 7L, n.burn = 3L,
+                                   n.samples = 13L, verbose = FALSE, updateState = FALSE,
+                                   rngSeed = 5L)
+  set.seed(22)
+  sampler <- dbarts::dbarts(data, control = control,
+                            tree.prior = dbarts::dbartsPriors$cgm(2.0, 0.95),
+                            forests = list(dbarts::forest(vars = c("V1", "V2", "V3")),
+                                           dbarts::forest(vars = c("V1", "V2", "V3"), n.trees = 50L,
+                                                          base = 0.25, power = 3, sd = 1,
+                                                          amplitude.prior.variance = 0.5,
+                                                          update.amplitude = TRUE)))
+  sampler$sampleTreesFromPrior(updateState = FALSE)
+  burn    <- sampler$run(0L, 3L, updateState = FALSE)
+  samples <- sampler$run(0L, 13L, updateState = FALSE)
+
+  expect_identical(bcfFit$fit$forests$mu, t(samples$forestFits[,1L,]))
+  expect_identical(bcfFit$fit$forests$tau, t(samples$forestFits[,2L,]))
+  expect_identical(bcfFit$mu.hat.obs, t(samples$train))
+  expect_identical(bcfFit$fit$sigma, matrix(samples$sigma, nrow = 1L))
+  expect_identical(bcfFit$fit$first.sigma, matrix(burn$sigma, nrow = 1L))
+  expect_equal(bcfFit$name.trt, "z")
+  expect_equal(as.vector(bcfFit$trt), testData$z)
+  expect_equal(bcfFit$missingRows, rep_len(FALSE, n))
+})
+
+test_that("getBCFResponseFit defaults n.chains to 10 and refuses what bcf cannot express", {
+  set.seed(22)
+  res <- bartCause:::getBCFResponseFit(y, z, x, data = testData, estimand = "ate", group.by = NULL,
+                                       commonSup.rule = "none", commonSup.cut = NA,
+                                       n.threads = 1L, n.burn = 2L, n.samples = 3L, n.trees = 3L)
+  expect_equal(dim(res$mu.hat.obs), c(10L, 3L, length(testData$y)))
+
+  expect_error(
+    bartCause:::getBCFResponseFit(y, z, x, data = testData, estimand = "ate", group.by = NULL,
+                                  commonSup.rule = "none", commonSup.cut = NA, crossvalidate = TRUE,
+                                  n.chains = 1L, n.threads = 1L, n.burn = 2L, n.samples = 3L),
+    "crossvalidation is not supported for response method 'bcf'")
+  expect_error(
+    bartCause:::getBCFResponseFit(y, z, x, parametric = x[,1L], data = testData, estimand = "ate",
+                                  commonSup.rule = "none", commonSup.cut = NA,
+                                  n.chains = 1L, n.threads = 1L, n.burn = 2L, n.samples = 3L),
+    "does not support 'parametric'")
+  expect_error(bartCause:::getBCFResponseFit(treatment = z, confounders = x, data = testData),
+               "'response' variable must be specified")
+  expect_error(bartCause:::getBCFResponseFit(y, z, x, data = testData, estimand = "bogus",
+                                             commonSup.rule = "none", commonSup.cut = NA),
+               "estimand must be one of")
+})
+
+test_that("the response builders return the resolved propensity score name", {
+  built <- bartCause:::getResponseLiteralCall(dbarts::dbartsData, testData$y, testData$z, testData$x,
+                                              p.score = testData$p.score)
+  expect_equal(built$p.score, "ps")
+  expect_equal(length(built), 5L)
+
+  withoutScore <- bartCause:::getResponseLiteralCall(dbarts::dbartsData, testData$y, testData$z,
+                                                     testData$x)
+  expect_null(withoutScore$p.score)
+})
+
 test_that("p.weight fits", {
   set.seed(22)
   testData$w <- 1 + rpois(length(testData$y), 0.5)
