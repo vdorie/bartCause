@@ -102,8 +102,13 @@ bartc <- function(
     stop("method.trt must be in '", paste0(eval(formals(bartCause::bartc)$method.trt), collapse = "', '"), "' or a fixed vector")
   }
     
-  if (is.na(p.scoreAsCovariate))
-    stop("p.scoreAsCovariate must be TRUE or FALSE")
+  if (!is.logical(p.scoreAsCovariate) || length(p.scoreAsCovariate) != 1L || is.na(p.scoreAsCovariate)) {
+    ## a numeric vector here is almost always p.score = <vector> partial-matching
+    ## this formal, since bartc() has no p.score of its own
+    hint <- if (is.numeric(p.scoreAsCovariate))
+      "; to supply propensity scores directly, use method.trt = <vector>" else ""
+    stop("p.scoreAsCovariate must be a single TRUE or FALSE", hint)
+  }
   if (method.rsp %in% c("p.weight", "tmle") && method.trt == "none")
     stop("response method '", method.rsp, "' requires propensity score estimation")
   if (method.rsp %in% c("bart", "bcf") && p.scoreAsCovariate == FALSE && method.trt != "none")

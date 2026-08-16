@@ -141,10 +141,21 @@ getResponseDataCall <- function(fn, response, treatment, confounders, parametric
       pScoreName <- "ps"
       while (pScoreName %in% names(data))
         pScoreName <- paste0(pScoreName, "ps")
-      
+
+      ## p.scoreEval is fit on the subset only (its length is length(subset), not
+      ## nrow(data)); assigning it straight into the full-length column errors when
+      ## the lengths don't divide and silently recycles/misaligns when they do
+      ## (subset can refer to 'data', so resolve it the same way bcf.R does).
+      ## Place it at the subset positions instead, mirroring getResponseLiteralCall.
+      if (!is.null(matchedCall$subset)) {
+        subsetValue <- eval(matchedCall$subset, data, evalEnv)
+        data[[pScoreName]] <- numeric(nrow(data))
+        data[[pScoreName]][subsetValue] <- p.scoreEval
+      } else {
+        data[[pScoreName]] <- p.scoreEval
+      }
+
       evalEnv <- new.env(parent = parent.frame(1L))
-      data[[pScoreName]] <- p.scoreEval
-      
       evalEnv[["data"]] <- data
       
       matchedCall$data <- quote(data) # going to redirect to a different data object
