@@ -9,6 +9,15 @@
             thanks to Joshua Bon.
     }
   }
+  \subsection{BUG-FIXES}{
+    \itemize{
+      \item \code{extract(type = "sigma")} now returns posterior draws in
+            chain-major order, matching every other extracted quantity, and
+            per-chain sigma is now correctly assigned to its own chain;
+            previously multi-chain fits interleaved chains, which also
+            mis-paired sigma with the posterior predictive draws.
+    }
+  }
 }
 \section{CHANGES IN VERSION 1.0-8}{
   \subsection{USER-VISIBLE CHANGES}{

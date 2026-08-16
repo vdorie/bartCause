@@ -43,7 +43,7 @@ test_that("combine chains works as expected", {
   mu.obs <- extract(fit, "mu.obs")
   expect_equal(as.vector(mu.obs), as.vector(aperm(fit$mu.hat.obs, c(2, 1, 3))))
   sigma <- extract(fit, "sigma")
-  expect_equal(sigma, as.vector(t(fit$fit.rsp$sigma)))
+  expect_equal(sigma, as.vector(t(matrix(fit$fit.rsp$sigma, nrow = fit$n.chains))))
 })
 
 test_that("sigma extract honors combineChains (dbarts 1.0-0 stores it pre-combined)", {
@@ -52,6 +52,20 @@ test_that("sigma extract honors combineChains (dbarts 1.0-0 stores it pre-combin
   expect_equal(dim(s.split), c(fit$n.chains, 50L))  # per-chain [n.chains, n.samples]
   expect_null(dim(s.comb))                           # combined is a flat vector
   expect_equal(as.vector(t(s.split)), as.numeric(s.comb))
+})
+
+test_that("sigma extract assigns each chain's draws to that chain (FB12)", {
+  ## Independent cross-check: dbarts's own combineChains = FALSE packaging for
+  ## the same underlying model is a direct transpose, not a combine/uncombine
+  ## round trip, so it cannot share bartCause's reshape bug either way.
+  set.seed(22)
+  bartFit.split <- dbarts::bart2(x.train, testData$y, x.test, n.samples = 50L, n.burn = 25L,
+                                  n.chains = 4L, n.threads = 1L, verbose = FALSE,
+                                  combineChains = FALSE)
+
+  sigma <- extract(fit, "sigma", combineChains = FALSE)
+  for (i in seq_len(fit$n.chains))
+    expect_equal(sigma[i,], bartFit.split$sigma[i,])
 })
 
 test_that("fitted matches manual fit", {
