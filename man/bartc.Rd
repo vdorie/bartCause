@@ -324,6 +324,10 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
                           treatment}
   \item{\code{name.trt}}{character string giving the name of the treatment
                          variable in the data of \code{fit.rsp}}
+  \item{\code{name.p.score}}{character string giving the name of the propensity
+                             score variable in the data of \code{fit.rsp}, or
+                             \code{NULL} when the response model has no
+                             propensity score column}
   \item{\code{trt}}{vector of treatment assignments}
   \item{\code{call}}{how \code{bartc} was called}
   \item{\code{n.chains}}{number of independent posterior sampler chains in 

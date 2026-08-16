@@ -24,7 +24,7 @@ getStan4BartResponseFit <- function(response, treatment, confounders, parametric
     stop("estimand must be one of 'ate', 'att', or 'atc'")
   estimand <- estimand[1L]
   
-  stan4bartCall <- NULL; treatmentName <- NULL; missingRows <- NULL
+  stan4bartCall <- NULL; treatmentName <- NULL; missingRows <- NULL; p.scoreName <- NULL
   if (!dataAreMissing && is.data.frame(data)) {
     evalEnv <- NULL
     dataCall <- addCallArgument(redirectCall(matchedCall, quoteInNamespace(getResponseDataCall)), "fn", quote(stan4bart::stan4bart))
@@ -32,7 +32,7 @@ getStan4BartResponseFit <- function(response, treatment, confounders, parametric
     dataCall$group.by <- NULL
     dataCall$use.ranef <- NULL
     
-    massign[stan4bartCall, evalEnv, treatmentName, missingRows] <- eval(dataCall, envir = callingEnv)
+    massign[stan4bartCall, evalEnv, treatmentName, missingRows, p.scoreName] <- eval(dataCall, envir = callingEnv)
   } else {
     df <- NULL
     literalCall <- addCallArgument(redirectCall(matchedCall, quoteInNamespace(getResponseLiteralCall)), "fn", quote(stan4bart::stan4bart))
@@ -42,7 +42,7 @@ getStan4BartResponseFit <- function(response, treatment, confounders, parametric
     
     dataEnv <- if (dataAreMissing) callingEnv else list2env(data, parent = callingEnv)
     
-    massign[stan4bartCall, df, treatmentName, missingRows] <- eval(literalCall, envir = dataEnv)
+    massign[stan4bartCall, df, treatmentName, missingRows, p.scoreName] <- eval(literalCall, envir = dataEnv)
     
     evalEnv <- sys.frame(sys.nframe())
   }
@@ -83,7 +83,7 @@ getStan4BartResponseFit <- function(response, treatment, confounders, parametric
   
   commonSup.sub <- getCommonSupportSubset(sd.obs, sd.cf, commonSup.rule, commonSup.cut, trt, missingRows)
   
-  result <- namedList(fit = bartFit, data = bartFit$frame, mu.hat.obs, mu.hat.cf, name.trt = treatmentName, trt, sd.obs, sd.cf, commonSup.sub, missingRows, est = NULL, fitPars = NULL)
+  result <- namedList(fit = bartFit, data = bartFit$frame, mu.hat.obs, mu.hat.cf, name.trt = treatmentName, name.p.score = p.scoreName, trt, sd.obs, sd.cf, commonSup.sub, missingRows, est = NULL, fitPars = NULL)
   
   result
 }
@@ -136,12 +136,12 @@ getBartResponseFit <- function(response, treatment, confounders, parametric, dat
     return(eval(stan4bartCall, envir = callingEnv))
   }
   
-  dbartsDataCall <- NULL; treatmentName <- NULL; missingRows <- NULL
+  dbartsDataCall <- NULL; treatmentName <- NULL; missingRows <- NULL; p.scoreName <- NULL
   if (!dataAreMissing && is.data.frame(data)) {
     evalEnv <- NULL
     dataCall <- addCallArgument(redirectCall(matchedCall, quoteInNamespace(getResponseDataCall)), "fn", quote(dbarts::dbartsData))
     dataCall <- addCallDefaults(dataCall, eval(quoteInNamespace(getBartResponseFit)))
-    massign[dbartsDataCall, evalEnv, treatmentName, missingRows] <- eval(dataCall, envir = callingEnv)
+    massign[dbartsDataCall, evalEnv, treatmentName, missingRows, p.scoreName] <- eval(dataCall, envir = callingEnv)
   } else {
     df <- NULL
     literalCall <- addCallArgument(redirectCall(matchedCall, quoteInNamespace(getResponseLiteralCall)), "fn", quote(dbarts::dbartsData))
@@ -149,7 +149,7 @@ getBartResponseFit <- function(response, treatment, confounders, parametric, dat
     
     dataEnv <- if (dataAreMissing) callingEnv else list2env(data, parent = callingEnv)
     
-    massign[dbartsDataCall, df, treatmentName, missingRows] <- eval(literalCall, envir = dataEnv)
+    massign[dbartsDataCall, df, treatmentName, missingRows, p.scoreName] <- eval(literalCall, envir = dataEnv)
     
     evalEnv <- sys.frame(sys.nframe())
   }
@@ -283,8 +283,8 @@ getBartResponseFit <- function(response, treatment, confounders, parametric, dat
   
   if (is.null(bartFit[["y"]])) bartFit[["y"]] <- responseData@y
   
-  result <- namedList(fit = bartFit, data = responseData, mu.hat.obs, mu.hat.cf, name.trt = treatmentName, trt, sd.obs, sd.cf, commonSup.sub, missingRows, est = NULL, fitPars = NULL)
-  
+  result <- namedList(fit = bartFit, data = responseData, mu.hat.obs, mu.hat.cf, name.trt = treatmentName, name.p.score = p.scoreName, trt, sd.obs, sd.cf, commonSup.sub, missingRows, est = NULL, fitPars = NULL)
+
   if (crossvalidate)
     result[["k"]] <- bartCall[["k"]]
   
@@ -384,7 +384,8 @@ getBCFResponseFit <- function(response, treatment, confounders, parametric, data
 
   commonSup.sub <- getCommonSupportSubset(sd.obs, sd.cf, commonSup.rule, commonSup.cut, trt, missingRows)
 
-  namedList(fit = fit, data = responseData, mu.hat.obs, mu.hat.cf, name.trt = treatmentName, trt,
+  namedList(fit = fit, data = responseData, mu.hat.obs, mu.hat.cf, name.trt = treatmentName,
+            name.p.score = p.scoreName, trt,
             sd.obs, sd.cf, commonSup.sub, missingRows, est = NULL, fitPars = NULL)
 }
 
@@ -496,7 +497,7 @@ getPWeightResponseFit <-
   bartCall <- redirectCall(matchedCall, quoteInNamespace(getBartResponseFit))
   bartCall$calculateEstimates <- FALSE
   
-  fit <- data <- mu.hat.obs <- mu.hat.cf <- name.trt <- trt <- sd.obs <- sd.cf <- commonSup.sub <- missingRows <- NULL
+  fit <- data <- mu.hat.obs <- mu.hat.cf <- name.trt <- name.p.score <- trt <- sd.obs <- sd.cf <- commonSup.sub <- missingRows <- NULL
   assignAll(eval(bartCall, envir = callingEnv))
   
   treatmentRows <- trt > 0
@@ -558,7 +559,7 @@ getPWeightResponseFit <-
   }
   
   namedList(fit, data, mu.hat.obs = mu.hat.obs.orig, mu.hat.cf = mu.hat.cf.orig,
-            name.trt, trt, sd.obs, sd.cf, commonSup.sub, missingRows, est,
+            name.trt, name.p.score, trt, sd.obs, sd.cf, commonSup.sub, missingRows, est,
             fitPars = namedList(yBounds, p.scoreBounds))
 }
 
@@ -779,7 +780,7 @@ getTMLEResponseFit <-
   bartCall <- redirectCall(matchedCall, quoteInNamespace(getBartResponseFit))
   bartCall$calculateEstimates <- FALSE
   
-  fit <- data <- mu.hat.obs <- mu.hat.cf <- name.trt <- trt <- sd.obs <- sd.cf <- commonSup.sub <- missingRows <- NULL
+  fit <- data <- mu.hat.obs <- mu.hat.cf <- name.trt <- name.p.score <- trt <- sd.obs <- sd.cf <- commonSup.sub <- missingRows <- NULL
   assignAll(eval(bartCall, envir = callingEnv))
   
   mu.hat.obs.orig <- mu.hat.obs
@@ -865,6 +866,6 @@ getTMLEResponseFit <-
   }
 
   namedList(fit, data , mu.hat.obs = mu.hat.obs.orig, mu.hat.cf = mu.hat.cf.orig,
-            name.trt, trt, sd.obs, sd.cf, commonSup.sub,
+            name.trt, name.p.score, trt, sd.obs, sd.cf, commonSup.sub,
             missingRows, est, fitPars = namedList(yBounds, p.scoreBounds, depsilon, maxIter))
 }

@@ -25,6 +25,13 @@
   }
   \subsection{BUG-FIXES}{
     \itemize{
+      \item \code{predict} now takes the propensity score's column name from
+            the fit instead of re-deriving it from the response model's
+            predictor names. A confounder whose name began with the score's
+            own (e.g. a confounder \code{psps} against a score \code{ps})
+            could be resolved as the score, in which case predicted scores
+            were written over that confounder's values and the real score
+            column was left as supplied.
       \item \code{extract(type = "sigma")} now returns posterior draws in
             chain-major order, matching every other extracted quantity, and
             per-chain sigma is now correctly assigned to its own chain;

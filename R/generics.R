@@ -96,8 +96,6 @@ predict.bartcFit <-
     stop("type must be in '", paste0(eval(formals(predict.bartcFit)$type), collapse = "', '"), "'")
   type <- type[1L]
 
-  predictors.rsp <- if (inherits(object$fit.rsp, "stan4bartFit")) names(object$fit.rsp$frame) else colnames(object$data.rsp@x)
-  
   if (type != "p.score") {
     ## bcf is designed to make individual predictions; what it cannot do is make
     ## them out of sample, so it gets its own refusal rather than the one below
@@ -111,11 +109,14 @@ predict.bartcFit <-
     if (!inherits(object$fit.rsp, "stan4bartFit") && is.null(object$fit.rsp$fit))
       stop("predict with method.rsp = 'bart' requires response model to be fit with keepTrees == TRUE")
     
-    p.scoreName <- "ps"
-    while (any(startsWith(predictors.rsp, p.scoreName)) &&
-           paste0(p.scoreName, "ps") %in% predictors.rsp) p.scoreName <- paste0(p.scoreName, "ps")
-    
-    p.scoreAsCovariate <- !is.null(object$p.score) && p.scoreName %in% predictors.rsp
+    ## the column the response fitter put the score in, taken from the fit
+    ## rather than re-derived: a name ladder over the design columns cannot
+    ## tell the score from a confounder sharing its stem (a confounder "psps"
+    ## against a score "ps" resolved to "psps", and the score was then written
+    ## over the confounder). It is NULL exactly when the response model has no
+    ## score column, which is what the membership test used to stand in for.
+    p.scoreName <- object$name.p.score
+    p.scoreAsCovariate <- !is.null(object$p.score) && !is.null(p.scoreName)
     if (p.scoreAsCovariate && object$method.trt == "given")
       stop("predict requires fitting propensity scores to use in response model, however no treatment model exists");
   }

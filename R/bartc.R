@@ -175,14 +175,18 @@ bartc <- function(
   
   if (verbose) cat("fitting response model via method '", method.rsp, "'\n", sep = "")
   
-  fit <- data <- mu.hat.obs <- mu.hat.cf <- name.trt <- trt <- sd.obs <-
+  fit <- data <- mu.hat.obs <- mu.hat.cf <- name.trt <- name.p.score <- trt <- sd.obs <-
     sd.cf <- commonSup.sub <- missingRows <- est <- fitPars <- NULL
   assignAll(eval(responseCall, envir = evalEnv))
-  
+
+  ## name.p.score is the design column the response fitter actually put the
+  ## propensity score in, carried out the same way name.trt is: predict must
+  ## not re-derive it, since no rule over the column names can tell the score
+  ## from a confounder whose own name starts with the score's stem
   result <- namedList(fit.rsp = fit, data.rsp = data, fit.trt, mu.hat.obs, mu.hat.cf, p.score, samples.p.score,
                       method.rsp, method.trt, estimand,
                       commonSup.rule, commonSup.cut,
-                      name.trt, trt,
+                      name.trt, name.p.score, trt,
                       sd.obs, sd.cf, commonSup.sub, missingRows, est, fitPars,
                       call = givenCall)
   if (!is.null(matchedCall[["group.by"]])) {

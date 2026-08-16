@@ -215,5 +215,49 @@ test_that("predict enforces method/keepTrees preconditions", {
   expect_error(predict(fit.none, x.new, type = "not-a-type"), "type must be in")
 })
 
-rm(testData, n.train, x, y, z, g, n.samples, n.chains, x.new, n.test)
+test_that("predict resolves the propensity score column from the fit, not by name", {
+  # A confounder named to defeat the old name ladder: the response builders take
+  # "ps" for the score, since "ps" is free, while a ladder that walks the design
+  # names by stem lands on the confounder "psps" instead. Without the recorded
+  # name, predict wrote the predicted scores over the confounder's column, and
+  # the real score column never received them.
+  x.collide <- x
+  colnames(x.collide) <- c("psps", "x2", "x3")
 
+  set.seed(22)
+  fit <- bartc(y, z, x.collide, method.trt = "bart", method.rsp = "bart",
+               n.chains = 2L, n.threads = 1L, n.burn = 3L, n.samples = 7L, n.trees = 13L,
+               keepTrees = TRUE, verbose = FALSE)
+
+  # the design carries both columns, and only one of them is the score
+  expect_true(all(c("psps", "ps") %in% colnames(fit$data.rsp@x)))
+  expect_equal(fit$name.p.score, "ps")
+
+  # the ladder predict used to run, verbatim, resolves the confounder instead
+  ladderName <- "ps"
+  predictors.rsp <- colnames(fit$data.rsp@x)
+  while (any(startsWith(predictors.rsp, ladderName)) &&
+         paste0(ladderName, "ps") %in% predictors.rsp) ladderName <- paste0(ladderName, "ps")
+  expect_equal(ladderName, "psps")
+  expect_false(identical(ladderName, fit$name.p.score))
+
+  newdata <- as.data.frame(x.collide[seq_len(5L),])
+  scores  <- apply(predict(fit, newdata, type = "p.score", combineChains = FALSE), 3L, mean)
+
+  # what predict must be doing: install the scores in the score's own column and
+  # leave the confounder alone
+  correct <- newdata
+  correct[[fit$name.p.score]] <- scores
+  correct[[fit$name.trt]] <- 1
+  expect_equal(predict(fit, newdata, type = "mu.1", combineChains = FALSE),
+               predict(fit$fit.rsp, correct, combineChains = FALSE))
+
+  # and the placement is observable: writing the scores over the confounder as
+  # well moves the prediction, so the assertion above can fail
+  destroyed <- correct
+  destroyed[["psps"]] <- scores
+  expect_false(isTRUE(all.equal(predict(fit$fit.rsp, correct, combineChains = FALSE),
+                                predict(fit$fit.rsp, destroyed, combineChains = FALSE))))
+})
+
+rm(testData, n.train, x, y, z, g, n.samples, n.chains, x.new, n.test)
