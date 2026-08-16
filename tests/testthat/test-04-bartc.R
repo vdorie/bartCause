@@ -249,7 +249,7 @@ test_that("bartc runs with missing data for method tmle", {
   options(warn = oldWarn)
 })
 
-test_that("bartc runs the bcf response method at one and two chains", {
+test_that("bartc runs the bcf response method at one and two chains (FB6)", {
   n.obs <- length(testData$y)
 
   fit <- bartc(y, z, x, data = testData, method.trt = "glm", method.rsp = "bcf", verbose = FALSE,
@@ -273,7 +273,7 @@ test_that("bartc runs the bcf response method at one and two chains", {
   expect_gt(sum(fit$fit.rsp$varcount$mu[,,"ps"]), 0)
 })
 
-test_that("bartc refuses crossvalidation for the bcf response method", {
+test_that("bartc refuses crossvalidation for the bcf response method (FB3)", {
   expect_error(bartc(y, z, x, data = testData, method.rsp = "bcf", crossvalidate = TRUE,
                      verbose = FALSE, n.burn = 3L, n.samples = 13L, n.trees = 7L,
                      n.chains = 1L, n.threads = 1L),

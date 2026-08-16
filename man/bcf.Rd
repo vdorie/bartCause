@@ -263,6 +263,14 @@ bcf(formula, data, subset, weights, offset,
   \item{\code{response.scale}, \code{response.shift}}{the linear map from the
                      internal scale to the response scale}
   \item{\code{data}}{the \code{\link[dbarts]{dbartsData}} object fit}
+  \item{\code{n.trees}}{tree counts, one per forest, named as \code{forests} is}
+  \item{\code{n.chains}, \code{n.samples}, \code{n.burn}}{chains run, posterior
+                     draws kept per chain, and burn-in iterations discarded}
+  \item{\code{n.obs}}{observations fit, after any \code{subset}}
+  \item{\code{combineChains}}{the value passed to \code{bcf}, which the
+                     accessors take as their default}
+  \item{\code{call}}{the matched call, or the response fitter's when the fit
+                     came from \code{bartc}}
   \item{\code{fit}}{the sampler, only under \code{keepSampler = TRUE}}
 }
 \author{

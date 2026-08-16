@@ -466,7 +466,7 @@ test_that("refit warns about ignored newresp and unknown arguments", {
 })
 
 
-test_that("the generics read a bcf fit as they read a bart one", {
+test_that("the generics read a bcf fit as they read a bart one (FB6)", {
   set.seed(22)
   bcfFit <- bartc(y, z, x, data = testData, method.trt = "glm", method.rsp = "bcf", verbose = FALSE,
                   n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L)
@@ -499,10 +499,14 @@ test_that("the generics read a bcf fit as they read a bart one", {
   expect_equal(sfit$n.chains, 2L)
   expect_true(is.finite(sfit$estimates$estimate))
 
+  pdf(NULL)
+  on.exit(dev.off(), add = TRUE)
+  expect_silent(plot_indiv(bcfFit))
+
   expect_error(predict(bcfFit, testData$x), "per-forest saved-tree replay")
 })
 
-test_that("refit recomputes bcf estimates under a new common support rule", {
+test_that("refit recomputes bcf estimates under a new common support rule (FB8)", {
   set.seed(22)
   fit <- bartc(y, z, x, data = testData, method.trt = "glm", method.rsp = "bcf", verbose = FALSE,
                n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L)
