@@ -19,7 +19,7 @@ handBCFSampler <- function(frame, n.trees = 20L, n.trees.treatment = 10L,
   if (is.null(tauVars)) tauVars <- setdiff(colnames(data@x), "z")
   control <- dbarts::dbartsControl(n.chains = n.chains, n.threads = 1L, n.trees = n.trees,
                                    n.burn = 5L, n.samples = 7L, verbose = FALSE,
-                                   updateState = FALSE, rngSeed = rngSeed)
+                                   updateState = FALSE, seed = rngSeed)
   dbarts::dbarts(data, control = control, tree.prior = dbarts::dbartsPriors$cgm(2.0, 0.95),
                  forests = list(dbarts::forest(vars = muVars),
                                 dbarts::forest(vars = tauVars, n.trees = n.trees.treatment,

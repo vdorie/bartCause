@@ -206,7 +206,7 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
                       n.trees = coerceOrError(n.trees, "integer")[1L],
                       n.burn = n.burn, n.samples = n.samples,
                       verbose = as.logical(verbose)[1L],
-                      updateState = FALSE, rngSeed = coerceOrError(seed, "integer")[1L])
+                      updateState = FALSE, seed = coerceOrError(seed, "integer")[1L])
   extraControl <- extraArgs[names(extraArgs) %in% controlFormals &
                             names(extraArgs) %not_in% names(controlArgs)]
   control <- do.call(dbarts::dbartsControl, c(controlArgs, extraControl))

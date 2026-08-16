@@ -33,7 +33,7 @@ test_that("bcf fit matches manual call", {
                              bases = list(NULL, cbind(1 - df$z, df$z)))
   control <- dbarts::dbartsControl(n.chains = 1L, n.threads = 1L, n.trees = 7L, n.burn = 3L,
                                    n.samples = 13L, verbose = FALSE, updateState = FALSE,
-                                   rngSeed = 5L)
+                                   seed = 5L)
   set.seed(22)
   sampler <- dbarts::dbarts(data, control = control,
                             tree.prior = dbarts::dbartsPriors$cgm(2.0, 0.95),
