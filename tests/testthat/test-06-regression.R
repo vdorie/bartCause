@@ -49,7 +49,7 @@ test_that("bart w/TMLE matches old", {
     # snapshot refreshed for dbarts 1.0-0 (bart p.score draws shifted); sane,
     # finite, positive estimate (true tau ~ 0.27). Only the installed tmle
     # branch (2.1.x) was regenerated; older-tmle branches below are historical.
-    expect_equal(fitted(fit, "pate"), 0.50402744431802)
+    expect_equal(fitted(fit, "pate"), 0.44963899452561451)
   } else if (tmle_version >= "2.0.1") {
     expect_equal(fitted(fit, "pate"), 0.445429512755897)
   } else if (tmle_version >= "1.5.0") {
