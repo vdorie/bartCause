@@ -27,24 +27,12 @@ optimizeBARTCall <- function(bartCall, env, kRange = NULL)
   xbartCall[["n.chains"]] <- NULL
   xbartCall[[1L]] <- quote(dbarts::xbart)
   
-  argsToMove <- names(xbartCall) != "" & names(xbartCall) %not_in% names(formals(dbarts::xbart)) & names(xbartCall) %in% names(formals(dbarts::dbartsControl))
-  if (any(argsToMove)) {
-    control <- if (!is.null(xbartCall[["control"]])) xbartCall[["control"]] else quote(dbarts::dbartsControl())
-    if (is.call(control)) {
-      for (argName in names(xbartCall)[argsToMove]) {
-        control[[argName]] <- xbartCall[[argName]]
-        xbartCall[[argName]] <- NULL
-      }
-    } else if (inherits(control, "dbartsControl")) {
-      for (argName in names(xbartCall)[argsToMove]) {
-        slot(control, argName) <- eval(xbartCall[[argName]], env)
-        xbartCall[[argName]] <- NULL
-      }
-    } else {
-      stop("unrecognized control object supplied")
-    }
-    xbartCall[["control"]] <- control
-  }
+  # xbart has no dots and no control argument, so any named argument that
+  # isn't one of its formals (e.g. keepTrainingFits, keepTrees, updateState,
+  # printEvery, printCutoffs, carried over from the enclosing bart2-style
+  # call) has to be dropped rather than moved into a control object
+  argsToDrop <- names(xbartCall) != "" & names(xbartCall) %not_in% names(formals(dbarts::xbart))
+  if (any(argsToDrop)) xbartCall <- xbartCall[!argsToDrop]
   
   wrapper <- function(k) {
     xbartCall[["k"]] <- diff(kRange) * k + min(kRange)
