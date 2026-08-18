@@ -15,9 +15,9 @@ test_that("bart on p.score matches old", {
   fit <- bartc(y, z, x, data = testData,
                method.rsp = "bart", method.trt = "bart", estimand = "att", verbose = FALSE,
                n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L, n.trees = 5L, n.reps = 5L)
-  # snapshot refreshed for dbarts 1.0-0 (bart p.score draws shifted); sign/magnitude
-  # sane: near 0 for this noise-dominated 5-tree/5-sample fit (true tau ~ 0.27)
-  expect_equal(fitted(fit, "cate"), -0.0556900295725059)
+  # snapshot refreshed for dbarts 8e1e674c (prior-tree-init draw shift); sane
+  # estimate for this noise-dominated 5-tree/5-sample fit (true tau ~ 0.27)
+  expect_equal(fitted(fit, "cate"), 0.464286360120866)
 })
 
 test_that("bart w/p.weighting matches old", {
@@ -25,9 +25,9 @@ test_that("bart w/p.weighting matches old", {
   fit <- bartc(y, z, x, data = testData,
                method.rsp = "p.weight", method.trt = "bart", estimand = "att", verbose = FALSE,
                n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L, n.trees = 5L, n.reps = 5L)
-  # snapshot refreshed for dbarts 1.0-0 (bart p.score draws shifted); sane near-0
+  # snapshot refreshed for dbarts 8e1e674c (prior-tree-init draw shift); sane
   # estimate for this noise-dominated fit (true tau ~ 0.27)
-  expect_equal(fitted(fit, "pate"), -0.0533386799212719)
+  expect_equal(fitted(fit, "pate"), 0.452295264908141)
 })
 
 test_that("bart w/TMLE matches old", {
@@ -46,10 +46,11 @@ test_that("bart w/TMLE matches old", {
 
   tmle_version <- packageVersion("tmle")
   if (tmle_version >= "2.1") {
-    # snapshot refreshed for dbarts 1.0-0 (bart p.score draws shifted); sane,
-    # finite, positive estimate (true tau ~ 0.27). Only the installed tmle
-    # branch (2.1.x) was regenerated; older-tmle branches below are historical.
-    expect_equal(fitted(fit, "pate"), 0.44963899452561451)
+    # snapshot refreshed for dbarts 8e1e674c (prior-tree-init draw shift);
+    # finite estimate for this noise-dominated fit (true tau ~ 0.27). Only the
+    # installed tmle branch (2.1.x) was regenerated; older-tmle branches below
+    # are historical.
+    expect_equal(fitted(fit, "pate"), -0.12495456896179358)
   } else if (tmle_version >= "2.0.1") {
     expect_equal(fitted(fit, "pate"), 0.445429512755897)
   } else if (tmle_version >= "1.5.0") {
