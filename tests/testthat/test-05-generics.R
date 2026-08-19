@@ -43,7 +43,11 @@ test_that("combine chains works as expected", {
   mu.obs <- extract(fit, "mu.obs")
   expect_equal(as.vector(mu.obs), as.vector(aperm(fit$mu.hat.obs, c(2, 1, 3))))
   sigma <- extract(fit, "sigma")
-  expect_equal(sigma, as.vector(t(matrix(fit$fit.rsp$sigma, nrow = fit$n.chains))))
+  # dbarts stores the combined sigma chain-major (chain 1's whole run, then
+  # chain 2's, ...); uncombine to [n.chains, n.samples] and recombine to
+  # cross-check extract()'s pipeline independently
+  sigma.mat <- t(matrix(fit$fit.rsp$sigma, ncol = fit$n.chains))
+  expect_equal(sigma, combineChains(sigma.mat, fit$n.chains))
 })
 
 test_that("sigma extract honors combineChains (dbarts 1.0-0 stores it pre-combined)", {

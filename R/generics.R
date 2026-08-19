@@ -330,13 +330,14 @@ extract.bartcFit <-
       if (inherits(object$fit.rsp, "stan4bartFit")) {
         t(extract(object$fit.rsp, "sigma", combine_chains = FALSE))
       } else {
-        ## dbarts 1.0-0 returns sigma pre-combined as a length n.chains*n.samples,
-        ## sample-major vector (all chains' first draw, then all chains' second
-        ## draw, ...); reshape to [n.chains, n.samples] (the default column-major
-        ## fill matches this layout) so combineChains = FALSE yields per-chain
-        ## draws and = TRUE recombines to chain-major order
+        ## dbarts returns sigma pre-combined as a length n.chains*n.samples,
+        ## chain-major vector (chain 1's whole run, then chain 2's, ...);
+        ## reshape to [n.chains, n.samples] by filling column-major with
+        ## n.samples rows (each column is one chain's contiguous block) and
+        ## transposing, so combineChains = FALSE yields per-chain draws and
+        ## = TRUE recombines to the original chain-major order
         s <- object$fit.rsp$sigma
-        if (is.null(dim(s)) && n.chains > 1L) matrix(s, nrow = n.chains) else s
+        if (is.null(dim(s)) && n.chains > 1L) t(matrix(s, ncol = n.chains)) else s
       }
     return(if (combineChains) combineChains(sigma, n.chains) else sigma)
   }

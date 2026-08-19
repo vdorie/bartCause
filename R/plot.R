@@ -11,15 +11,16 @@ plot_sigma <- function(x, main = "Traceplot sigma", xlab = "iteration", ylab = "
   } else {
     warmup.sigma <- x$fit.rsp$first.sigma
     sample.sigma <- x$fit.rsp$sigma
-    ## dbarts 1.0-0 stores sigma/first.sigma as flat, sample-major vectors even
-    ## when n.chains > 1 (all chains' first draw, then all chains' second draw,
-    ## ...); reshape into a [n.chains, n.samples] matrix (the default
-    ## column-major fill matches this layout) so the multi-chain branch below
-    ## overlays one trace per chain instead of concatenating all chains into a
-    ## single, burn-in-line-misplaced trace
+    ## dbarts stores sigma/first.sigma as flat, chain-major vectors when
+    ## n.chains > 1 (chain 1's whole run, then chain 2's, ...); reshape into
+    ## a [n.chains, n.samples] matrix by filling column-major with n.samples
+    ## rows (each column is one chain's contiguous block) and transposing,
+    ## so the multi-chain branch below overlays one trace per chain instead
+    ## of concatenating all chains into a single, burn-in-line-misplaced
+    ## trace
     if (is.null(dim(sample.sigma)) && x$n.chains > 1L) {
-      warmup.sigma <- matrix(warmup.sigma, nrow = x$n.chains)
-      sample.sigma <- matrix(sample.sigma, nrow = x$n.chains)
+      warmup.sigma <- t(matrix(warmup.sigma, ncol = x$n.chains))
+      sample.sigma <- t(matrix(sample.sigma, ncol = x$n.chains))
     }
   }
   

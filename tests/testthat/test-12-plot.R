@@ -28,8 +28,8 @@ test_that("plot methods run against a dbartsMixedMatrix design matrix", {
 })
 
 test_that("plot_sigma overlays one trace per chain (dbarts 1.0-0 flattens sigma/first.sigma)", {
-  ## Regression test: dbarts 1.0-0 stores fit.rsp$sigma/$first.sigma as flat,
-  ## sample-major vectors when n.chains > 1 (no per-chain matrix), so the
+  ## Regression test: dbarts stores fit.rsp$sigma/$first.sigma as flat,
+  ## chain-major vectors when n.chains > 1 (no per-chain matrix), so the
   ## un-reshaped is.null(dim(.)) check used to always take the single-trace
   ## branch: the burn-in marker landed at n.chains*n.burn and all chains were
   ## concatenated into one line instead of overlaid.
@@ -51,8 +51,8 @@ test_that("plot_sigma overlays one trace per chain (dbarts 1.0-0 flattens sigma/
   expect_equal(captured$abline$v, n.burn)
   expect_equal(length(captured$lines), n.chains)
 
-  sigma.mat <- matrix(fit$fit.rsp$sigma, nrow = n.chains)
-  warmup.mat <- matrix(fit$fit.rsp$first.sigma, nrow = n.chains)
+  sigma.mat <- t(matrix(fit$fit.rsp$sigma, ncol = n.chains))
+  warmup.mat <- t(matrix(fit$fit.rsp$first.sigma, ncol = n.chains))
   full <- cbind(warmup.mat, sigma.mat)
   for (i in seq_len(n.chains))
     expect_equal(captured$lines[[i]][[2L]], full[i, ])
