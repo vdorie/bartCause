@@ -13,8 +13,9 @@ handBCFSampler <- function(frame, n.trees = 20L, n.trees.treatment = 10L,
 {
   rhs <- paste0(c("x1", "x2", "x3", extraColumns, "z"), collapse = " + ")
   formula <- eval(str2lang(paste0("y ~ ", rhs)))
+  ## the basis covers the frame before 'subset', which dbarts restricts it with
   data <- dbarts::dbartsData(formula, data = frame, subset = subset,
-                             bases = list(NULL, cbind(1 - frame$z, frame$z)[subset,,drop = FALSE]))
+                             bases = list(NULL, cbind(1 - frame$z, frame$z)))
   if (is.null(muVars))  muVars  <- setdiff(colnames(data@x), "z")
   if (is.null(tauVars)) tauVars <- setdiff(colnames(data@x), "z")
   control <- dbarts::dbartsControl(n.chains = n.chains, n.threads = 1L, n.trees = n.trees,
@@ -178,7 +179,7 @@ test_that("the treatment and the propensity score are masked out by forest (FB2)
   expect_gt(sum(unmasked$varcount[5L,1L,,]), 0)
 })
 
-test_that("every subset kind reaches the same fit, and a full-length basis is refused (FB11)", {
+test_that("every subset kind reaches the same fit, and the basis covers the full data (FB11)", {
   namedFrame <- linearFrame
   rownames(namedFrame) <- paste0("r", seq_len(n.obs))
   keep <- seq_len(60L)
@@ -217,12 +218,18 @@ test_that("every subset kind reaches the same fit, and a full-length basis is re
                      n.threads = 1L, verbose = FALSE)
   expect_equal(length(onSupport$trt), sum(cut$commonSup.sub))
 
-  ## negative half: a full-length basis on the formula path is refused loudly
+  ## the basis contract bcf() hands its treatment basis over under: one covering
+  ## the data before 'subset' is restricted to the kept rows, and one already at
+  ## the kept-row count is refused loudly rather than aligned by position
+  aligned <- dbarts::dbartsData(y ~ x1 + x2 + x3 + z, data = namedFrame, subset = keep,
+                                bases = list(NULL, cbind(1 - namedFrame$z, namedFrame$z)))
+  expect_equal(as.vector(aligned@bases[[2L]][, 2L]), as.numeric(namedFrame$z[keep]))
   expect_error(
     dbarts::dbartsData(y ~ x1 + x2 + x3 + z, data = namedFrame, subset = keep,
-                       bases = list(NULL, cbind(1 - namedFrame$z, namedFrame$z))),
-    "length of 'bases' must equal length of 'y'")
-  ## and a subset that loses an arm is refused by name
+                       bases = list(NULL, cbind(1 - namedFrame$z[keep], namedFrame$z[keep]))),
+    paste0("matching 'subset' (", length(keep), ") but not the full data (", n.obs, " rows)"),
+    fixed = TRUE)
+  ## a subset that loses an arm is refused by name
   expect_error(fitBy(which(namedFrame$z == 1)), "treatment arm with no observations")
   expect_error(fitBy(c("r1", "nope")), "names rows not present in the data")
 })

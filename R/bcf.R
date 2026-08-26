@@ -18,9 +18,9 @@
 bcfForestNames <- c("mu", "tau")
 
 ## Normalize a subset to positive integer positions. All four kinds reach the
-## bart path, but the treatment basis is built from a bare vector and so carries
-## positional row names; a character subset has to be resolved against the frame
-## it addresses before it can index the basis.
+## bart path, but the treatment arrives as a bare vector carrying no row names;
+## a character subset has to be resolved against the frame it addresses before
+## it can index that vector.
 normalizeBCFSubset <- function(subset, n, rowNames)
 {
   if (is.null(subset)) return(seq_len(n))
@@ -104,9 +104,9 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
   n.chains  <- coerceOrError(n.chains,  "integer")[1L]
   n.threads <- coerceOrError(n.threads, "integer")[1L]
 
-  ## the two interfaces treat a forest basis differently: the formula branch
-  ## checks it against the rows that survived the model frame, so it has to
-  ## arrive pre-subset, while the x/y branch subsets it itself
+  ## which interface the data call names: it decides where the row names come
+  ## from, where the response is read for the missing-value refusal, and whether
+  ## the formula needs the fit environment bound into it
   formulaArgument <- dbartsDataCall[[2L]]
   usesFormula <- is.call(formulaArgument) && identical(formulaArgument[[1L]], quote(`~`))
 
@@ -117,7 +117,9 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
     else NULL
 
   ## resolve the subset one line before the data object is built, as the bart
-  ## fitter does, and normalize it so the basis can be indexed by it
+  ## fitter does, and normalize it to row positions: it indexes the bare
+  ## treatment vector here, and dbarts reads it as an ordinary row subscript
+  ## when it restricts the basis, which a character subset would not survive
   subsetExpr <- dbartsDataCall$subset
   subsetValue <-
     if (is.null(subsetExpr)) NULL
@@ -134,14 +136,16 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
          "; a treatment arm with no observations is an all-zero basis column, which fits ",
          "with an amplitude nothing identifies")
 
-  ## the basis is built from the FULL-LENGTH treatment and then subset: built
-  ## from the subset it errors as soon as an arm is lost. The column order is
-  ## (1 - z, z), which is model.matrix(~ factor(z) - 1)'s and the order the
-  ## run's glue channel stacks (a, b.0, b.1) in
+  ## the basis is built from the FULL-LENGTH treatment and handed over at that
+  ## length: both interfaces check a forest basis against the data before
+  ## 'subset' and restrict it to the kept rows themselves, and one arriving
+  ## already at the kept-row count is refused. The column order is (1 - z, z),
+  ## which is model.matrix(~ factor(z) - 1)'s and the order the run's glue
+  ## channel stacks (a, b.0, b.1) in
   basis <- cbind(1 - z, z)
 
   fitEnv <- new.env(parent = evalEnv)
-  fitEnv[["bcf.bases"]] <- list(NULL, if (usesFormula) basis[subset, , drop = FALSE] else basis)
+  fitEnv[["bcf.bases"]] <- list(NULL, basis)
   fitEnv[["bcf.subset"]] <- subset
   dbartsDataCall$bases  <- quote(bcf.bases)
   dbartsDataCall$subset <- quote(bcf.subset)
