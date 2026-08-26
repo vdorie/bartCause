@@ -159,7 +159,7 @@ predict.bartcFit <-
       if (!is.null(object[["group.by"]])) {
         if (use.ranef) {
           # uses rbart
-          p.score <- predict(object$fit.trt, x.new, group.by, combineChains = FALSE, ...)
+          p.score <- predict(object$fit.trt, x.new, group.by = group.by, combineChains = FALSE, ...)
         } else {
           # uses base bart
           x.new.g <- x.new
@@ -190,7 +190,7 @@ predict.bartcFit <-
     
   if (!is.null(object$group.by)) {
     if (use.ranef) {
-      predictArgs <- list(object$fit.rsp, x.new, group.by, combineChains = FALSE, ...)
+      predictArgs <- list(object$fit.rsp, x.new, group.by = group.by, combineChains = FALSE, ...)
     } else {
       x.new.g <- x.new
       varNames <- attr(object$fit.rsp$fit$data@x, "term.labels")
