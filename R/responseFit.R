@@ -74,8 +74,8 @@ getStan4BartResponseFit <- function(response, treatment, confounders, parametric
   stan4bartCall$verbose <- -1L
   stan4bartCall <- addCallArguments(stan4bartCall, extraArgs)
 
-  if (is.null(stan4bartCall[["chains"]])) stan4bartCall[["chains"]] <- 10L
-  
+  stan4bartCall <- addStan4BartSamplingArguments(stan4bartCall, matchedCall, callingEnv)
+
   bartFit <- eval(stan4bartCall, envir = evalEnv)
   
   trt <- bartFit$frame[[treatmentName]]

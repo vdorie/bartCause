@@ -144,3 +144,65 @@ test_that("refit works with common support", {
 })
 
 
+test_that("dbarts sampling arguments reach stan4bart", {
+  skip_if_not_installed("stan4bart")
+  
+  fit <- bartc(y, z, X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10,
+               group.by = g.1, data = test.df, verbose = FALSE, seed = 0,
+               n.samples = 7L, n.burn = 3L, n.chains = 2L, n.trees = 5L, k = 2.5)
+  
+  for (component in list(fit$fit.rsp, fit$fit.trt)) {
+    expect_true(inherits(component, "stan4bartFit"))
+    # stan4bart's iter includes the warmup that dbarts' n.samples excludes
+    expect_equal(component$call$iter, 10L)
+    expect_equal(component$call$warmup, 3L)
+    expect_equal(component$call$chains, 2L)
+    expect_equal(component$call$bart_args, quote(list(n.trees = 5L, k = 2.5)))
+    expect_equal(dim(component$stan)[2L:3L], c(7L, 2L))
+  }
+  expect_equal(dim(fit$mu.hat.obs), c(2L, 7L, nrow(test.df)))
+  
+  # arguments written in stan4bart's own vocabulary win over the mapping
+  fit <- bartc(y, z, X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10,
+               group.by = g.1, data = test.df, verbose = FALSE, seed = 0,
+               n.samples = 7L, n.burn = 3L, n.chains = 2L, n.trees = 5L,
+               iter = 12L, warmup = 4L, chains = 3L, bart_args = list(n.trees = 6L))
+  
+  expect_equal(fit$fit.rsp$call$iter, 12L)
+  expect_equal(fit$fit.rsp$call$warmup, 4L)
+  expect_equal(fit$fit.rsp$call$chains, 3L)
+  expect_equal(fit$fit.rsp$call$bart_args, quote(list(n.trees = 6L)))
+  expect_equal(dim(fit$mu.hat.obs), c(3L, 8L, nrow(test.df)))
+})
+
+test_that("stan4bart runs chains in parallel only when the cluster is repaid", {
+  mapArgs <- function(...)
+    bartCause:::addStan4BartSamplingArguments(
+      quote(stan4bart::stan4bart(y ~ bart(x))),
+      as.call(c(list(quote(f)), list(...))),
+      environment())
+  
+  # bartCause's own default chain count and dbarts' default sample counts
+  default <- mapArgs()
+  expect_equal(default[["chains"]], 10L)
+  expect_equal(default[["iter"]], 1000L)
+  expect_equal(default[["warmup"]], 500L)
+  
+  small <- mapArgs(n.samples = 100L, n.burn = 100L, n.chains = 4L, n.threads = 4L)
+  expect_equal(small[["iter"]], 200L)
+  expect_equal(small[["chains"]], 4L)
+  expect_null(small[["cores"]])
+  
+  large <- mapArgs(n.samples = 500L, n.burn = 500L, n.chains = 4L, n.threads = 4L)
+  expect_equal(large[["cores"]], 4L)
+  # a clustered fit is seeded so that it stays reproducible under set.seed
+  expect_true(is.integer(large[["seed"]]))
+  
+  expect_null(mapArgs(n.samples = 500L, n.burn = 500L, n.chains = 4L,
+                      n.threads = 1L)[["cores"]])
+  expect_null(mapArgs(n.samples = 500L, n.burn = 500L, n.chains = 1L,
+                      n.threads = 4L)[["cores"]])
+  
+  # n.thin is stan4bart's skip: transitions per kept draw, draws unchanged
+  expect_equal(mapArgs(n.samples = 10L, n.burn = 5L, n.thin = 3L)[["skip"]], 3L)
+})

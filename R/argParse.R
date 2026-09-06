@@ -455,3 +455,76 @@ getResponseLiteralCall <- function(fn, response, treatment, confounders, paramet
        p.score = if (is.null(matchedCall$p.score)) NULL else pScoreName)
 }
 
+## dbarts and stan4bart name their sampling controls differently, and stan4bart
+## takes no '...', so an argument left untranslated here is dropped by the call
+## builders and the fit quietly runs stan4bart's own defaults - on the bartCause
+## defaults, about five times the work that was asked for. 'args' is the
+## fitter's matched call, read for the dbarts spellings; anything already
+## written in stan4bart's own vocabulary came from the caller and wins.
+addStan4BartSamplingArguments <- function(call, args, env, defaultChains = 10L)
+{
+  argNames <- names(args)
+  getArg <- function(name)
+    if (name %in% argNames) eval(args[[name]], env) else NULL
+  
+  n.samples <- getArg("n.samples")
+  n.burn    <- getArg("n.burn")
+  n.chains  <- getArg("n.chains")
+  
+  if (is.null(call[["chains"]]))
+    call[["chains"]] <- if (!is.null(n.chains)) as.integer(n.chains) else defaultChains
+  
+  ## stan4bart's 'iter' counts the warmup draws that dbarts' 'n.samples' excludes
+  if (is.null(call[["iter"]])) {
+    if (is.null(n.samples)) n.samples <- eval(formals(dbarts::bart2)$n.samples)
+    if (is.null(n.burn))    n.burn    <- eval(formals(dbarts::bart2)$n.burn)
+    
+    call[["iter"]] <- as.integer(n.samples) + as.integer(n.burn)
+    if (is.null(call[["warmup"]])) call[["warmup"]] <- as.integer(n.burn)
+  } else if (is.null(call[["warmup"]]) && !is.null(n.burn)) {
+    call[["warmup"]] <- as.integer(n.burn)
+  }
+  
+  ## 'skip' is dbarts' 'n.thin' for both blocks - that many transitions per kept
+  ## draw, leaving the number of draws returned alone
+  n.thin <- getArg("n.thin")
+  if (is.null(call[["skip"]]) && !is.null(n.thin))
+    call[["skip"]] <- as.integer(n.thin)
+  
+  ## dbarts threads chains inside its own engine at no startup cost; stan4bart
+  ## builds a cluster, about 1.25 seconds flat, and runs the chains serially
+  ## unless told otherwise. It repays that only with more than one chain and a
+  ## long enough fit, which is where the bartCause defaults sit.
+  if (is.null(call[["cores"]])) {
+    chains <- as.integer(eval(call[["chains"]], env))
+    iter   <- as.integer(eval(call[["iter"]], env))
+    n.threads <- getArg("n.threads")
+    if (is.null(n.threads)) n.threads <- dbarts::guessNumCores()
+    n.threads <- as.integer(n.threads)
+    
+    if (!is.na(n.threads) && n.threads > 1L && chains > 1L && chains * iter >= 4000L) {
+      call[["cores"]] <- min(n.threads, chains)
+      ## a clustered stan4bart fit seeds its chains off the clock unless it is
+      ## given a seed, so hand it one drawn from R's generator and keep the fit
+      ## reproducible under set.seed; the draws depend on that seed and the
+      ## chain count, not on how many cores ran them
+      if (is.null(call[["seed"]])) call[["seed"]] <- sample.int(.Machine$integer.max, 1L)
+    }
+  }
+  
+  ## the tree prior reaches stan4bart's forest through 'bart_args'; a bart_args
+  ## that is not a literal list is the caller's own object and is left as given
+  bartArgNames <- c("n.trees", "k", "power", "base")
+  bartArgNames <- bartArgNames[bartArgNames %in% argNames]
+  if (length(bartArgNames) > 0L) {
+    bartArgs <- call[["bart_args"]]
+    if (is.null(bartArgs)) bartArgs <- quote(list())
+    if (is.call(bartArgs) && bartArgs[[1L]] == quote(list)) {
+      for (name in bartArgNames)
+        if (name %not_in% names(bartArgs)) bartArgs[[name]] <- getArg(name)
+      call[["bart_args"]] <- bartArgs
+    }
+  }
+  
+  call
+}

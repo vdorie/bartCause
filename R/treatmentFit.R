@@ -159,9 +159,12 @@ getBartTreatmentFit <- function(response, treatment, confounders, parametric, da
   bartCall$verbose <- if (bartMethod %in% "stan4bart") -1L else FALSE
   bartCall <- addCallArguments(bartCall, extraArgs)
   
-  chainsArgument <- if (bartMethod %in% "stan4bart") "chains" else "n.chains"
-  if (is.null(bartCall[[chainsArgument]])) bartCall[[chainsArgument]] <- 10L
-  
+  if (bartMethod %in% "stan4bart") {
+    bartCall <- addStan4BartSamplingArguments(bartCall, matchedCall, callingEnv)
+  } else if (is.null(bartCall[["n.chains"]])) {
+    bartCall[["n.chains"]] <- 10L
+  }
+
   ## a propensity model has no counterfactual surface, so the treatment name the
   ## redirect carries over is dropped rather than fit as a test set
   if (bartMethod %in% "stan4bart") bartCall[["treatment"]] <- NULL

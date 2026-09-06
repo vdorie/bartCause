@@ -28,9 +28,18 @@
             random intercepts. \code{stan4bart} is a suggested package, so the
             route errors informatively when it is absent;
             \code{use.ranef = FALSE}, which enters the grouping factor as
-            another predictor, needs no additional package. Arguments for these
-            models are \code{stan4bart}'s (\code{chains}, \code{iter},
-            \code{warmup}, \code{bart_args}) rather than \code{dbarts}'s.
+            another predictor, needs no additional package. The \code{dbarts}
+            sampling arguments are translated onto \code{stan4bart}'s -
+            \code{n.samples} and \code{n.burn} onto \code{iter} (which counts
+            warmup) and \code{warmup}, \code{n.chains} onto \code{chains},
+            \code{n.thin} onto \code{skip}, \code{n.threads} onto \code{cores},
+            and \code{n.trees}, \code{k}, \code{power} and \code{base} into
+            \code{bart_args} - so these fits sample as they were asked to
+            rather than falling back on \code{stan4bart}'s own defaults.
+            Arguments written in \code{stan4bart}'s names win where both are
+            given. Chains run in a cluster only when there is more than one and
+            the fit is long enough to repay building it, and such a fit is
+            seeded off R's generator so that \code{set.seed} reproduces it.
       \item \code{group.by} can now be supplied together with
             \code{parametric}: the varying intercept is added to the parametric
             equation rather than refused.

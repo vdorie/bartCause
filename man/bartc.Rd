@@ -153,7 +153,10 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
     Arguments passed to the main function as \dots will be used in both models.
     \code{args.rsp} and \code{args.trt} can be used to set parameters in a
     single fit, and will override other values. See \code{\link{glm}} and
-    \code{\link[dbarts]{bart2}} for reference.
+    \code{\link[dbarts]{bart2}} for reference. Semiparametric models are fit by
+    \code{\link[stan4bart]{stan4bart}}, which names its sampling arguments
+    differently; the \code{\link[dbarts]{bart2}} spellings are translated for
+    them, as described under \sQuote{Special Arguments}.
   }
 }
 \details{
@@ -234,7 +237,8 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
   way: the grouping factor becomes a \code{(1 | group.by)} term added to
   whatever \code{parametric} equation is supplied, so the two can be given
   together. Crossvalidation and missing responses are not available for these
-  models.
+  models, and the sampling arguments are translated onto \code{stan4bart}'s -
+  see \sQuote{Special Arguments}.
   
   \strong{Generics}
   
@@ -282,6 +286,23 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
   \itemize{
     \item If \code{n.chains} is missing, unlike in \code{\link[dbarts]{bart2}} a default
           of 10 is used.
+    \item Semiparametric models - a \code{parametric} equation, or
+          \code{group.by} with \code{use.ranef} equal to \code{TRUE} - are fit
+          by \code{\link[stan4bart]{stan4bart}}, whose sampling arguments carry
+          different names. The \code{\link[dbarts]{bart2}} spellings are
+          translated onto them: \code{n.samples} and \code{n.burn} become
+          \code{iter} - which counts the warmup draws that \code{n.samples}
+          excludes - and \code{warmup}, \code{n.chains} becomes \code{chains},
+          \code{n.thin} becomes \code{skip}, and \code{n.trees}, \code{k},
+          \code{power} and \code{base} are collected into \code{bart_args}.
+          Arguments given in \code{stan4bart}'s own names override the
+          translation.
+    \item \code{stan4bart} runs its chains in a cluster rather than inside the
+          sampler, and building one costs about a second, so \code{n.threads}
+          becomes \code{cores} only for more than one chain and a fit long
+          enough to repay it. A clustered fit that was given no \code{seed}
+          receives one drawn from R's generator, so that \code{\link{set.seed}}
+          still reproduces it.
     \item For \code{method.rsp == "tmle"}, a special \code{arg.trt} of
           \code{posteriorOfTMLE} determines if the TMLE correction should be
           applied to each posterior sample (\code{TRUE}), or just the posterior
