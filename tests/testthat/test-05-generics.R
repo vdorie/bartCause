@@ -143,9 +143,10 @@ test_that("summary object contains correct information", {
 })
 
 test_that("generics work for p.weights", {
+  skip_if_not_installed("stan4bart")
   pfit <- bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "p.weight", estimand = "att",
-                group.by = g, group.effects = TRUE, n.chains = 3L,
-                n.samples = 7L, n.burn = 3L, n.threads = 1L, verbose = FALSE)
+                group.by = g, group.effects = TRUE,
+                chains = 3L, iter = 14L, warmup = 7L, bart_args = list(n.trees = 7L), verbose = FALSE)
   pfit.sum <- summary(pfit)
   
   p.weights  <- extract(pfit, "p.weights", sample = "all")
@@ -273,10 +274,11 @@ test_that("summary works with att/atc", {
 })
 
 test_that("summary gives consistent answers with grouped data", {
+  skip_if_not_installed("stan4bart")
   inGroupFit <- bartc(y, z, x, data = testData, estimand = "ate",
                       group.by = g, group.effects = TRUE,
                       method.trt = "bart", method.rsp = "bart", verbose = FALSE,
-                      n.chains = 2L, n.threads = 1L, n.burn = 0L, n.samples = 7L, n.trees = 13L)
+                      chains = 2L, iter = 14L, warmup = 7L, bart_args = list(n.trees = 13L))
   
 
   sum.g.cate <- summary(inGroupFit, target = "cate")
@@ -405,10 +407,11 @@ test_that("refit recomputes bart estimates under a new common support rule", {
 })
 
 test_that("refit recomputes grouped bart estimates under a new common support rule", {
+  skip_if_not_installed("stan4bart")
   set.seed(22)
   fit <- bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "bart", verbose = FALSE,
                group.by = g, group.effects = TRUE,
-               n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L)
+               chains = 2L, iter = 26L, warmup = 13L, bart_args = list(n.trees = 7L))
   refitted <- refit(fit, commonSup.rule = "sd")
 
   manualSub <- bartCause:::getCommonSupportSubset(fit$sd.obs, fit$sd.cf, "sd", 1, fit$trt, fit$missingRows)
@@ -451,10 +454,11 @@ test_that("refit works for tmle estimates and common support subsetting", {
   expect_equal(refitted$commonSup.sub, manualSub)
 
   # group.by + group.effects branch, previously broken (undefined yhat.0/yhat.1)
+  skip_if_not_installed("stan4bart")
   set.seed(22)
   gtfit <- bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "tmle", verbose = FALSE,
-                 group.by = g, group.effects = TRUE,
-                 n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L, maxIter = 5L)
+                 group.by = g, group.effects = TRUE, maxIter = 5L,
+                 chains = 2L, iter = 26L, warmup = 13L, bart_args = list(n.trees = 7L))
   grefitted <- suppressWarnings(refit(gtfit, commonSup.rule = "sd"))
   expect_equal(length(grefitted$est), nlevels(gtfit$group.by))
   expect_true(all(sapply(grefitted$est, function(e) all(is.finite(e)))))

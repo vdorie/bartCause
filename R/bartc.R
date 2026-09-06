@@ -36,8 +36,6 @@ bartc <- function(
   givenCall <- if (keepCall) matchedCall else call("NULL")
   matchedCall$verbose <- NULL  
   
-  group.byIsLiteral <- FALSE
-  
   ## check validity of character vector arguments by comparing to function prototype
   for (argName in c("method.rsp", "estimand", "commonSup.rule")) {
     arg <- get(argName)
@@ -58,6 +56,14 @@ bartc <- function(
     matchedCall[["seed"]] <- NULL
   }
   
+  ## the grouping factor is resolved once, so the treatment fit, the response
+  ## fit and the group-level estimands all see the same levels; the call keeps
+  ## the user's expression, which is what the model formulas name
+  group.by <- if (!is.null(matchedCall[["group.by"]]))
+    eval(redirectCall(matchedCall, quoteInNamespace(getGroupBy)), envir = callingEnv)
+  else
+    NULL
+  
   fit.trt <- p.score <- samples.p.score <- NULL
   if (is.numeric(method.trt)) {
     if (!is.null(dim(method.trt))) {
@@ -71,13 +77,6 @@ bartc <- function(
     method.trt <- method.trt[1L]
     if (method.trt %not_in% eval(formals(bartCause::bartc)$method.trt))
       stop("method.trt must be in '", paste0(eval(formals(bartCause::bartc)$method.trt), collapse = "', '"), "'")
-    
-    if (method.trt %not_in% c("none", "glm") && !is.null(matchedCall[["group.by"]]) && use.ranef) {
-      group.by <- eval(redirectCall(matchedCall, quoteInNamespace(getGroupBy)), envir = callingEnv)
-      group.byIsLiteral <- TRUE
-  
-      matchedCall[["group.by"]] <- group.by
-    }
     
     treatmentCall <- switch(method.trt,
       glm       = redirectCall(matchedCall, quoteInNamespace(getGLMTreatmentFit)),
@@ -116,13 +115,6 @@ bartc <- function(
   if (!is.null(matchedCall$p.scoreAsCovariate) && p.scoreAsCovariate == TRUE && method.trt == "none")
     warning("p.scoreAsCovariate == TRUE requires method.trt != 'none'")
   
-  
-  if (!group.byIsLiteral && !is.null(matchedCall[["group.by"]]) && use.ranef) {
-    group.by <- eval(redirectCall(matchedCall, quoteInNamespace(getGroupBy)), envir = callingEnv)
-    group.byIsLiteral <- TRUE
-    
-    matchedCall$group.by <- group.by
-  }
   
   responseCall <- switch(method.rsp,
     bcf      = redirectCall(matchedCall, quoteInNamespace(getBCFResponseFit)),
@@ -195,11 +187,7 @@ bartc <- function(
                       sd.obs, sd.cf, commonSup.sub, missingRows, est, fitPars,
                       call = givenCall)
   if (!is.null(matchedCall[["group.by"]])) {
-    result[["group.by"]] <-
-      if (group.byIsLiteral)
-        group.by
-      else
-        eval(redirectCall(matchedCall, quoteInNamespace(getGroupBy)), envir = callingEnv)
+    result[["group.by"]] <- group.by
     if (use.ranef) result[["use.ranef"]] <- use.ranef
     if (group.effects) result[["group.effects"]] <- group.effects
   }

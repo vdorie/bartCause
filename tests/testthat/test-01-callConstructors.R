@@ -29,7 +29,7 @@ test_that("treatment call with data as list argument returns valid output", {
   expect_equal(res$call, str2lang("stats::glm(z ~ (1 | g) + x, data = testData)"))
   
   res <- bartCause:::getTreatmentDataCall(stats::glm, z, x, data = testData, group.by = g, use.ranef = TRUE, use.lmer = FALSE)
-  expect_equal(res$call, str2lang("stats::glm(z ~ x, data = testData)"))
+  expect_equal(res$call, str2lang("stats::glm(z ~ bart(x) + (1 | g), data = testData)"))
   expect_identical(res$env, currentEnv)
   expect_identical(environment(res$call[[2L]]), currentEnv)
   
@@ -38,7 +38,12 @@ test_that("treatment call with data as list argument returns valid output", {
   expect_identical(res$env, currentEnv)
   expect_identical(environment(res$call[[2L]]), currentEnv)
   
-  expect_error(bartCause:::getTreatmentDataCall(stats::glm, z, x, data = testData, group.by = g, parametric = (1 | g)))
+  ## group.by composes with a parametric equation rather than being refused
+  res <- bartCause:::getTreatmentDataCall(stats::glm, z, x, data = testData, group.by = g, parametric = w, use.ranef = TRUE, use.lmer = FALSE)
+  expect_equal(res$call, str2lang("stats::glm(z ~ w + bart(x) + (1 | g), data = testData)"))
+  
+  res <- bartCause:::getTreatmentDataCall(stats::glm, z, x, data = testData, group.by = g, parametric = w, use.ranef = FALSE, use.lmer = FALSE)
+  expect_equal(res$call, str2lang("stats::glm(z ~ w + bart(x) + g, data = testData)"))
 })
 
 test_that("treatment call with data as data.frame argument returns valid output", {
@@ -86,7 +91,7 @@ test_that("treatment call with data as data.frame argument returns valid output"
   expect_identical(environment(res$call[[2L]]), currentEnv)
   
   res <- bartCause:::getTreatmentDataCall(stats::glm, z, X1 + X2 + X3, data = df, group.by = g, use.ranef = TRUE, use.lmer = FALSE)
-  expect_equal(res$call, str2lang("stats::glm(z ~ X1 + X2 + X3, data = df)"))
+  expect_equal(res$call, str2lang("stats::glm(z ~ bart(X1 + X2 + X3) + (1 | g), data = df)"))
   expect_identical(res$env, currentEnv)
   expect_identical(environment(res$call[[2L]]), currentEnv)
   
@@ -116,7 +121,7 @@ test_that("treatment call with data as data.frame argument returns valid output"
   expect_identical(environment(res$call[[2L]]), currentEnv)
   
   res <- bartCause:::getTreatmentDataCall(stats::glm, z, confounders, data = df, group.by = g, use.ranef = TRUE, use.lmer = FALSE)
-  expect_equal(res$call, str2lang("stats::glm(z ~ X1 + X2 + X3, data = df)"))
+  expect_equal(res$call, str2lang("stats::glm(z ~ bart(X1 + X2 + X3) + (1 | g), data = df)"))
   expect_identical(res$env, currentEnv)
   expect_identical(environment(res$call[[2L]]), currentEnv)
   
@@ -166,7 +171,7 @@ test_that("treatment call with literal arguments retuns valid output", {
   expect_true(all(colnames(res$df) %in% c("z", "V1", "V2", "V3", "g")))
   
   res <- bartCause:::getTreatmentLiteralCall(stats::glm, testData$z, testData$x, group.by = testData$g, use.ranef = TRUE, use.lmer = FALSE)
-  expect_equal(res$call, str2lang("stats::glm(z ~ V1 + V2 + V3, data = df)"))
+  expect_equal(res$call, str2lang("stats::glm(z ~ bart(V1 + V2 + V3) + (1 | g), data = df)"))
   expect_true(all(colnames(res$df) %in% c("z", "V1", "V2", "V3", "g")))
   
   res <- bartCause:::getTreatmentLiteralCall(stats::glm, testData$z, testData$x, group.by = testData$g, use.ranef = TRUE, use.lmer = TRUE)
@@ -188,6 +193,13 @@ test_that("response call with data as list argument returns valid output", {
   res <- bartCause:::getResponseDataCall(stats::lm, y, z, x, parametric = (1 | g), data = testData)
   expect_equal(res$call, str2lang("stats::lm(y ~ z + bart(x + z) + (1 | g), data = testData)"))
   
+  ## group.by with a modeled intercept synthesizes the same lmer-style term
+  res <- bartCause:::getResponseDataCall(stats::lm, y, z, x, group.by = g, use.ranef = TRUE, data = testData)
+  expect_equal(res$call, str2lang("stats::lm(y ~ bart(x + z) + (1 | g), data = testData)"))
+  
+  res <- bartCause:::getResponseDataCall(stats::lm, y, z, x, group.by = g, use.ranef = FALSE, data = testData)
+  expect_equal(res$call, str2lang("stats::lm(y ~ x + z + g, data = testData)"))
+  
   currentEnv <- sys.frame(sys.nframe())
   expect_identical(res$env, currentEnv)
   expect_identical(environment(res$call[[2L]]), currentEnv)
@@ -208,6 +220,10 @@ test_that("response call with data as list argument returns valid output", {
   res <- bartCause:::getResponseDataCall(stats::lm, y, z, x, parametric = (1 | g),
                                          data = testData, p.score = p.score)
   expect_equal(res$call, str2lang("stats::lm(y ~ z + p.score + bart(x + z + p.score) + (1 | g), data = testData)"))
+  
+  res <- bartCause:::getResponseDataCall(stats::lm, y, z, x, group.by = g, use.ranef = TRUE,
+                                         data = testData, p.score = p.score)
+  expect_equal(res$call, str2lang("stats::lm(y ~ bart(x + p.score + z) + (1 | g), data = testData)"))
   
   expect_identical(res$env, currentEnv)
   expect_identical(environment(res$call[[2L]]), currentEnv)
@@ -377,6 +393,16 @@ test_that("response call with literal arguments retuns valid output", {
   
   expect_equal(res$trt, "z")
   expect_true(length(res$missingRows) > 0L && !any(res$missingRows))
+  
+  res <- bartCause:::getResponseLiteralCall(stats::lm, testData$y, testData$z, testData$x,
+                                            group.by = testData$g, use.ranef = TRUE)
+  expect_equal(res$call, str2lang("stats::lm(y ~ bart(z + V1 + V2 + V3) + (1 | g), data = df)"))
+  expect_true(all(colnames(res$df) %in% c("z", "y", "V1", "V2", "V3", "g")))
+  
+  res <- bartCause:::getResponseLiteralCall(stats::lm, testData$y, testData$z, testData$x,
+                                            group.by = testData$g, use.ranef = FALSE)
+  expect_equal(res$call, str2lang("stats::lm(y ~ z + V1 + V2 + V3 + g, data = df)"))
+  expect_true(all(colnames(res$df) %in% c("z", "y", "V1", "V2", "V3", "g")))
   
   
   testData$Z <- model.matrix(~ -1 + as.factor(g), testData)

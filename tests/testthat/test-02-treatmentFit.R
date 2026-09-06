@@ -37,13 +37,20 @@ test_that("bart fit with fixef matches manual call", {
   expect_equal(res$p.score, apply(pnorm(dbarts::bart2(z ~ x + g, testData, n.chains = 1L, n.threads = 1L, n.burn = 3L, n.samples = 13L, n.trees = 7L, verbose = FALSE)$yhat.train), 2L, mean))
 })
 
-test_that("rbart_vi fit matches manual call", {
+test_that("varying intercept fit matches manual call", {
+  skip_if_not_installed("stan4bart")
+  df <- with(testData, data.frame(z = z, V1 = x[,1L], V2 = x[,2L], V3 = x[,3L], g = g))
+  
   set.seed(22)
-  res <- bartCause:::getBartTreatmentFit(y, z, x, data = testData, n.chains = 1L, n.threads = 1L, n.burn = 3L, n.samples = 13L, n.trees = 7L, group.by = g, use.ranef = TRUE)
+  res <- bartCause:::getBartTreatmentFit(y, z, x, data = testData, chains = 1L, iter = 16L, warmup = 8L,
+                                         bart_args = list(n.trees = 7L), group.by = g, use.ranef = TRUE)
+  expect_true(inherits(res$fit, "stan4bartFit"))
+  expect_equal(res$fit$call$formula, str2lang("z ~ bart(V1 + V2 + V3) + (1 | g)"))
+  
   set.seed(22)
-  rbartFit <- dbarts::rbart_vi(z ~ x, testData, n.chains = 1L, n.threads = 1L, n.burn = 3L, n.samples = 13L, n.trees = 7L, verbose = FALSE, group.by = g)
-  rbartPred <- unname(apply(pnorm(rbartFit$yhat.train + rbartFit$ranef[,as.factor(testData$g)]), 2L, mean))
-  expect_equal(res$p.score, rbartPred)
+  s4bFit <- stan4bart::stan4bart(z ~ bart(V1 + V2 + V3) + (1 | g), df, chains = 1L, iter = 16L, warmup = 8L,
+                                 verbose = -1L, bart_args = list(n.trees = 7L))
+  expect_equal(res$p.score, apply(dbarts::extract(s4bFit, combine_chains = FALSE), 1L, mean))
 })
 
 test_that("bart fit adds extra defaults", {
@@ -113,11 +120,13 @@ test_that("glm fit works with '.' as confounders and a data.frame", {
   expect_equal(unname(res$p.score), unname(manual))
 })
 
-test_that("bart treatment fit rejects incompatible group.by/parametric/crossvalidate combinations", {
-  expect_error(
-    bartCause:::getBartTreatmentFit(y, z, x, data = testData, parametric = y ~ x, group.by = g),
-    "`group.by` must be missing or NULL if `parametric` is supplied"
-  )
+test_that("bart treatment fit composes group.by with parametric and rejects crossvalidate", {
+  skip_if_not_installed("stan4bart")
+  ## group.by no longer collides with parametric: both land in one formula
+  res <- bartCause:::getTreatmentDataCall(stan4bart::stan4bart, z, x, data = testData,
+                                          parametric = w, group.by = g, use.ranef = TRUE, use.lmer = FALSE)
+  expect_equal(res$call, str2lang("stan4bart::stan4bart(z ~ w + bart(x) + (1 | g), treatment = z, data = testData)"))
+  
   expect_error(
     bartCause:::getBartTreatmentFit(y, z, x, data = testData, group.by = g, crossvalidate = TRUE,
                                     n.chains = 1L, n.threads = 1L, n.burn = 3L, n.samples = 13L, n.trees = 7L),

@@ -125,8 +125,20 @@ plot_support <- function(x, main = "Common Support Scatterplot",
   matchedCall <- match.call()
     
   ## dbarts 1.0-0 stores @x as a dbartsMixedMatrix; coerce to a base matrix so the
-  ## downstream crossprod / %*% / data.frame / apply operations work
-  x.matrix <- as.matrix(x$data.rsp@x)
+  ## downstream crossprod / %*% / data.frame / apply operations work. A
+  ## semiparametric fit keeps no dbartsData, so its design is assembled from the
+  ## bart() part and whatever parametric columns sit beside it
+  if (inherits(x$fit.rsp, "stan4bartFit")) {
+    x.matrix <- as.matrix(x$fit.rsp$bartData@x)
+    parametricCols <- x$fit.rsp$X
+    if (!is.null(parametricCols) && ncol(parametricCols) > 0L)
+      x.matrix <- cbind(x.matrix,
+                        parametricCols[, colnames(parametricCols) %not_in% colnames(x.matrix), drop = FALSE])
+    y.rsp <- x$fit.rsp$y
+  } else {
+    x.matrix <- as.matrix(x$data.rsp@x)
+    y.rsp <- x$data.rsp@y
+  }
 
   subset <- rep_len(TRUE, nrow(x.matrix))
   if (sample == "inferential") {
@@ -175,7 +187,7 @@ plot_support <- function(x, main = "Common Support Scatterplot",
       val <- fitted(x, type = var, sample = sample)
       if (is.null(lab)) lab <- labelMap[[var]]
     } else if (var %in% c("y", "y.obs")) {
-      val <- x$data.rsp@y[subset]
+      val <- y.rsp[subset]
       if (is.null(lab)) lab <- expression(y(z))
     } else if (is.numeric(var)) {
       if (length(var) == 1L) {

@@ -1,4 +1,5 @@
 getStan4BartResponseFit <- function(response, treatment, confounders, parametric, data, subset, weights, estimand,
+                                    group.by = NULL, use.ranef = TRUE,
                                     commonSup.rule, commonSup.cut, p.score, calculateEstimates = TRUE, ...)
 {
   treatmentIsMissing    <- missing(treatment)
@@ -18,34 +19,54 @@ getStan4BartResponseFit <- function(response, treatment, confounders, parametric
     stop("'confounders' variable must be specified")
   
   if (requireNamespace("stan4bart", quietly = TRUE) == FALSE)
-      stop("semiparametric BART treatment model requires stan4bart package to be available")
+      stop("semiparametric BART response model, including a varying intercept from 'group.by' with use.ranef = TRUE, requires stan4bart package to be available; pass use.ranef = FALSE to enter the grouping factor as a fixed effect instead")
   
   if (!is.character(estimand) || estimand[1L] %not_in% c("ate", "att", "atc"))
     stop("estimand must be one of 'ate', 'att', or 'atc'")
   estimand <- estimand[1L]
+  
+  ## stan4bart's model-frame builder reaches back into its caller's frame for
+  ## 'weights', which is this one, so the promise is resolved against the data
+  ## here rather than forced where the user's expression cannot be evaluated
+  if (weightsAreMissing)
+    weights <- NULL
+  else if (!dataAreMissing)
+    weights <- eval(matchedCall$weights, envir = data)
   
   stan4bartCall <- NULL; treatmentName <- NULL; missingRows <- NULL; p.scoreName <- NULL
   if (!dataAreMissing && is.data.frame(data)) {
     evalEnv <- NULL
     dataCall <- addCallArgument(redirectCall(matchedCall, quoteInNamespace(getResponseDataCall)), "fn", quote(stan4bart::stan4bart))
     dataCall <- addCallDefaults(dataCall, eval(quoteInNamespace(getStan4BartResponseFit)))
-    dataCall$group.by <- NULL
-    dataCall$use.ranef <- NULL
     
     massign[stan4bartCall, evalEnv, treatmentName, missingRows, p.scoreName] <- eval(dataCall, envir = callingEnv)
   } else {
     df <- NULL
     literalCall <- addCallArgument(redirectCall(matchedCall, quoteInNamespace(getResponseLiteralCall)), "fn", quote(stan4bart::stan4bart))
     literalCall <- addCallDefaults(literalCall, eval(quoteInNamespace(getStan4BartResponseFit)))
-    literalCall$group.by <- NULL
-    literalCall$use.ranef <- NULL
     
     dataEnv <- if (dataAreMissing) callingEnv else list2env(data, parent = callingEnv)
     
     massign[stan4bartCall, df, treatmentName, missingRows, p.scoreName] <- eval(literalCall, envir = dataEnv)
     
+    ## stan4bart names the weights variable by deparsing its own call, so a
+    ## literal vector has to reach it as a named column of the frame instead
+    if (!is.null(stan4bartCall[["weights"]]) && !is.language(stan4bartCall[["weights"]])) {
+      weightsName <- "wts"
+      while (weightsName %in% colnames(df))
+        weightsName <- paste0(weightsName, "wts")
+      df[[weightsName]] <- stan4bartCall[["weights"]]
+      stan4bartCall[["weights"]] <- str2lang(weightsName)
+    }
+    
     evalEnv <- sys.frame(sys.nframe())
   }
+  ## the counterfactual test surface is built by flipping the treatment in the
+  ## fitted model frame, which holds only the complete cases, so a row whose
+  ## response is missing has no counterfactual to recover
+  if (any(missingRows))
+    stop("semiparametric response models, including a varying intercept from 'group.by' with use.ranef = TRUE, cannot fit with missing response values; drop the incomplete rows, or pass use.ranef = FALSE to enter the grouping factor as a fixed effect in a dbarts fit")
+  
   stan4bartCall$treatment <- str2lang(treatmentName)
   
   extraArgs <- matchedCall[names(matchedCall) %not_in% names(stan4bartCall) | names(matchedCall) == ""]
@@ -108,18 +129,15 @@ getBartResponseFit <- function(response, treatment, confounders, parametric, dat
   if (confoundersAreMissing)
     stop("'confounders' variable must be specified")
   
+  ## a parametric equation or a modeled group intercept both make the response
+  ## surface semiparametric, and stan4bart is the only sampler that fits one
   bartMethod <- "bart"
   fn <- quote(dbarts::bart2)
-  if (!is.null(matchedCall[["parametric"]])) {
-    if (!is.null(matchedCall[["group.by"]]))
-      stop("`group.by` must be missing or NULL if `parametric` is supplied; for varying intercepts, add (1 | group) to parametric equation")
+  if (!is.null(matchedCall[["parametric"]]) || (!is.null(matchedCall[["group.by"]]) && use.ranef)) {
     if (requireNamespace("stan4bart", quietly = TRUE) == FALSE)
-      stop("semiparametric BART treatment model requires stan4bart package to be available")
+      stop("semiparametric BART response model, including a varying intercept from 'group.by' with use.ranef = TRUE, requires stan4bart package to be available; pass use.ranef = FALSE to enter the grouping factor as a fixed effect instead")
     # fn <- quote(stan4bart::stan4bart) # not needed
     bartMethod <- "stan4bart"
-  } else if (!is.null(matchedCall[["group.by"]]) && use.ranef) {
-    fn <- quote(dbarts::rbart_vi)
-    bartMethod <- "rbart"
   }
   
   if (crossvalidate && bartMethod %not_in% "bart")
@@ -131,8 +149,6 @@ getBartResponseFit <- function(response, treatment, confounders, parametric, dat
   
   if (bartMethod == "stan4bart") {
     stan4bartCall <- redirectCall(matchedCall, quoteInNamespace(getStan4BartResponseFit))
-    stan4bartCall$group.by <- NULL
-    stan4bartCall$use.ranef <- NULL
     return(eval(stan4bartCall, envir = callingEnv))
   }
   
@@ -193,22 +209,7 @@ getBartResponseFit <- function(response, treatment, confounders, parametric, dat
   }
   
   ## redirect to pull in any args passed
-  use.ranef <- !is.null(matchedCall[["group.by"]]) && use.ranef
-  if (!use.ranef) {
-    bartCall <- redirectCall(matchedCall, dbarts::bart2)
-  } else {
-    group.by <- eval(redirectCall(matchedCall, quoteInNamespace(getGroupBy)), envir = callingEnv)
-    if (!is.null(missingData)) {
-      group.by.test <- c(group.by[!missingRows], group.by[missingRows], group.by[missingRows])
-      group.by <- group.by[!missingRows]
-    } else {
-      group.by.test <- group.by
-    }
-    matchedCall$group.by      <- group.by
-    matchedCall$group.by.test <- group.by.test
-    
-    bartCall <- redirectCall(matchedCall, dbarts::rbart_vi)
-  }
+  bartCall <- redirectCall(matchedCall, dbarts::bart2)
   
   invalidArgs <- names(bartCall)[-1L] %not_in% names(eval(formals(eval(bartCall[[1L]])))) &
                  names(bartCall)[-1L] %not_in% names(eval(formals(dbarts::dbartsControl)))
@@ -321,7 +322,7 @@ getBCFResponseFit <- function(response, treatment, confounders, parametric, data
   if (!is.null(matchedCall[["parametric"]]))
     stop("response method 'bcf' does not support 'parametric'; semiparametric surfaces are fit by stan4bart, which has no multi-forest form")
   if (!is.null(matchedCall[["group.by"]]) && use.ranef)
-    stop("response method 'bcf' does not support 'group.by' with use.ranef = TRUE; grouped random effects are refused on a multi-forest sampler, so pass use.ranef = FALSE to enter the grouping factor as a fixed effect")
+    stop("response method 'bcf' does not support 'group.by' with use.ranef = TRUE; a varying intercept is fit by stan4bart, which has no multi-forest form, so pass use.ranef = FALSE to enter the grouping factor as a fixed effect")
   if (isTRUE(crossvalidate))
     stop("crossvalidation is not supported for response method 'bcf'; the crossvalidation engine has no multi-forest form")
 

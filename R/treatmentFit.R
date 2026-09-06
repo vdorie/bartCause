@@ -94,18 +94,16 @@ getBartTreatmentFit <- function(response, treatment, confounders, parametric, da
   if (confoundersAreMissing)
     stop("'confounders' variable must be specified")
   
+  ## a parametric equation or a modeled group intercept both make the propensity
+  ## model semiparametric, and stan4bart is the only sampler that fits one; its
+  ## binary family is probit, matching the dbarts binary route
   bartMethod <- "bart"
   fn <- quote(dbarts::bart2)
-  if (!is.null(matchedCall[["parametric"]])) {
-    if (!is.null(matchedCall[["group.by"]]))
-      stop("`group.by` must be missing or NULL if `parametric` is supplied; for varying intercepts, add (1 | group) to parametric equation")
+  if (!is.null(matchedCall[["parametric"]]) || (!is.null(matchedCall[["group.by"]]) && use.ranef)) {
     if (requireNamespace("stan4bart", quietly = TRUE) == FALSE)
-      stop("semiparametric BART treatment model requires stan4bart package to be available")
+      stop("semiparametric BART treatment model, including a varying intercept from 'group.by' with use.ranef = TRUE, requires stan4bart package to be available; pass use.ranef = FALSE to enter the grouping factor as a fixed effect instead")
     fn <- quote(stan4bart::stan4bart)
     bartMethod <- "stan4bart"
-  } else if (!is.null(matchedCall[["group.by"]]) && use.ranef) {
-    fn <- quote(dbarts::rbart_vi)
-    bartMethod <- "rbart"
   }
   
   if (crossvalidate && bartMethod %not_in% "bart")
@@ -163,11 +161,16 @@ getBartTreatmentFit <- function(response, treatment, confounders, parametric, da
   
   chainsArgument <- if (bartMethod %in% "stan4bart") "chains" else "n.chains"
   if (is.null(bartCall[[chainsArgument]])) bartCall[[chainsArgument]] <- 10L
+  
+  ## a propensity model has no counterfactual surface, so the treatment name the
+  ## redirect carries over is dropped rather than fit as a test set
+  if (bartMethod %in% "stan4bart") bartCall[["treatment"]] <- NULL
 
-  ## dbarts 1.0-0 refuses a weighted probit (no tractable latent form), so the
-  ## dbarts-backed propensity models are fit unweighted; the weights carry the
-  ## design information in the treatment-effect estimators (p.weights, tmle).
-  if (bartMethod %in% c("bart", "rbart") && !is.null(bartCall[["weights"]])) {
+  ## the treatment is binary, so every BART-backed propensity model is a probit,
+  ## and dbarts refuses a weighted probit (no tractable latent form) whether it
+  ## is reached directly or through stan4bart; the weights carry the design
+  ## information in the treatment-effect estimators (p.weights, tmle).
+  if (bartMethod %in% c("bart", "stan4bart") && !is.null(bartCall[["weights"]])) {
     bartCall[["weights"]] <- NULL
     message("propensity score model is fit unweighted; weights enter the treatment-effect estimators")
   }

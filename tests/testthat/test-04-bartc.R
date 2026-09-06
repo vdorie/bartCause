@@ -157,21 +157,23 @@ test_that("bartc runs with all response settings and two chains for method tmle"
 source(system.file("common", "groupedData.R", package = "bartCause"))
 
 test_that("bartc runs with all response settings and group.by set", {
+  skip_if_not_installed("stan4bart")
+  skip_if_not_installed("lme4")
   expect_is(bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "bart", verbose = FALSE,
                   group.by = g, group.effects = TRUE,
-                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L),
+                  chains = 2L, iter = 26L, warmup = 13L, bart_args = list(n.trees = 7L)),
             "bartcFit")
   expect_is(bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "p.weight", verbose = FALSE,
                   group.by = g, group.effects = TRUE,
-                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L),
+                  chains = 2L, iter = 26L, warmup = 13L, bart_args = list(n.trees = 7L)),
             "bartcFit")
-  expect_is(bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "bart", verbose = FALSE,
+  expect_is(bartc(y, z, x, data = testData, method.trt = "glm", method.rsp = "bart", verbose = FALSE,
                   group.by = g, group.effects = TRUE,
-                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L),
+                  chains = 2L, iter = 26L, warmup = 13L, bart_args = list(n.trees = 7L)),
             "bartcFit")
-  expect_is(bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "p.weight", verbose = FALSE,
+  expect_is(bartc(y, z, x, data = testData, method.trt = "glm", method.rsp = "p.weight", verbose = FALSE,
                   group.by = g, group.effects = TRUE,
-                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L),
+                  chains = 2L, iter = 26L, warmup = 13L, bart_args = list(n.trees = 7L)),
             "bartcFit")
 
   # check a bart/bart with fixed effects
@@ -188,9 +190,10 @@ test_that("bartc runs with all response settings and group.by set for method tml
   if (!requireNamespace("tmle", quietly = TRUE))
     options(warn = -1)
   
+  skip_if_not_installed("stan4bart")
   expect_is(bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "tmle", verbose = FALSE,
-                  group.by = g, group.effects = TRUE,
-                  n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L, maxIter = 5L),
+                  group.by = g, group.effects = TRUE, maxIter = 5L,
+                  chains = 2L, iter = 26L, warmup = 13L, bart_args = list(n.trees = 7L)),
             "bartcFit")
   
   options(warn = oldWarn)
@@ -198,14 +201,21 @@ test_that("bartc runs with all response settings and group.by set for method tml
 
 test_that("bartc runs with missing data", {
   testData$y[seq_len(10L)] <- NA
+  ## a varying intercept is fit by stan4bart, whose counterfactual test surface
+  ## comes from the fitted rows, so the grouping factor enters as a fixed effect
   expect_is(bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "bart", verbose = FALSE,
-                  group.by = g, group.effects = TRUE,
+                  group.by = g, group.effects = TRUE, use.ranef = FALSE,
                   n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L),
             "bartcFit")
   expect_is(bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "p.weight", verbose = FALSE,
-                  group.by = g, group.effects = TRUE,
+                  group.by = g, group.effects = TRUE, use.ranef = FALSE,
                   n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L),
             "bartcFit")
+  skip_if_not_installed("stan4bart")
+  expect_error(bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "bart", verbose = FALSE,
+                     group.by = g, group.effects = TRUE,
+                     chains = 2L, iter = 26L, warmup = 13L, bart_args = list(n.trees = 7L)),
+               "cannot fit with missing response values")
 })
 
 test_that("bartc model argument overrides work correctly", {
@@ -242,7 +252,7 @@ test_that("bartc runs with missing data for method tmle", {
     options(warn = -1)
 
   expect_is(bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "tmle", verbose = FALSE,
-                  group.by = g, group.effects = TRUE,
+                  group.by = g, group.effects = TRUE, use.ranef = FALSE,
                   n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L, maxIter = 5L),
             "bartcFit")
 

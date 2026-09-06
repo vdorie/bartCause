@@ -136,21 +136,27 @@ test_that("p.weight fits", {
 
 source(system.file("common", "groupedData.R", package = "bartCause"))
 
-test_that("rbart_vi fit matches manual call", {
+test_that("varying intercept fit matches manual call", {
+  skip_if_not_installed("stan4bart")
+  df <- with(testData, data.frame(y = y, z = z, V1 = x[,1L], V2 = x[,2L], V3 = x[,3L], g = g))
+  
   set.seed(22)
-  bartcFit <- bartCause:::getBartResponseFit(y, z, x, data = testData, estimand = "ate", group.by = g, commonSup.rule = "none", commonSup.cut = NA,
-                                             n.chains = 1L, n.threads = 1L, n.burn = 3L, n.samples = 13L, n.trees = 7L)
-  x.train <- with(testData, cbind(z, x))
-  # colnames(x.train) <- c("x1", "x2", "x3", "z")
-  x.test <- x.train
-  x.test[,"z"] <- 1 - x.test[,"z"]
-  y <- testData$y
+  bartcFit <- bartCause:::getBartResponseFit(y, z, x, data = testData, estimand = "ate", group.by = g,
+                                             commonSup.rule = "none", commonSup.cut = NA,
+                                             chains = 1L, iter = 16L, warmup = 8L,
+                                             bart_args = list(n.trees = 7L))
+  expect_true(inherits(bartcFit$fit, "stan4bartFit"))
+  expect_equal(bartcFit$fit$call$formula, str2lang("y ~ bart(z + V1 + V2 + V3) + (1 | g)"))
+  
   set.seed(22)
-  bartFit <- dbarts::rbart_vi(x.train, y, x.test, group.by = testData$g, group.by.test = testData$g,
-                              n.chains = 1L, n.threads = 1L, n.burn = 3L, n.samples = 13L, n.trees = 7L, verbose = FALSE)
-      
-  expect_equal(bartFit$yhat.train, bartcFit$fit$yhat.train)
-  expect_equal(bartFit$yhat.test,  bartcFit$fit$yhat.test)
+  s4bFit <- stan4bart::stan4bart(y ~ bart(z + V1 + V2 + V3) + (1 | g), df, treatment = z,
+                                 chains = 1L, iter = 16L, warmup = 8L, verbose = -1L,
+                                 bart_args = list(n.trees = 7L))
+  
+  expect_equal(bartcFit$mu.hat.obs,
+               aperm(dbarts::extract(s4bFit, sample = "train", combine_chains = FALSE), c(3L, 2L, 1L)))
+  expect_equal(bartcFit$mu.hat.cf,
+               aperm(dbarts::extract(s4bFit, sample = "test", combine_chains = FALSE), c(3L, 2L, 1L)))
 })
 
 # commenting this out until crossvalidation calls have more control over run time
@@ -179,6 +185,18 @@ test_that("getBartResponseFit rejects crossvalidate with a varying-intercept mod
                                    commonSup.rule = "none", commonSup.cut = NA, crossvalidate = TRUE,
                                    n.chains = 1L, n.threads = 1L, n.burn = 3L, n.samples = 13L, n.trees = 7L),
     "crossvalidation not yet supported"
+  )
+})
+
+test_that("getBartResponseFit rejects a missing response with a varying-intercept model", {
+  skip_if_not_installed("stan4bart")
+  missData <- testData
+  missData$y[seq_len(5L)] <- NA
+  expect_error(
+    bartCause:::getBartResponseFit(y, z, x, data = missData, estimand = "ate", group.by = g,
+                                   commonSup.rule = "none", commonSup.cut = NA,
+                                   chains = 1L, iter = 16L, warmup = 8L, bart_args = list(n.trees = 7L)),
+    "cannot fit with missing response values"
   )
 })
 

@@ -8,10 +8,10 @@ test_that("sd common support diagnostic works", {
                   method.rsp = "p.weight", method.trt = "bart", estimand = "att", verbose = FALSE,
                   n.burn = 0L, n.samples = 3L, n.trees = 7L, n.chains = 1L, n.threads = 1L,
                   commonSup.rule = "sd", maxIter = 2L), "bartcFit")
+  skip_if_not_installed("stan4bart")
   fit <- bartc(y, z, x, data = testData,
                method.rsp = "p.weight", method.trt = "bart", estimand = "att", verbose = FALSE,
-               n.burn = 0L, n.samples = 3L, n.trees = 7L, n.chains = 1L, n.threads = 1L,
-               n.thin = 1L,
+               chains = 1L, iter = 8L, warmup = 4L, bart_args = list(n.trees = 7L),
                group.by = g,
                commonSup.rule = "sd", maxIter = 2L)
   expect_is(fit, "bartcFit")
@@ -19,8 +19,7 @@ test_that("sd common support diagnostic works", {
   
   fit <- bartc(y, z, x, data = testData,
                method.rsp = "p.weight", method.trt = "bart", estimand = "att", verbose = FALSE,
-               n.burn = 0L, n.samples = 3L, n.trees = 7L, n.chains = 1L, n.threads = 1L,
-               n.thin = 1L,
+               chains = 1L, iter = 8L, warmup = 4L, bart_args = list(n.trees = 7L),
                group.by = g, group.effects = TRUE,
                commonSup.rule = "sd", maxIter = 2L)
   expect_is(fit, "bartcFit")
@@ -32,10 +31,10 @@ test_that("chisq common support diagnostic works", {
                   method.rsp = "p.weight", method.trt = "bart", estimand = "att", verbose = FALSE,
                   n.burn = 0L, n.samples = 3L, n.trees = 7L, n.chains = 1L, n.threads = 1L,
                   commonSup.rule = "chisq", maxIter = 2L), "bartcFit")
+  skip_if_not_installed("stan4bart")
   expect_is(bartc(y, z, x, data = testData,
                   method.rsp = "p.weight", method.trt = "bart", estimand = "att", verbose = FALSE,
-                  n.burn = 0L, n.samples = 3L, n.trees = 7L, n.chains = 1L, n.threads = 1L,
-                  n.thin = 1L,
+                  chains = 1L, iter = 8L, warmup = 4L, bart_args = list(n.trees = 7L),
                   group.by = g,
                   commonSup.rule = "chisq", maxIter = 2L), "bartcFit")
 })
@@ -50,12 +49,13 @@ test_that("getCommonSupportSubset validates its arguments", {
 })
 
 test_that("weighted p.weight estimates work for the atc estimand with grouped effects", {
+  skip_if_not_installed("stan4bart")
   testData$w <- runif(length(testData$y), 0.5, 1.5)
 
   set.seed(22)
   fit <- bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "p.weight", estimand = "atc",
                weights = w, group.by = g, group.effects = TRUE, verbose = FALSE,
-               n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L)
+               chains = 2L, iter = 26L, warmup = 13L, bart_args = list(n.trees = 7L))
   fit.sum <- summary(fit)
 
   boundValues <- bartCause:::boundValues

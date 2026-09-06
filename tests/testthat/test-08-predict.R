@@ -115,10 +115,11 @@ test_that("predict works with grouped data, glmer trt model", {
 })
 
 test_that("predict works with grouped data, bart trt model", {
+  skip_if_not_installed("stan4bart")
   fit <- bartc(y, z, x, method.trt = "bart", method.rsp = "bart", group.by = g,
-               n.chains = n.chains, n.threads = 1L, n.burn = 0L, n.samples = n.samples, n.trees = 13L,
-               keepTrees = TRUE,
-               args.trt = list(k = 1.5), verbose = FALSE)
+               chains = 2L, iter = 14L, warmup = 7L,
+               bart_args = list(keepTrees = TRUE, n.trees = 13L),
+               verbose = FALSE)
   
   p.score <- extract(fit, type = "p.score")
   mu.1    <- extract(fit, type = "mu.1")

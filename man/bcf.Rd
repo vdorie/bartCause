@@ -226,9 +226,10 @@ bcf(formula, data, subset, weights, offset,
   the blended test surface they would be combined through is refused by the
   sampler at creation. For the same reason a missing response cannot be
   recovered, so one is refused rather than dropped. Crossvalidation is refused:
-  the crossvalidation engine has no multi-forest form. Grouped random effects
+  the crossvalidation engine has no multi-forest form. A varying intercept
   (\code{group.by} with \code{use.ranef = TRUE} through \code{\link{bartc}}) and
-  semiparametric \code{parametric} equations are refused for the same reason.
+  semiparametric \code{parametric} equations are both fit by \code{stan4bart},
+  which has no multi-forest form, so they are refused.
   Finally, a prognostic-forest \code{blocks} partition is refused: a block
   partition covers the full design and would have to include the treatment
   column the prognostic forest is masked out of. Use \code{tau.blocks}.

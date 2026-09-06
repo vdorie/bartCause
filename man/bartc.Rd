@@ -113,10 +113,12 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
   }
   \item{use.ranef}{
     Logical specifying if \code{group.by} variable - when present - should be
-    included as a "random" or "fixed" effect. If true,
-    \code{\link[dbarts:rbart_vi]{rbart}} will be used for BART models. Using random
-    effects for treatment assignment mechanisms of type \code{"glm"} require
-    that the \code{\link[lme4:lme4-package]{lme4}} package be available.
+    included as a "random" or "fixed" effect. If true, the grouping factor
+    enters the model as a varying intercept, which for BART models requires the
+    \code{\link[stan4bart]{stan4bart}} package and for treatment assignment
+    mechanisms of type \code{"glm"} requires the
+    \code{\link[lme4:lme4-package]{lme4}} package. If false, it enters as
+    another predictor and no additional package is needed.
   }
   \item{group.effects}{
     Logical specifying if effects should be calculated within groups if the
@@ -133,6 +135,9 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
     One of \code{TRUE}, \code{FALSE}, \code{"trt"}, or \code{"rsp"}. Enables
     code to attempt to estimate the optimal end-node sensitivity parameter. This
     uses a rudimentary Bayesian optimization routine and can be extremely slow.
+    Refused for semiparametric models - a \code{parametric} equation, or
+    \code{group.by} with \code{use.ranef} equal to \code{TRUE} - and for
+    \code{method.rsp = "bcf"}.
   }
   \item{verbose}{
     A logical that when \code{TRUE} prints information as the model is fit.
@@ -224,6 +229,12 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
   \code{bartc} uses the \code{stan4bart} package, when available, to fit semi-
   parametric surfaces. Equations can be given as to \code{\link{lm}}. Grouping
   structures are also permitted, and use the syntax of \code{\link[lme4]{lmer}}.
+
+  \code{group.by} with \code{use.ranef} equal to \code{TRUE} is fit the same
+  way: the grouping factor becomes a \code{(1 | group.by)} term added to
+  whatever \code{parametric} equation is supplied, so the two can be given
+  together. Crossvalidation and missing responses are not available for these
+  models.
   
   \strong{Generics}
   
@@ -286,6 +297,13 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
   for assessing common support, although they may still be excluded on those
   grounds. Further, missing observations may not be compatible with response
   method \code{"tmle"}.
+
+  Semiparametric response surfaces - a \code{parametric} equation, or
+  \code{group.by} with \code{use.ranef} equal to \code{TRUE} - recover the
+  counterfactual by flipping the treatment in the fitted model frame, which
+  holds only the complete cases, so a missing response has no counterfactual to
+  recover and is refused. Drop the incomplete rows, or pass
+  \code{use.ranef = FALSE}.
 }
 \value{
   \code{bartc} returns an object of class \code{bartcFit}. Information about the

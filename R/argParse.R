@@ -1,3 +1,20 @@
+## group.by rides in the formula rather than as a separate argument: a modeled
+## intercept becomes an lmer-style (1 | g) term that stan4bart or lme4 reads,
+## an unmodeled one just another right-hand-side term
+addGroupTerm <- function(formula, group.by, use.ranef)
+{
+  if (is.null(group.by)) return(formula)
+  
+  term <- group.by
+  if (use.ranef) {
+    term <- quote((1 | g))
+    term[[2L]][[3L]] <- group.by
+  }
+  formula[[3L]] <- call("+", formula[[3L]], term)
+  
+  formula
+}
+
 getGroupBy <- function(data, subset, group.by)
 {
   dataAreMissing <- missing(data)
@@ -38,26 +55,21 @@ getTreatmentDataCall <- function(fn, treatment, confounders, parametric, data, s
     }
   }
   
+  groupIsPresent <- !is.null(matchedCall[["group.by"]])
+  
   if (is.null(matchedCall[["parametric"]])) {
-    if (is.null(matchedCall[["group.by"]]) || (use.ranef && !use.lmer)) {
+    if (!groupIsPresent || !use.ranef || use.lmer) {
       formula <- a ~ b
       formula[[2L]] <- matchedCall$treatment
       formula[[3L]] <- matchedCall$confounders
-    } else if (!use.ranef) {
-      # add as fixed effects
-      formula <- a ~ b + c
-      formula[[2L]] <- matchedCall$treatment
-      formula[[3L]][[2L]] <- matchedCall$confounders
-      formula[[3L]][[3L]] <- matchedCall$group.by
     } else {
-      formula <- a ~ b + (1 | c)
+      ## a modeled intercept with no parametric equation is fit by stan4bart,
+      ## which takes the nonparametric part as a bart() term
+      formula <- a ~ bart(b)
       formula[[2L]] <- matchedCall$treatment
       formula[[3L]][[2L]] <- matchedCall$confounders
-      formula[[3L]][[3L]][[2L]][[3L]] <- matchedCall$group.by
     }
   } else {
-    if (!is.null(matchedCall[["group.by"]]))
-      stop("`group.by` must be missing or NULL if `parametric` is supplied; for varying intercepts, add (1 | group) to parametric equation")
     if (!use.lmer) {
       formula <- treatment ~ parametrics + bart(nonParametrics)
       formula[[2L]] <- matchedCall$treatment
@@ -71,6 +83,8 @@ getTreatmentDataCall <- function(fn, treatment, confounders, parametric, data, s
     }
   } 
   
+  formula <- addGroupTerm(formula, if (groupIsPresent) matchedCall$group.by else NULL, use.ranef)
+  
   environment(formula) <- parent.frame(1L)
   
   fn <- matchedCall$fn; matchedCall$fn <- NULL
@@ -83,6 +97,7 @@ getTreatmentDataCall <- function(fn, treatment, confounders, parametric, data, s
 getResponseDataCall <- function(fn, response, treatment, confounders, parametric, data, subset, weights, p.score, group.by, use.ranef)
 {
   matchedCall <- match.call()
+  groupIsPresent <- !is.null(matchedCall[["group.by"]])
   tryResult <- tryCatch(confounders.literal <- confounders, error = function(e) e, warning = function(w) w)
   if (!inherits(tryResult, "error") && !inherits(tryResult, "warning")) {
     if (is.language(confounders.literal))
@@ -104,22 +119,19 @@ getResponseDataCall <- function(fn, response, treatment, confounders, parametric
     evalEnv <- parent.frame(1L)
     
     if (is.null(matchedCall[["parametric"]])) {
-      if (is.null(matchedCall[["group.by"]]) || use.ranef) {
+      if (!groupIsPresent || !use.ranef) {
         formula <- a ~ b
         formula[[2L]] <- matchedCall$response
         formula[[3L]] <- quote(a + b)
         formula[[3L]][[2L]] <- matchedCall$confounders
         formula[[3L]][[3L]] <- matchedCall$treatment
       } else {
-        formula <- a ~ b + c + d
+        formula <- a ~ bart(b + c)
         formula[[2L]] <- matchedCall$response
         formula[[3L]][[2L]][[2L]] <- matchedCall$confounders
         formula[[3L]][[2L]][[3L]] <- matchedCall$treatment
-        formula[[3L]][[3L]] <- matchedCall$group.by
       }
     } else {
-      if (!is.null(matchedCall[["group.by"]]))
-        stop("group.by must be missing or NULL if parametric is supplied; for varying intercepts, add (1 | group) to parametric equation")
       formula <- response ~ treatment + bart(confounders + treatment) + parametric
       # ~(response, RHS)
       formula[[2L]] <- matchedCall$response
@@ -164,7 +176,7 @@ getResponseDataCall <- function(fn, response, treatment, confounders, parametric
     }
     
     if (is.null(matchedCall[["parametric"]])) {
-      if (is.null(matchedCall[["group.by"]]) || use.ranef) {
+      if (!groupIsPresent || !use.ranef) {
         formula <- a ~ b
         formula[[2L]] <- matchedCall$response
         formula[[3L]] <- quote(a + b)
@@ -173,17 +185,13 @@ getResponseDataCall <- function(fn, response, treatment, confounders, parametric
         formula[[3L]][[2L]][[3L]] <- str2lang(pScoreName)
         formula[[3L]][[3L]] <- matchedCall$treatment
       } else {
-        formula <- a ~ b + c + d + e
+        formula <- a ~ bart(b + c + d)
         formula[[2L]] <- matchedCall$response
         formula[[3L]][[2L]][[2L]][[2L]] <- matchedCall$confounders
         formula[[3L]][[2L]][[2L]][[3L]] <- str2lang(pScoreName)
         formula[[3L]][[2L]][[3L]]       <- matchedCall$treatment
-        formula[[3L]][[3L]]             <- matchedCall$group.by
       }
     } else {
-      if (!is.null(matchedCall[["group.by"]]))
-        stop("group.by must be missing or NULL if parametric is supplied; for varying intercepts, add (1 | group) to parametric equation")
-      
       if (exists("pScoreName")) {
         formula <- response ~ treatment + p.score + bart(confounders + treatment + p.score) + parametric
         formula[[2L]] <- matchedCall$response
@@ -215,6 +223,8 @@ getResponseDataCall <- function(fn, response, treatment, confounders, parametric
       }
     }
   }
+  
+  formula <- addGroupTerm(formula, if (groupIsPresent) matchedCall$group.by else NULL, use.ranef)
   
   environment(formula) <- evalEnv
   
@@ -259,24 +269,18 @@ getTreatmentLiteralCall <- function(fn, treatment, confounders, parametric, subs
       while (group.byName %in% colnames(df))
         group.byName <- paste0(group.byName, "g")
       df[[group.byName]] <- group.by
-      
-      if (!use.ranef) confounderNames <- c(confounderNames, group.byName)
     }
     
-    if (is.null(group.by) || !use.ranef || !use.lmer) {
+    if (is.null(group.by) || !use.ranef || use.lmer) {
       formula <- a ~ b
       formula[[2L]] <- str2lang(treatmentName)
       formula[[3L]] <- str2lang(paste0(confounderNames, collapse = " + "))
     } else {   
-      formula <- a ~ b + (1 | c)
+      formula <- a ~ bart(b)
       formula[[2L]] <- str2lang(treatmentName)
-      formula[[3L]][[2L]] <- str2lang(paste0(setdiff(colnames(df), c(treatmentName, group.byName)), collapse = " + "))
-      formula[[3L]][[3L]][[2L]][[3L]] <- str2lang(group.byName)
+      formula[[3L]][[2L]] <- str2lang(paste0(confounderNames, collapse = " + "))
     }
   } else {
-    if (!is.null(group.by))
-      stop("group.by must be missing or NULL if parametric is supplied; for varying intercepts, add (1 | group) to parametric equation")
-    
     confounderNames <- colnames(confounders)
     parametricNames <- colnames(parametric)
     
@@ -294,6 +298,13 @@ getTreatmentLiteralCall <- function(fn, treatment, confounders, parametric, subs
     df <- as.data.frame(cbind(treatment, confounders, parametric))
     colnames(df) <- c(treatmentName, confounderNames, parametricNames)
     
+    if (!is.null(group.by)) {
+      group.byName <- "g"
+      while (group.byName %in% colnames(df))
+        group.byName <- paste0(group.byName, "g")
+      df[[group.byName]] <- group.by
+    }
+    
     if (!use.lmer) {
       formula <- treatment ~ parametrics + bart(nonParametrics)
       formula[[2L]] <- str2lang(treatmentName)
@@ -305,6 +316,8 @@ getTreatmentLiteralCall <- function(fn, treatment, confounders, parametric, subs
       formula[[3L]] <- str2lang(paste0(c(parametricNames, confounderNames), collapse = " + "))
     }
   }
+  
+  formula <- addGroupTerm(formula, if (!is.null(group.by)) str2lang(group.byName) else NULL, use.ranef)
     
   result <- quote(functionName(formula, data = df))
   result[[1L]] <- matchedCall$fn
@@ -353,20 +366,24 @@ getResponseLiteralCall <- function(fn, response, treatment, confounders, paramet
       }
     }
     
-    if (!is.null(group.by) && !use.ranef) {
+    if (!is.null(group.by)) {
       group.byName <- "g"
       while (group.byName %in% colnames(df))
         group.byName <- paste0(group.byName, "g")
       df[[group.byName]] <- group.by
     }
     
-    formula <- a ~ b
-    formula[[2L]] <- str2lang(responseName)
-    formula[[3L]] <- str2lang(paste0(setdiff(colnames(df), responseName), collapse = " + "))
+    modelNames <- setdiff(colnames(df), if (is.null(group.by)) responseName else c(responseName, group.byName))
+    if (is.null(group.by) || !use.ranef) {
+      formula <- a ~ b
+      formula[[2L]] <- str2lang(responseName)
+      formula[[3L]] <- str2lang(paste0(modelNames, collapse = " + "))
+    } else {
+      formula <- a ~ bart(b)
+      formula[[2L]] <- str2lang(responseName)
+      formula[[3L]][[2L]] <- str2lang(paste0(modelNames, collapse = " + "))
+    }
   } else {
-    if (!is.null(group.by))
-      stop("group.by must be missing or NULL if parametric is supplied; for varying intercepts, add (1 | group) to parametric equation")
-    
     confounderNames <- colnames(confounders)
     parametricNames <- colnames(parametric)
     
@@ -386,6 +403,13 @@ getResponseLiteralCall <- function(fn, response, treatment, confounders, paramet
     
     df <- as.data.frame(cbind(response, treatment, confounders, parametric))
     colnames(df) <- c(responseName, treatmentName, confounderNames, parametricNames)
+    
+    if (!is.null(group.by)) {
+      group.byName <- "g"
+      while (group.byName %in% colnames(df))
+        group.byName <- paste0(group.byName, "g")
+      df[[group.byName]] <- group.by
+    }
     
     if (!is.null(matchedCall$p.score)) {
       pScoreName <- "ps"
@@ -414,6 +438,8 @@ getResponseLiteralCall <- function(fn, response, treatment, confounders, paramet
     formula[[3L]][[2L]] <- str2lang(paste0(allParametricNames, collapse = " + "))
     formula[[3L]][[3L]][[2L]] <- str2lang(paste0(nonParametricNames, collapse = " + "))
   }
+  
+  formula <- addGroupTerm(formula, if (!is.null(group.by)) str2lang(group.byName) else NULL, use.ranef)
   
   result <- quote(functionName(formula, data = df))
   result[[1L]] <- matchedCall$fn

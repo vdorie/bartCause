@@ -21,10 +21,36 @@
       \item Generics that accept \code{...} arguments but do not use them will
             now issue warnings when called with unknown arguments. Suggestion
             thanks to Joshua Bon.
+      \item \code{group.by} with \code{use.ranef = TRUE} is now fit by the
+            \code{stan4bart} package, which adds a \code{(1 | group.by)} term
+            to the model formula, for the response surface and for the BART
+            propensity model alike; \code{dbarts} no longer fits grouped
+            random intercepts. \code{stan4bart} is a suggested package, so the
+            route errors informatively when it is absent;
+            \code{use.ranef = FALSE}, which enters the grouping factor as
+            another predictor, needs no additional package. Arguments for these
+            models are \code{stan4bart}'s (\code{chains}, \code{iter},
+            \code{warmup}, \code{bart_args}) rather than \code{dbarts}'s.
+      \item \code{group.by} can now be supplied together with
+            \code{parametric}: the varying intercept is added to the parametric
+            equation rather than refused.
+      \item A missing response is now refused for semiparametric response
+            surfaces - a \code{parametric} equation, or \code{group.by} with
+            \code{use.ranef = TRUE}. The counterfactual comes from flipping
+            the treatment in the fitted model frame, which holds only the
+            complete cases, so a missing response has no counterfactual to
+            recover.
+      \item Every BART propensity model is a probit, and a weighted probit has
+            no tractable latent form, so the \code{stan4bart}-backed propensity
+            models are now fit unweighted with a message, as the
+            \code{dbarts}-backed ones already were.
     }
   }
   \subsection{BUG-FIXES}{
     \itemize{
+      \item \code{refit} now reads the response and the weights off a
+            semiparametric fit instead of a \code{dbartsData} object, and no
+            longer errors on one.
       \item \code{predict} now takes the propensity score's column name from
             the fit instead of re-deriving it from the response model's
             predictor names. A confounder whose name began with the score's

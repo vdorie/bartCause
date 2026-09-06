@@ -156,25 +156,24 @@ predict.bartcFit <-
       if (!inherits(object$fit.trt, "stan4bartFit") && is.null(object$fit.trt$fit))
         stop("predict with method.trt = '", object$method.trt, "' requires treatment model to be fit with keepTrees == TRUE")
       
+      x.new.trt <- x.new
       if (!is.null(object[["group.by"]])) {
+        # the grouping factor is a column of the design either way: named by the
+        # random-effect term when it is modeled, and by the one design column
+        # the new data does not carry when it is not
         if (use.ranef) {
-          # uses rbart
-          p.score <- predict(object$fit.trt, x.new, group.by = group.by, combineChains = FALSE, ...)
+          x.new.trt[[names(object$fit.trt$reTrms$flist)[1L]]] <- group.by
         } else {
-          # uses base bart
-          x.new.g <- x.new
           varNames <- attr(object$fit.trt$fit$data@x, "term.labels")
-          x.new.g[[varNames[varNames %not_in% names(x.new)][1L]]] <- group.by
-          
-          p.score <- predict(object$fit.trt, x.new.g, combineChains = FALSE, ...)
+          x.new.trt[[varNames[varNames %not_in% names(x.new)][1L]]] <- group.by
         }
+      }
+      if (inherits(object$fit.trt, "stan4bartFit")) {
+        # stan4bart returns n.obs x n.samples x n.chains
+        p.score <- predict(object$fit.trt, x.new.trt, combine_chains = FALSE, ...)
+        p.score <- aperm(p.score, c(3L, 2L, 1L))
       } else {
-        if (inherits(object$fit.trt, "stan4bartFit")) {
-          p.score <- predict(object$fit.trt, x.new, combine_chains = FALSE, ...)
-          p.score <- aperm(p.score, c(3L, 2L, 1L))
-        } else {
-          p.score <- predict(object$fit.trt, x.new, combineChains = FALSE, ...)
-        }
+        p.score <- predict(object$fit.trt, x.new.trt, combineChains = FALSE, ...)
       }
     }
   }
@@ -189,15 +188,14 @@ predict.bartcFit <-
   }
     
   if (!is.null(object$group.by)) {
+    x.new.g <- x.new
     if (use.ranef) {
-      predictArgs <- list(object$fit.rsp, x.new, group.by = group.by, combineChains = FALSE, ...)
+      x.new.g[[names(object$fit.rsp$reTrms$flist)[1L]]] <- group.by
     } else {
-      x.new.g <- x.new
       varNames <- attr(object$fit.rsp$fit$data@x, "term.labels")
       x.new.g[[varNames[varNames %not_in% c(names(x.new), object$name.trt)][1L]]] <- group.by
-      
-      predictArgs <- list(object$fit.rsp, x.new.g, combineChains = FALSE, ...)
     }
+    predictArgs <- list(object$fit.rsp, x.new.g, combineChains = FALSE, ...)
   } else {
     predictArgs <- list(object$fit.rsp, x.new, combineChains = FALSE, ...)
   }
@@ -501,11 +499,10 @@ refit.bartcFit <- function(object, newresp = NULL,
   
   
   treatmentRows <- object$trt > 0
-  if (inherits(object$data.rsp, "dbartsData")) {
-    weights <- object$data.rsp@weights
-  } else {
-    weights <- object$data.rsp$weights
-  }
+  responseIsStan4Bart <- inherits(object$fit.rsp, "stan4bartFit")
+  y.rsp   <- if (responseIsStan4Bart) object$fit.rsp$y       else object$data.rsp@y
+  weights <- if (responseIsStan4Bart) object$fit.rsp$weights else object$data.rsp@weights
+  if (length(weights) == 0L) weights <- NULL
   if (!is.null(weights)) weights <- weights / sum(weights)
   
   group.effects <- if (!is.null(object[["group.effects"]])) object[["group.effects"]] else FALSE
@@ -555,7 +552,7 @@ refit.bartcFit <- function(object, newresp = NULL,
         if (!is.null(weights)) weights <- weights[commonSup.sub]
       }
 
-      object$est <- with(object, getPWeightEstimates(data.rsp@y[commonSup.sub], trt[commonSup.sub], weights, estimand, mu.hat.0, mu.hat.1, p.score.samples, fitPars$yBounds, fitPars$p.scoreBounds))
+      object$est <- with(object, getPWeightEstimates(y.rsp[commonSup.sub], trt[commonSup.sub], weights, estimand, mu.hat.0, mu.hat.1, p.score.samples, fitPars$yBounds, fitPars$p.scoreBounds))
     } else {
       object$est <- lapply(levels(object$group.by), function(level) {
         levelRows <- object$group.by == level & object$commonSup.sub
@@ -566,7 +563,7 @@ refit.bartcFit <- function(object, newresp = NULL,
 
         if (!is.null(weights)) weights <- weights[levelRows]
 
-        with(object, getPWeightEstimates(data.rsp@y[levelRows], trt[levelRows], weights, estimand, mu.hat.0, mu.hat.1, p.score.samples,
+        with(object, getPWeightEstimates(y.rsp[levelRows], trt[levelRows], weights, estimand, mu.hat.0, mu.hat.1, p.score.samples,
                                          fitPars$yBounds, fitPars$p.scoreBounds))
       })
       names(object$est) <- levels(object$group.by)
@@ -609,7 +606,7 @@ refit.bartcFit <- function(object, newresp = NULL,
       ## fitPars doesn't carry the n.threads originally used to fit; re-derive
       ## single-threaded rather than spawn a fresh parallel cluster as a side
       ## effect of what should be a lightweight commonSup.rule recompute
-      object$est <- with(object, getTMLEEstimates(data.rsp@y[commonSup.sub], trt[commonSup.sub], weights, estimand, mu.hat.0, mu.hat.1, p.score.samples,
+      object$est <- with(object, getTMLEEstimates(y.rsp[commonSup.sub], trt[commonSup.sub], weights, estimand, mu.hat.0, mu.hat.1, p.score.samples,
                                                   fitPars$yBounds, fitPars$p.scoreBounds, fitPars$depsilon, fitPars$maxIter,
                                                   n.threads = 1L))
     } else {
@@ -622,7 +619,7 @@ refit.bartcFit <- function(object, newresp = NULL,
 
         if (!is.null(weights)) weights <- weights[levelRows]
 
-        with(object, getTMLEEstimates(data.rsp@y[levelRows], trt[levelRows], weights, estimand, mu.hat.0, mu.hat.1, p.score.samples,
+        with(object, getTMLEEstimates(y.rsp[levelRows], trt[levelRows], weights, estimand, mu.hat.0, mu.hat.1, p.score.samples,
                                       fitPars$yBounds, fitPars$p.scoreBounds, fitPars$depsilon, fitPars$maxIter,
                                       n.threads = 1L))
       })

@@ -27,6 +27,23 @@ test_that("plot methods run against a dbartsMixedMatrix design matrix", {
   expect_error(plot_support(fit, xvar = "tree.1", yvar = "css", legend.x = NULL), NA)
 })
 
+test_that("plot methods run against a semiparametric fit's assembled design", {
+  skip_if_not_installed("stan4bart")
+  ## a varying intercept keeps no dbartsData, so the design comes off the fit
+  g <- rep_len(seq_len(4L), n)
+  gfit <- bartc(y, z, x, group.by = g, method.trt = "glm", verbose = FALSE,
+                commonSup.rule = "sd",
+                chains = 2L, iter = 14L, warmup = 7L, bart_args = list(n.trees = 7L))
+
+  pf <- tempfile(fileext = ".pdf")
+  grDevices::pdf(pf)
+  on.exit({ grDevices::dev.off(); unlink(pf) }, add = TRUE)
+
+  expect_error(plot_support(gfit, xvar = "pca.1", yvar = "pca.2"), NA)
+  expect_error(plot_indiv(gfit), NA)
+  expect_error(plot_support(gfit, xvar = 1L, yvar = "y"), NA)
+})
+
 test_that("plot_sigma overlays one trace per chain (dbarts 1.0-0 flattens sigma/first.sigma)", {
   ## Regression test: dbarts stores fit.rsp$sigma/$first.sigma as flat,
   ## chain-major vectors when n.chains > 1 (no per-chain matrix), so the
