@@ -7,12 +7,12 @@ optimizeBARTCall <- function(bartCall, env, kRange = NULL)
     if (!is.null(initCall[["n.samples"]]))
      eval(initCall[["n.samples"]], env) %/% 5L
     else
-      formals(dbarts::bart2)[["n.samples"]] %/% 5L
+      formals(dbarts::bart)[["n.samples"]] %/% 5L
   initCall[["n.burn"]] <-
     if (!is.null(initCall[["n.burn"]]))
       eval(initCall[["n.burn"]], env) %/% 5L
     else
-      formals(dbarts::bart2)[["n.burn"]] %/% 5L
+      formals(dbarts::bart)[["n.burn"]] %/% 5L
   
   # flat prior
   initCall[["k"]] <- "chi(1, Inf)"
@@ -29,7 +29,7 @@ optimizeBARTCall <- function(bartCall, env, kRange = NULL)
   
   # xbart has no dots and no control argument, so any named argument that
   # isn't one of its formals (e.g. keepTrainingFits, keepTrees, updateState,
-  # printEvery, printCutoffs, carried over from the enclosing bart2-style
+  # printEvery, printCutoffs, carried over from the enclosing bart-style
   # call) has to be dropped rather than moved into a control object
   argsToDrop <- names(xbartCall) != "" & names(xbartCall) %not_in% names(formals(dbarts::xbart))
   if (any(argsToDrop)) xbartCall <- xbartCall[!argsToDrop]

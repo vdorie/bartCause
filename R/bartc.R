@@ -19,7 +19,7 @@ bartc <- function(
   
   # some dots arg can get eaten by R's argument matching algorithm, like 'k' for keepCall
   mismatchedArgs.sys <- names(sysCall) %not_in% names(matchedCall) & names(sysCall) != "" &
-                        names(sysCall) %in% names(formals(dbarts::bart2))
+                        names(sysCall) %in% names(formals(dbarts::bart))
   if (any(mismatchedArgs.sys)) {
     mismatchedArgs.mc  <- sapply(matchedCall, function(x)
       any(sapply(which(mismatchedArgs.sys), function(j) x == sysCall[[j]])))

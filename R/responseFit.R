@@ -132,7 +132,7 @@ getBartResponseFit <- function(response, treatment, confounders, parametric, dat
   ## a parametric equation or a modeled group intercept both make the response
   ## surface semiparametric, and stan4bart is the only sampler that fits one
   bartMethod <- "bart"
-  fn <- quote(dbarts::bart2)
+  fn <- quote(dbarts::bart)
   if (!is.null(matchedCall[["parametric"]]) || (!is.null(matchedCall[["group.by"]]) && use.ranef)) {
     if (requireNamespace("stan4bart", quietly = TRUE) == FALSE)
       stop("semiparametric BART response model, including a varying intercept from 'group.by' with use.ranef = TRUE, requires stan4bart package to be available; pass use.ranef = FALSE to enter the grouping factor as a fixed effect instead")
@@ -209,7 +209,7 @@ getBartResponseFit <- function(response, treatment, confounders, parametric, dat
   }
   
   ## redirect to pull in any args passed
-  bartCall <- redirectCall(matchedCall, dbarts::bart2)
+  bartCall <- redirectCall(matchedCall, dbarts::bart)
   
   invalidArgs <- names(bartCall)[-1L] %not_in% names(eval(formals(eval(bartCall[[1L]])))) &
                  names(bartCall)[-1L] %not_in% names(eval(formals(dbarts::dbartsControl)))

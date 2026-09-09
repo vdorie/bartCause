@@ -476,8 +476,8 @@ addStan4BartSamplingArguments <- function(call, args, env, defaultChains = 10L)
   
   ## stan4bart's 'iter' counts the warmup draws that dbarts' 'n.samples' excludes
   if (is.null(call[["iter"]])) {
-    if (is.null(n.samples)) n.samples <- eval(formals(dbarts::bart2)$n.samples)
-    if (is.null(n.burn))    n.burn    <- eval(formals(dbarts::bart2)$n.burn)
+    if (is.null(n.samples)) n.samples <- eval(formals(dbarts::bart)$n.samples)
+    if (is.null(n.burn))    n.burn    <- eval(formals(dbarts::bart)$n.burn)
     
     call[["iter"]] <- as.integer(n.samples) + as.integer(n.burn)
     if (is.null(call[["warmup"]])) call[["warmup"]] <- as.integer(n.burn)

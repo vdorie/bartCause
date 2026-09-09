@@ -98,7 +98,7 @@ getBartTreatmentFit <- function(response, treatment, confounders, parametric, da
   ## model semiparametric, and stan4bart is the only sampler that fits one; its
   ## binary family is probit, matching the dbarts binary route
   bartMethod <- "bart"
-  fn <- quote(dbarts::bart2)
+  fn <- quote(dbarts::bart)
   if (!is.null(matchedCall[["parametric"]]) || (!is.null(matchedCall[["group.by"]]) && use.ranef)) {
     if (requireNamespace("stan4bart", quietly = TRUE) == FALSE)
       stop("semiparametric BART treatment model, including a varying intercept from 'group.by' with use.ranef = TRUE, requires stan4bart package to be available; pass use.ranef = FALSE to enter the grouping factor as a fixed effect instead")
