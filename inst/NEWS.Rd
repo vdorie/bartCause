@@ -72,6 +72,11 @@
             per-chain sigma is now correctly assigned to its own chain;
             previously multi-chain fits interleaved chains, which also
             mis-paired sigma with the posterior predictive draws.
+      \item \code{bcf}'s default \code{n.threads} is now capped at
+            \code{n.chains}, matching \code{dbarts}; previously every
+            multi-core, default-argument \code{bcf} fit (directly or via
+            \code{bartc(method.rsp = "bcf")}) warned that \code{n.threads}
+            exceeded \code{n.chains}.
     }
   }
 }

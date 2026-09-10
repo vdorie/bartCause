@@ -398,3 +398,14 @@ test_that("bcf takes an x/y interface as bart2 does", {
   expect_equal(sum(fit$varcount$tau[,,"ps"]), 0)
   expect_equal(dim(fit$mu.hat.obs), c(2L, 4L, n.obs))
 })
+
+test_that("bcf's default n.threads is capped at n.chains (dbarts dec-B115)", {
+  # both defaults resolve dbarts::guessNumCores(); on a machine with more
+  # cores than chains, an uncapped default warns "n.threads (N) exceeds
+  # n.chains (M)" out of dbartsControl
+  expect_no_warning(
+    bcf(y ~ x1 + x2 + x3, data = linearFrame, treatment = z,
+        n.trees = 5L, n.samples = 3L, n.burn = 2L, verbose = FALSE),
+    message = "n.threads.*exceeds n.chains"
+  )
+})

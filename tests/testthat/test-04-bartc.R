@@ -283,6 +283,17 @@ test_that("bartc runs the bcf response method at one and two chains (FB6)", {
   expect_gt(sum(fit$fit.rsp$varcount$mu[,,"ps"]), 0)
 })
 
+test_that("bartc's bcf response method defaults n.threads capped at n.chains", {
+  # n.chains is fixed at 2 and n.threads left at its default; an uncapped
+  # default warns "n.threads (N) exceeds n.chains (2)" out of dbartsControl
+  # on a machine with more than 2 cores
+  expect_no_warning(
+    bartc(y, z, x, data = testData, method.trt = "glm", method.rsp = "bcf", verbose = FALSE,
+          n.burn = 2L, n.samples = 3L, n.trees = 5L, n.chains = 2L),
+    message = "n.threads.*exceeds n.chains"
+  )
+})
+
 test_that("bartc refuses crossvalidation for the bcf response method (FB3)", {
   expect_error(bartc(y, z, x, data = testData, method.rsp = "bcf", crossvalidate = TRUE,
                      verbose = FALSE, n.burn = 3L, n.samples = 13L, n.trees = 7L,
