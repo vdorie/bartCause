@@ -29,7 +29,7 @@ bcf(formula, data, subset, weights, offset,
     mu.interactions = NULL, tau.interactions = NULL,
     tau.blocks = NULL,
     n.samples = 500L, n.burn = 500L, n.chains = 4L,
-    n.threads = dbarts::guessNumCores(), combineChains = TRUE,
+    n.threads = min(dbarts::guessNumCores(), n.chains), combineChains = TRUE,
     keepSampler = FALSE, verbose = TRUE, seed = NA_integer_, \dots)
 
 \method{print}{bartBCF}(x, digits = max(3L, getOption("digits") - 3L), \dots)
