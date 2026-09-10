@@ -80,6 +80,18 @@ test_that("bartc returns valid ouput with two chains", {
   expect_equal(dim(fit$samples.p.score), c(2L, 13L, n.obs))
 })
 
+test_that("bartc reports n.chains correctly regardless of combineChains", {
+  # combineChains = TRUE collapses fit$mu.hat.obs to 2-D; n.chains has to come
+  # from the response fitter's own record (fit.rsp$n.chains), not from
+  # mu.hat.obs's dims, or it reads back as 1 no matter how many chains ran
+  for (cc in c(TRUE, FALSE)) {
+    fit <- bartc(y, z, x, data = testData, method.trt = "glm", method.rsp = "bart", verbose = FALSE,
+                 n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 4L, n.threads = 1L,
+                 combineChains = cc)
+    expect_equal(fit$n.chains, 4L)
+  }
+})
+
 test_that("bartc runs with all treatment settings and one chain", {
   expect_is(bartc(y, z, x, data = testData, method.trt = "glm", method.rsp = "bart", verbose = FALSE,
                   n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L),

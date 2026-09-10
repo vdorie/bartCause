@@ -191,9 +191,13 @@ bartc <- function(
     if (use.ranef) result[["use.ranef"]] <- use.ranef
     if (group.effects) result[["group.effects"]] <- group.effects
   }
-  ## dbarts >= 1.0-0 combines chains in fit$yhat.train (now 2-D), so derive the
-  ## chain count from bartCause's own 3-D mu.hat.obs [n.chains, n.samples, n.obs]
-  result$n.chains <- if (length(dim(mu.hat.obs)) > 2L) dim(mu.hat.obs)[1L] else 1L
+  ## combineChains = TRUE collapses mu.hat.obs to 2-D, so its own dims cannot
+  ## be trusted for the chain count; every response fitter's own object
+  ## (dbarts's bart/bartBCF, both of which record n.chains directly) survives
+  ## that collapse, so read it from there and fall back to the old dim-based
+  ## guess only when a fit object does not carry one
+  result$n.chains <- if (!is.null(fit[["n.chains"]])) fit[["n.chains"]]
+                      else if (length(dim(mu.hat.obs)) > 2L) dim(mu.hat.obs)[1L] else 1L
   
   if (!is.na(seed)) {
     result$seed <- .GlobalEnv$.Random.seed

@@ -77,6 +77,11 @@
             multi-core, default-argument \code{bcf} fit (directly or via
             \code{bartc(method.rsp = "bcf")}) warned that \code{n.threads}
             exceeded \code{n.chains}.
+      \item \code{bartc}'s \code{n.chains} is now read from the response
+            fitter's own record instead of guessed from the dimensions of
+            \code{mu.hat.obs}; \code{combineChains = TRUE} collapses those
+            dimensions, which previously made \code{n.chains} read back as 1
+            regardless of how many chains were actually run.
     }
   }
 }
