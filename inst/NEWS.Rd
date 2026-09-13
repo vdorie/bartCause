@@ -84,6 +84,14 @@
             regardless of how many chains were actually run. The
             \code{"p.weight"} and \code{"tmle"} estimate paths now take the
             chain count from the same place rather than from those dimensions.
+      \item \code{method.rsp = "tmle"} gave a different estimate for a fit made
+            with \code{combineChains = TRUE} than for the same fit made with
+            its chains kept apart. The per-draw loop calls \code{tmle::tmle},
+            which draws on R's random number stream for its own nuisance fits,
+            so the order the posterior is visited in was part of the answer;
+            a chain-separated fit was visited chain-fastest and a combined one
+            sample-fastest. Both are now visited in the order \code{dbarts}
+            lays a combined fit out, chain block by chain block.
     }
   }
 }

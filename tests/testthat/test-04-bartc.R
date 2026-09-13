@@ -107,6 +107,25 @@ test_that("p.weight estimates do not depend on combineChains", {
   expect_equal(fitted(fits[[1L]], "pate"), fitted(fits[[2L]], "pate"))
 })
 
+test_that("tmle estimates do not depend on combineChains", {
+  skip_on_cran()
+  skip_if_not_installed("tmle")
+  # tmle::tmle draws on R's rng for its own nuisance fits, so the order the
+  # per-draw loop visits the posterior in changes the answer and not just its
+  # arrangement; a combined fit and the same fit with its chains kept apart
+  # have to present the draws in the same order
+  fits <- lapply(c(TRUE, FALSE), function(cc) {
+    set.seed(99)
+    bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "tmle",
+          verbose = FALSE, n.burn = 3L, n.samples = 7L, n.trees = 5L,
+          n.chains = 3L, n.threads = 1L, n.reps = 3L, combineChains = cc)
+  })
+  expect_equal(fitted(fits[[1L]], "pate"), fitted(fits[[2L]], "pate"))
+  # and draw for draw, under the map between the two layouts
+  expect_equal(as.vector(fits[[1L]]$est[, 1L]),
+               as.vector(aperm(fits[[2L]]$est[, , 1L], c(2L, 1L))))
+})
+
 test_that("bartc runs with all treatment settings and one chain", {
   expect_is(bartc(y, z, x, data = testData, method.trt = "glm", method.rsp = "bart", verbose = FALSE,
                   n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L),

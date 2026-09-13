@@ -573,9 +573,24 @@ getTMLEEstimates <- function(
     stop("estimand must be one of 'ate', 'att', or 'atc'")
   estimand <- estimand[1L]
   
+  ## The per-draw loop below calls tmle::tmle, which draws on R's rng for its
+  ## own nuisance fits, so the order the draws are visited in is part of the
+  ## answer rather than a permutation of it. Lay a chain-separated fit out the
+  ## way dbarts and combineChains() lay a combined one out - chain block by
+  ## chain block, samples fastest - so the same fit gives the same estimate
+  ## whether or not it was fit with the chains combined.
   flattenSamples.perm <- function(y) {
     x <- NULL ## R CMD check
-    if (!is.null(dim(y)) && length(dim(y)) > 2L) evalx(dim(y), matrix(y, nrow = x[1L], ncol = x[2L] * x[3L])) else y
+    if (!is.null(dim(y)) && length(dim(y)) > 2L)
+      evalx(dim(y), matrix(aperm(y, c(1L, 3L, 2L)), nrow = x[1L], ncol = x[2L] * x[3L]))
+    else y
+  }
+  ## the inverse of that flattening: rows run sample-fastest within a chain,
+  ## and the estimates are reported as [n.chains, n.samples, 2]
+  unflattenSamples.perm <- function(result, dims) {
+    result <- aperm(array(result, c(dims[3L], dims[2L], 2L)), c(2L, 1L, 3L))
+    dimnames(result) <- list(NULL, NULL, c("est", "se"))
+    result
   }
 
   
@@ -644,7 +659,7 @@ getTMLEEstimates <- function(
       }
       result[,2L] <- sqrt(result[,2L])
       if (length(dim(mu.hat.0)) > 2L) {
-        result <- array(result, c(dim(mu.hat.0)[-1L], 2L), dimnames = list(NULL, NULL, c("est", "se")))
+        result <- unflattenSamples.perm(result, dim(mu.hat.0))
       } else {
         colnames(result) <- c("est", "se")
       }
@@ -751,7 +766,7 @@ getTMLEEstimates <- function(
 
   
   if (!is.null(origDims) && length(origDims) > 2L)
-    result <- array(result, c(origDims[2L], origDims[3L], 2L), dimnames = list(NULL, NULL, c("est", "se")))
+    result <- unflattenSamples.perm(result, origDims)
   
   result
 }
