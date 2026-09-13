@@ -81,7 +81,9 @@
             fitter's own record instead of guessed from the dimensions of
             \code{mu.hat.obs}; \code{combineChains = TRUE} collapses those
             dimensions, which previously made \code{n.chains} read back as 1
-            regardless of how many chains were actually run.
+            regardless of how many chains were actually run. The
+            \code{"p.weight"} and \code{"tmle"} estimate paths now take the
+            chain count from the same place rather than from those dimensions.
     }
   }
 }

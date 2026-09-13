@@ -92,6 +92,21 @@ test_that("bartc reports n.chains correctly regardless of combineChains", {
   }
 })
 
+test_that("p.weight estimates do not depend on combineChains", {
+  # the p.weight branch reshapes the propensity draws against the chain count,
+  # so a combineChains = TRUE fit has to reach the same estimate as the same
+  # fit with its chains kept apart
+  fits <- lapply(c(TRUE, FALSE), function(cc) {
+    set.seed(99)
+    bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "p.weight",
+          verbose = FALSE, n.burn = 3L, n.samples = 13L, n.trees = 7L,
+          n.chains = 4L, n.threads = 1L, n.reps = 3L, combineChains = cc)
+  })
+  expect_equal(fits[[1L]]$n.chains, 4L)
+  expect_equal(fits[[2L]]$n.chains, 4L)
+  expect_equal(fitted(fits[[1L]], "pate"), fitted(fits[[2L]], "pate"))
+})
+
 test_that("bartc runs with all treatment settings and one chain", {
   expect_is(bartc(y, z, x, data = testData, method.trt = "glm", method.rsp = "bart", verbose = FALSE,
                   n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L),

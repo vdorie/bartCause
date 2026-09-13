@@ -532,8 +532,11 @@ refit.bartcFit <- function(object, newresp = NULL,
     ## averaged score for every posterior draw instead of the per-draw samples
     p.score.samples <- if (!is.null(object$samples.p.score)) object$samples.p.score else object$p.score
     if (!is.null(dim(p.score.samples)) && length(dim(p.score.samples)) < length(dim(mu.hat.0))) {
-      # chains were collapsed
-      n.chains  <- dim(mu.hat.0)[2L]
+      # chains were collapsed. The chain count is the fit's own record, as in
+      # bartc(); mu.hat.0's second extent agrees with it only while the
+      # response fit kept its chains apart, which a combineChains = TRUE fit
+      # does not
+      n.chains  <- if (!is.null(object$n.chains)) object$n.chains else dim(mu.hat.0)[2L]
       n.samples <- dim(mu.hat.0)[3L]
       n.obs     <- dim(mu.hat.0)[1L]
       p.score.samples <- aperm(array(p.score.samples, c(n.chains, n.obs, n.samples)), c(3L, 1L, 2L))
@@ -583,8 +586,11 @@ refit.bartcFit <- function(object, newresp = NULL,
     ## isn't shadowed by object$p.score inside with(object, ...) below
     p.score.samples <- if (!is.null(object$samples.p.score)) object$samples.p.score else object$p.score
     if (!is.null(dim(p.score.samples)) && length(dim(p.score.samples)) < length(dim(mu.hat.0))) {
-      # chains were collapsed
-      n.chains  <- dim(mu.hat.0)[2L]
+      # chains were collapsed. The chain count is the fit's own record, as in
+      # bartc(); mu.hat.0's second extent agrees with it only while the
+      # response fit kept its chains apart, which a combineChains = TRUE fit
+      # does not
+      n.chains  <- if (!is.null(object$n.chains)) object$n.chains else dim(mu.hat.0)[2L]
       n.samples <- dim(mu.hat.0)[3L]
       n.obs     <- dim(mu.hat.0)[1L]
       p.score.samples <- aperm(array(p.score.samples, c(n.chains, n.obs, n.samples)), c(3L, 1L, 2L))
