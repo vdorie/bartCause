@@ -202,7 +202,7 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
     tauVars <- moderators
   }
 
-  ## the sampler: four calls, mirroring bart2's standard path. Every per-draw
+  ## the sampler: four calls, mirroring bart's standard path. Every per-draw
   ## channel arrives batched from the second run, so there is no per-sweep loop
   extraArgs <- list(...)
   controlFormals <- names(formals(dbarts::dbartsControl))

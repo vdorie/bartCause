@@ -12,7 +12,7 @@ p.score <- fitted(glm(z ~ x + g, family = stats::binomial, data = testData))
 set.seed(22)
 x.train <- cbind(z = testData$z, testData$x, p.score, testData$g)
 x.test  <- x.train; x.test[,"z"] <- 1 - x.test[,"z"]
-bartFit <- dbarts::bart2(x.train, testData$y, x.test, n.samples = 50L, n.burn = 25L,
+bartFit <- dbarts::bart(x.train, testData$y, x.test, n.samples = 50L, n.burn = 25L,
                          n.chains = 4L, n.threads = 1L, verbose = FALSE)
 
 obsCfToTrtCtl <- function(obs, cf, trt) {
@@ -63,7 +63,7 @@ test_that("sigma extract assigns each chain's draws to that chain (FB12)", {
   ## the same underlying model is a direct transpose, not a combine/uncombine
   ## round trip, so it cannot share bartCause's reshape bug either way.
   set.seed(22)
-  bartFit.split <- dbarts::bart2(x.train, testData$y, x.test, n.samples = 50L, n.burn = 25L,
+  bartFit.split <- dbarts::bart(x.train, testData$y, x.test, n.samples = 50L, n.burn = 25L,
                                   n.chains = 4L, n.threads = 1L, verbose = FALSE,
                                   combineChains = FALSE)
 

@@ -387,7 +387,7 @@ test_that("moderators restrict the treatment forest and nothing else", {
   expect_equal(muCounts[["z"]], 0)
 })
 
-test_that("bcf takes an x/y interface as bart2 does", {
+test_that("bcf takes an x/y interface as bart does", {
   fit <- bcf(testData$x, testData$y, treatment = testData$z,
              p.score = as.vector(testData$p.score),
              n.trees = 15L, n.samples = 4L, n.burn = 3L, n.chains = 2L,

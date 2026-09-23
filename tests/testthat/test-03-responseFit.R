@@ -13,7 +13,7 @@ test_that("bart fit matches manual call", {
   x.test[,"z"] <- 1 - x.test[,"z"]
   y <- testData$y
   set.seed(22)
-  bartFit <- dbarts::bart2(x.train, y, x.test, n.chains = 1L, n.threads = 1L, n.burn = 3L, n.samples = 13L, n.trees = 7L, verbose = FALSE)
+  bartFit <- dbarts::bart(x.train, y, x.test, n.chains = 1L, n.threads = 1L, n.burn = 3L, n.samples = 13L, n.trees = 7L, verbose = FALSE)
       
   expect_equal(bartFit$yhat.train, bartcFit$fit$yhat.train)
   expect_equal(bartFit$yhat.test,  bartcFit$fit$yhat.test)

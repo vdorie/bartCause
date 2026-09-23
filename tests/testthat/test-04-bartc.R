@@ -22,7 +22,7 @@ test_that("bartc matches manual fit", {
                     n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L)
   
   set.seed(22)
-  fit.trt <- dbarts::bart2(z ~ x, testData, verbose = FALSE,
+  fit.trt <- dbarts::bart(z ~ x, testData, verbose = FALSE,
                            n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L)
   p.score <- apply(pnorm(fit.trt$yhat.train), 2L, mean)
   expect_equal(p.score, fitted(bartcFit, type = "p.score"))
@@ -32,7 +32,7 @@ test_that("bartc matches manual fit", {
   x.test <- rbind(x.test, x.test)
   x.test[seq.int(nrow(testData$x) + 1L, nrow(x.test)),"z"] <- 0
   
-  fit.rsp <- dbarts::bart2(x.train, testData$y, x.test, verbose = FALSE,
+  fit.rsp <- dbarts::bart(x.train, testData$y, x.test, verbose = FALSE,
                            n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L)
   expect_equal(extract(bartcFit, type = "mu.0"),
                fit.rsp$yhat.test[,seq.int(nrow(testData$x) + 1L, nrow(x.test))])

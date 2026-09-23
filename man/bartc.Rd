@@ -145,17 +145,17 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
   \item{seed}{
     Optional integer specifying the desired pRNG \link[=set.seed]{seed}. It should not be needed
     when running single-threaded - \code{\link{set.seed}} will suffice, and can be used to
-    obtain reproducible results when multi-threaded. See Reproducibility section of
-    \code{\link[dbarts]{bart2}}.
+    obtain reproducible results when multi-threaded. See the Reproducibility section of
+    \code{\link[dbarts]{bartBT}}.
   }
   \item{args.rsp, args.trt, \dots}{ 
     Further arguments to the treatment and response model fitting algorithms.
     Arguments passed to the main function as \dots will be used in both models.
     \code{args.rsp} and \code{args.trt} can be used to set parameters in a
     single fit, and will override other values. See \code{\link{glm}} and
-    \code{\link[dbarts]{bart2}} for reference. Semiparametric models are fit by
+    \code{\link[dbarts]{bart}} for reference. Semiparametric models are fit by
     \code{\link[stan4bart]{stan4bart}}, which names its sampling arguments
-    differently; the \code{\link[dbarts]{bart2}} spellings are translated for
+    differently; the \code{\link[dbarts]{bart}} spellings are translated for
     them, as described under \sQuote{Special Arguments}.
   }
 }
@@ -284,12 +284,12 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
   Some default arguments are unconventional or are passed in a unique fashion.
   
   \itemize{
-    \item If \code{n.chains} is missing, unlike in \code{\link[dbarts]{bart2}} a default
+    \item If \code{n.chains} is missing, unlike in \code{\link[dbarts]{bart}} a default
           of 10 is used.
     \item Semiparametric models - a \code{parametric} equation, or
           \code{group.by} with \code{use.ranef} equal to \code{TRUE} - are fit
           by \code{\link[stan4bart]{stan4bart}}, whose sampling arguments carry
-          different names. The \code{\link[dbarts]{bart2}} spellings are
+          different names. The \code{\link[dbarts]{bart}} spellings are
           translated onto them: \code{n.samples} and \code{n.burn} become
           \code{iter} - which counts the warmup draws that \code{n.samples}
           excludes - and \code{warmup}, \code{n.chains} becomes \code{chains},
@@ -423,7 +423,7 @@ Hahn, P. R., Murray, J. S., and Carvalho, C. M. (2020)
 Vincent Dorie: \email{vdorie@gmail.com}.
 }
 \seealso{
-\code{\link[dbarts]{bart2}}
+\code{\link[dbarts]{bart}}
 }
 \examples{
 ## fit a simple linear model
