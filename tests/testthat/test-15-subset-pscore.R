@@ -32,7 +32,7 @@ test_that("a p.score-producing method.trt no longer errors when subset length do
                verbose = FALSE, n.burn = 3L, n.samples = 5L, n.trees = 5L, n.chains = 1L, n.threads = 1L)
   expect_is(fit, "bartcFit")
   expect_equal(length(fit$trt), 73L)
-  expect_equal(as.numeric(fit$data.rsp@x[, "ps"]), fit$p.score)
+  expect_equal(as.numeric(fit$data.rsp@x[, "ps"]), unname(fit$p.score))
 
   set.seed(103)
   fit <- bartc(y, z, x1 + x2, data = df, subset = sub, method.trt = "bart", method.rsp = "bcf",

@@ -247,7 +247,9 @@ getBartResponseFit <- function(response, treatment, confounders, parametric, dat
   
   if (is.null(missingData)) {
     mu.hat.obs <- mu.hat.train
-    mu.hat.cf  <- mu.hat.test      
+    mu.hat.cf  <- mu.hat.test
+    ## the counterfactual rows are the observed ones, so they share their names
+    dimnames(mu.hat.cf) <- dimnames(mu.hat.obs)
   } else {
     # input dims are n.chains x n.samples x n.obs
     # perm to n.obs x n.chains x n.samples and then perm back

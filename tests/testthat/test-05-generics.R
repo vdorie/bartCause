@@ -95,7 +95,8 @@ test_that("fitted matches manual fit", {
 test_that("extract matches manual fit", {
   ## first that combine chains works
   mu.0 <- extract(fit, "mu.0")
-  expect_equal(mu.0, matrix(aperm(samples.mu.0, c(2L, 1L, 3L)), dim(samples.mu.0)[1L] * dim(samples.mu.0)[2L], dim(samples.mu.0)[3L]))
+  expect_equal(mu.0, matrix(aperm(samples.mu.0, c(2L, 1L, 3L)), dim(samples.mu.0)[1L] * dim(samples.mu.0)[2L], dim(samples.mu.0)[3L]),
+               check.attributes = FALSE)
   
   mu.0   <- extract(fit, "mu.0",   combineChains = FALSE)
   mu.1   <- extract(fit, "mu.1",   combineChains = FALSE)
@@ -112,16 +113,17 @@ test_that("extract matches manual fit", {
   groups <- levels(as.factor(testData$g))
   expect_equal(length(cate), length(groups))
   for (group in groups)
-    expect_equal(cate[[as.character(group)]], apply(icate[,,testData$g == group], c(1L, 2L), mean))
+    expect_equal(cate[[as.character(group)]], apply(icate[,,testData$g == group], c(1L, 2L), mean),
+                 check.attributes = FALSE)
 })
 
 test_that("ppd-based estimates match manual", {
   expect_equal(as.numeric((testData$y - fitted(fit, "y.cf")) * (2 * testData$z - 1)),
-               fitted(fit, "ite"))
+               unname(fitted(fit, "ite")))
   expect_equal(mean((testData$y - fitted(fit, "y.cf")) * (2 * testData$z - 1)),
                sum(fitted(fit, "sate") * (table(testData$g) / length(testData$y))))
-  expect_equal(testData$y[testData$z == 1], fitted(fit, "y.1")[testData$z == 1])
-  expect_equal(testData$y[testData$z == 0], fitted(fit, "y.0")[testData$z == 0])
+  expect_equal(testData$y[testData$z == 1], unname(fitted(fit, "y.1")[testData$z == 1]))
+  expect_equal(testData$y[testData$z == 0], unname(fitted(fit, "y.0")[testData$z == 0]))
 })
 
 test_that("summary object contains correct information", {
@@ -331,7 +333,7 @@ test_that("common support cutoffs are being applied consistently", {
   iscates <- iscates[,fit$commonSup.sub]
   
   mu.cf <- aperm(array(mu.cf, c(n.samples, n.chains, n.obs)), c(2L, 1L, 3L))
-  expect_equal(mu.cf, extract(fit, "mu.cf", combineChains = FALSE))
+  expect_equal(mu.cf, extract(fit, "mu.cf", combineChains = FALSE), check.attributes = FALSE)
   
   sigma <- rep(extract(fit, "sigma", combineChains = FALSE), times = n.samples)
   
@@ -340,9 +342,9 @@ test_that("common support cutoffs are being applied consistently", {
   .GlobalEnv$.Random.seed <- oldSeed
   
   y.cf <- mu.cf + epsilon
-  expect_equal(y.cf, extract(fit, "y.cf", combineChains = FALSE))
+  expect_equal(y.cf, extract(fit, "y.cf", combineChains = FALSE), check.attributes = FALSE)
   y.cf <- matrix(aperm(y.cf, c(2L, 1L, 3L)), nrow = n.samples * n.chains)
-  expect_equal(y.cf, extract(fit, "y.cf", combineChains = TRUE))
+  expect_equal(y.cf, extract(fit, "y.cf", combineChains = TRUE), check.attributes = FALSE)
   
   ites <- t((y.obs - t(y.cf)) * ifelse(testData$z == 1, 1, -1))
   ites <- ites[,fit$commonSup.sub]

@@ -15,7 +15,8 @@ test_that("bart fit matches manual call", {
   set.seed(22)
   bartFit <- dbarts::bart(x.train, y, x.test, n.chains = 1L, n.threads = 1L, n.burn = 3L, n.samples = 13L, n.trees = 7L, verbose = FALSE)
       
-  expect_equal(bartFit$yhat.train, bartcFit$fit$yhat.train)
+  # the formula fit names its rows, the matrix one does not
+  expect_equal(bartFit$yhat.train, unname(bartcFit$fit$yhat.train))
   expect_equal(bartFit$yhat.test,  bartcFit$fit$yhat.test)
 })
 
