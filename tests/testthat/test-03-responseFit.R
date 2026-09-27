@@ -37,11 +37,11 @@ test_that("bcf fit matches manual call", {
   set.seed(22)
   sampler <- dbarts::dbarts(data, control = control,
                             tree.prior = dbarts::dbartsPriors$cgm(2.0, 0.95),
-                            forests = list(dbarts::forest(vars = c("V1", "V2", "V3")),
-                                           dbarts::forest(vars = c("V1", "V2", "V3"), n.trees = 50L,
-                                                          base = 0.25, power = 3, sd = 1,
-                                                          amplitude.prior.variance = 0.5,
-                                                          update.amplitude = TRUE)))
+                            forests = list(forest(vars = c("V1", "V2", "V3")),
+                                           forest(vars = c("V1", "V2", "V3"), n.trees = 50L,
+                                                  base = 0.25, power = 3, sd = 1,
+                                                  amplitude.prior.variance = 0.5,
+                                                  update.amplitude = TRUE)))
   sampler$sampleTreesFromPrior(updateState = FALSE)
   burn    <- sampler$run(0L, 3L, updateState = FALSE)
   samples <- sampler$run(0L, 13L, updateState = FALSE)

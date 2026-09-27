@@ -110,10 +110,18 @@ bcf(formula, data, subset, weights, offset,
   }
   \item{mu.interactions, tau.interactions}{
     Optional \code{\link[dbarts]{interactions}} constraints, one per forest.
+    \code{interactions} is not exported by \code{dbarts}: written as a call
+    here, such as \code{interactions(max.order = 1)}, it resolves to the
+    \code{dbarts} constructor whether or not \code{dbarts} is attached. A
+    constraint assembled beforehand, or passed on through a wrapper's
+    \code{\dots}, has to be built with \code{dbarts::dbartsForests$interactions(\dots)}
+    instead; see \code{\link[dbarts]{dbartsForests}}.
   }
   \item{tau.blocks}{
     An optional \code{\link[dbarts]{blocks}} partition for the treatment forest.
-    There is no prognostic-forest equivalent; see Details.
+    There is no prognostic-forest equivalent; see Details. Like
+    \code{tau.interactions}, \code{blocks} resolves by bare name when written
+    as a call here, and is otherwise spelled \code{dbarts::dbartsForests$blocks(\dots)}.
   }
   \item{n.samples, n.burn, n.chains, n.threads}{
     Posterior samples kept per chain, burn-in iterations discarded, number of
@@ -158,7 +166,12 @@ bcf(formula, data, subset, weights, offset,
   \item{\dots}{
     Additional arguments passed to \code{\link[dbarts]{dbarts}} or
     \code{\link[dbarts]{dbartsControl}}, such as \code{family} or
-    \code{n.thin}.
+    \code{n.thin}. Unlike \code{mu.interactions}/\code{tau.interactions}/
+    \code{tau.blocks} above, anything passed through \code{\dots} is
+    evaluated before \code{dbarts} sees it, so a forest constraint reaching
+    \code{dbarts} this way must be spelled
+    \code{dbarts::dbartsForests$interactions(\dots)} (or \code{$blocks}), not
+    written as a bare call.
   }
 }
 \details{

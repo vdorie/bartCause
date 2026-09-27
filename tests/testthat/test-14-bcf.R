@@ -22,11 +22,11 @@ handBCFSampler <- function(frame, n.trees = 20L, n.trees.treatment = 10L,
                                    n.burn = 5L, n.samples = 7L, verbose = FALSE,
                                    updateState = FALSE, seed = rngSeed)
   dbarts::dbarts(data, control = control, tree.prior = dbarts::dbartsPriors$cgm(2.0, 0.95),
-                 forests = list(dbarts::forest(vars = muVars),
-                                dbarts::forest(vars = tauVars, n.trees = n.trees.treatment,
-                                               base = 0.25, power = 3, sd = 1,
-                                               amplitude.prior.variance = 0.5,
-                                               update.amplitude = TRUE)))
+                 forests = list(forest(vars = muVars),
+                                forest(vars = tauVars, n.trees = n.trees.treatment,
+                                       base = 0.25, power = 3, sd = 1,
+                                       amplitude.prior.variance = 0.5,
+                                       update.amplitude = TRUE)))
 }
 
 toBartCause <- function(x) aperm(x, c(3L, 2L, 1L))
@@ -350,10 +350,10 @@ test_that("the bartBCF accessors return the documented quantities", {
 
 test_that("bcf refuses what it cannot express", {
   expect_error(bcf(y ~ x1 + x2 + x3, data = linearFrame, treatment = z,
-                   mu.blocks = dbarts::blocks(c("x1", "x2"))),
+                   mu.blocks = dbarts::dbartsForests$blocks(c("x1", "x2"))),
                "prognostic-forest block partition is not supported")
   expect_error(bcf(y ~ x1 + x2 + x3, data = linearFrame, treatment = z,
-                   blocks = dbarts::blocks(c("x1", "x2"))),
+                   blocks = dbarts::dbartsForests$blocks(c("x1", "x2"))),
                "prognostic-forest block partition is not supported")
   expect_error(bcf(y ~ x1 + x2 + x3, data = linearFrame, treatment = z,
                    moderators = c("x1", "z"), n.trees = 5L, n.samples = 2L,
@@ -408,4 +408,53 @@ test_that("bcf's default n.threads is capped at n.chains (dbarts dec-B115)", {
         n.trees = 5L, n.samples = 3L, n.burn = 2L, verbose = FALSE),
     message = "n.threads.*exceeds n.chains"
   )
+})
+
+test_that("tau.interactions resolves by bare name, including through a wrapper's dots", {
+  fit <- bcf(y ~ x1 + x2 + x3, data = linearFrame, treatment = z,
+             tau.interactions = interactions(max.order = 1),
+             n.trees = 5L, n.trees.treatment = 5L,
+             n.samples = 3L, n.burn = 2L, n.chains = 1L, n.threads = 1L,
+             verbose = FALSE, seed = 11L)
+  expect_true(inherits(fit, "bartBCF"))
+
+  # dbarts::dbartsForests$interactions built the same constraint ahead of
+  # the call, as a value, is the same fit
+  set.seed(11L)
+  fit.value <- bcf(y ~ x1 + x2 + x3, data = linearFrame, treatment = z,
+                   tau.interactions = dbarts::dbartsForests$interactions(max.order = 1),
+                   n.trees = 5L, n.trees.treatment = 5L,
+                   n.samples = 3L, n.burn = 2L, n.chains = 1L, n.threads = 1L,
+                   verbose = FALSE, seed = 11L)
+  expect_equal(fit.value$varcount, fit$varcount)
+
+  # a bare call written inside bcf()'s own arguments has to survive an extra
+  # frame of '...' forwarding, recovered the way dbarts's own '..N' handling
+  # does for a wrapper that just passes its dots through. 'treatment' is
+  # forwarded the same way, so it needs an object in scope rather than a
+  # column name resolved against 'data' - unrelated to interactions/blocks,
+  # just how bcf()'s own column resolution reads a forwarded argument.
+  z <- linearFrame$z
+  wrapper <- function(...) bcf(...)
+  fit.wrapped <- wrapper(y ~ x1 + x2 + x3, data = linearFrame, treatment = z,
+                        tau.interactions = interactions(max.order = 1),
+                        n.trees = 5L, n.trees.treatment = 5L,
+                        n.samples = 3L, n.burn = 2L, n.chains = 1L, n.threads = 1L,
+                        verbose = FALSE, seed = 11L)
+  expect_true(inherits(fit.wrapped, "bartBCF"))
+  # dimnames differ here: bcf()'s own column-naming falls back to a dots
+  # position ('..N') rather than 'z' when 'treatment' arrives forwarded,
+  # unrelated to interactions/blocks resolution - only the values matter
+  dropDimnames <- function(x) { dimnames(x) <- NULL; x }
+  expect_equal(lapply(fit.wrapped$varcount, dropDimnames),
+               lapply(fit$varcount, dropDimnames))
+
+  # the constraint genuinely reaches dbarts's own validation, rather than
+  # being silently dropped
+  expect_error(
+    bcf(y ~ x1 + x2 + x3, data = linearFrame, treatment = z,
+        tau.interactions = interactions(max.order = 0L),
+        n.trees = 5L, n.samples = 2L, n.burn = 1L, n.chains = 1L,
+        n.threads = 1L, verbose = FALSE),
+    "max.order")
 })

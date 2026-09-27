@@ -148,7 +148,7 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
     obtain reproducible results when multi-threaded. See the Reproducibility section of
     \code{\link[dbarts]{bartBT}}.
   }
-  \item{args.rsp, args.trt, \dots}{ 
+  \item{args.rsp, args.trt, \dots}{
     Further arguments to the treatment and response model fitting algorithms.
     Arguments passed to the main function as \dots will be used in both models.
     \code{args.rsp} and \code{args.trt} can be used to set parameters in a
@@ -156,7 +156,13 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
     \code{\link[dbarts]{bart}} for reference. Semiparametric models are fit by
     \code{\link[stan4bart]{stan4bart}}, which names its sampling arguments
     differently; the \code{\link[dbarts]{bart}} spellings are translated for
-    them, as described under \sQuote{Special Arguments}.
+    them, as described under \sQuote{Special Arguments}. A forest constraint
+    for \code{method.rsp = "bcf"} - \code{mu.interactions}, \code{tau.interactions},
+    or \code{tau.blocks} - reaching \code{dbarts} through \code{\dots},
+    \code{args.rsp} or \code{args.trt} is evaluated before \code{dbarts} sees
+    it, so it must be built beforehand with
+    \code{dbarts::dbartsForests$interactions(\dots)} (or \code{$blocks}), not
+    written as a bare call; see \code{\link{bcf}}.
   }
 }
 \details{

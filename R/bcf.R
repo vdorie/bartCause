@@ -222,16 +222,32 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
   samplerEnv <- new.env(parent = fitEnv)
   samplerEnv[["responseData"]] <- responseData
   samplerEnv[["control"]] <- control
-  samplerEnv[["forests"]] <- list(
-    dbarts::forest(vars = muVars, sd = sd.control, update.amplitude = update.a,
-                   interactions = mu.interactions),
-    dbarts::forest(vars = tauVars, n.trees = coerceOrError(n.trees.treatment, "integer")[1L],
-                   base = treatment.base, power = treatment.power,
-                   sd = sd.moderate, amplitude.prior.variance = b.prior.variance,
-                   update.amplitude = update.b, interactions = tau.interactions,
-                   blocks = tau.blocks))
+
+  ## interactions/blocks are dbarts's forest vocabulary, unexported: bcf()
+  ## passed the unevaluated expression on (matchedCall$mu.interactions etc.,
+  ## below), and do.call(..., quote = TRUE) forwarded it here as a language
+  ## VALUE rather than code to run - forcing 'mu.interactions'/
+  ## 'tau.interactions'/'tau.blocks' normally just unwraps that value, it does
+  ## not evaluate the interactions()/blocks() call inside it. Splice that
+  ## value, still unevaluated, into a 'forest(...)' call built the same way
+  ## treePrior is above; the whole forests expression is then handed to
+  ## dbarts unevaluated, and dbarts resolves 'forest'/'interactions'/'blocks'
+  ## by bare name wherever they fall in it, in samplerEnv's chain back to the
+  ## caller of bcf() - including a '..N' left by a forwarding wrapper, which
+  ## is dbarts's own recovery to make, not a bare eval here.
+  muForestCall <- call("forest", vars = muVars, sd = sd.control,
+                       update.amplitude = update.a,
+                       interactions = mu.interactions)
+  tauForestCall <- call("forest", vars = tauVars,
+                       n.trees = coerceOrError(n.trees.treatment, "integer")[1L],
+                       base = treatment.base, power = treatment.power,
+                       sd = sd.moderate, amplitude.prior.variance = b.prior.variance,
+                       update.amplitude = update.b,
+                       interactions = tau.interactions,
+                       blocks = tau.blocks)
 
   samplerCall <- quote(dbarts::dbarts(responseData, control = control, forests = forests))
+  samplerCall[["forests"]] <- call("list", muForestCall, tauForestCall)
   samplerCall$tree.prior <- treePrior
   samplerFormals <- names(formals(dbarts::dbarts))
   for (argName in names(extraArgs)[names(extraArgs) %in% samplerFormals &
@@ -445,8 +461,9 @@ bcf <- function(formula, data, subset, weights, offset,
                   sd.control = sd.control, sd.moderate = sd.moderate,
                   b.prior.variance = b.prior.variance,
                   update.a = update.a, update.b = update.b,
-                  mu.interactions = mu.interactions, tau.interactions = tau.interactions,
-                  tau.blocks = tau.blocks,
+                  mu.interactions = matchedCall$mu.interactions,
+                  tau.interactions = matchedCall$tau.interactions,
+                  tau.blocks = matchedCall$tau.blocks,
                   n.samples = n.samples, n.burn = n.burn, n.chains = n.chains,
                   n.threads = n.threads, combineChains = combineChains,
                   keepSampler = keepSampler, verbose = verbose, seed = seed,
