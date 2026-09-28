@@ -275,6 +275,31 @@ addDimsToSubset <- function(e) {
   result
 }
 
+## dbarts >= 1.0-0 keeps a leading n.chains margin from extract()/predict()
+## even when n.chains == 1 (chain x samples for a scalar draw, chain x
+## samples x obs for a per-observation one); older dbarts dropped that
+## margin, so a one-chain result had one fewer dimension. n.chains and the
+## rank a one-chain result had before 1.0-0 (oldRank; 0 for a plain vector)
+## are both known at the call site, so the now-present margin is detected
+## from rank alone and dropped, leaving bartCause's stored fields and
+## outputs at their pre-1.0-0 shape on either dbarts version.
+dropSingleChainDim <- function(x, n.chains, oldRank) {
+  if (n.chains != 1L || length(dim(x)) != oldRank + 1L) return(x)
+
+  dn <- dimnames(x)
+  d  <- dim(x)[-1L]
+
+  if (oldRank == 0L) {
+    x <- as.vector(x)
+    if (!is.null(dn) && !is.null(dn[[2L]])) names(x) <- dn[[2L]]
+    return(x)
+  }
+
+  dim(x) <- d
+  if (!is.null(dn)) dimnames(x) <- dn[-1L]
+  x
+}
+
 getArrayIndicesForOffset <- function(i, d)
 {
   res <- rep(NA, length(d))

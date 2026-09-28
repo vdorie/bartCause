@@ -244,7 +244,13 @@ getBartResponseFit <- function(response, treatment, confounders, parametric, dat
   combineChains <- if (is.null(matchedCall[["combineChains"]])) FALSE else list(...)[["combineChains"]]
   mu.hat.train <- extract(bartFit, sample = "train", combineChains = combineChains)
   mu.hat.test  <- extract(bartFit, sample = "test",  combineChains = combineChains)
-  
+
+  if (!combineChains) {
+    ## dbarts >= 1.0-0 keeps the one-chain margin extract() used to drop
+    mu.hat.train <- dropSingleChainDim(mu.hat.train, bartFit$n.chains, 2L)
+    mu.hat.test  <- dropSingleChainDim(mu.hat.test,  bartFit$n.chains, 2L)
+  }
+
   if (is.null(missingData)) {
     mu.hat.obs <- mu.hat.train
     mu.hat.cf  <- mu.hat.test

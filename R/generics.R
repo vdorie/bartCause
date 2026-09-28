@@ -47,12 +47,16 @@ averageDifferences <- function(samples.indiv.diff, treatmentRows, weights, estim
     samples.indiv.diff <- multiplyArrayByVec(samples.indiv.diff, weights)
   }
   
-  result <- 
+  result <-
     if (length(origDims) > 2L) {
+      ## drop = FALSE: a one-chain fit's leading chain margin has extent 1,
+      ## which R's default drop = TRUE would silently remove along with the
+      ## subsetted margin, leaving apply()'s MARGIN = c(1L, 2L) result
+      ## transposed relative to what matrix() below expects
       apply(switch(estimand,
-                   att = samples.indiv.diff[,, treatmentRows & commonSup.sub],
-                   atc = samples.indiv.diff[,,!treatmentRows & commonSup.sub],
-                   ate = samples.indiv.diff[,,commonSup.sub]),
+                   att = samples.indiv.diff[,, treatmentRows & commonSup.sub, drop = FALSE],
+                   atc = samples.indiv.diff[,,!treatmentRows & commonSup.sub, drop = FALSE],
+                   ate = samples.indiv.diff[,,commonSup.sub, drop = FALSE]),
             c(1L, 2L), mean)
     } else {
       apply(switch(estimand,
@@ -76,7 +80,7 @@ getEstimateSamples <- function(samples.indiv.diff, treatmentRows, weights, estim
       levelRows <- group.by == level
       if (!is.null(weights)) weights <- weights[levelRows]
       
-      averageDifferences(if (length(dim(samples.indiv.diff)) > 2L) samples.indiv.diff[,,levelRows] else samples.indiv.diff[,levelRows],
+      averageDifferences(if (length(dim(samples.indiv.diff)) > 2L) samples.indiv.diff[,,levelRows, drop = FALSE] else samples.indiv.diff[,levelRows],
                          treatmentRows[levelRows], weights, estimand, commonSup.sub[levelRows])
     })
     names(samples.est) <- levels(group.by)
@@ -174,6 +178,8 @@ predict.bartcFit <-
         p.score <- aperm(p.score, c(3L, 2L, 1L))
       } else {
         p.score <- predict(object$fit.trt, x.new.trt, combineChains = FALSE, ...)
+        ## dbarts >= 1.0-0 keeps the one-chain margin predict() used to drop
+        p.score <- dropSingleChainDim(p.score, object$n.chains, 2L)
       }
     }
   }
@@ -208,27 +214,37 @@ predict.bartcFit <-
       stop("for predict type '", type, "', newdata must have '", object$name.trt, "' column filled")
     
     mu <- do.call("predict", predictArgs)
-    
-    if (inherits(predictArgs[[1L]], "stan4bartFit"))
+
+    if (inherits(predictArgs[[1L]], "stan4bartFit")) {
       mu <- aperm(mu, c(3L, 2L, 1L))
-    
+    } else {
+      ## dbarts >= 1.0-0 keeps the one-chain margin predict() used to drop
+      mu <- dropSingleChainDim(mu, object$n.chains, 2L)
+    }
+
     if (type == "y")
       y <- sampleFromPPD(object, mu)
   }
-  
+
   if (type %in% c("mu.0", "y.0", "icate", "ite")) {
     predictArgs[[2L]][[object$name.trt]] <- 0
     mu.0 <- do.call("predict", predictArgs)
-    
-    if (inherits(predictArgs[[1L]], "stan4bartFit"))
+
+    if (inherits(predictArgs[[1L]], "stan4bartFit")) {
       mu.0 <- aperm(mu.0, c(3L, 2L, 1L))
+    } else {
+      mu.0 <- dropSingleChainDim(mu.0, object$n.chains, 2L)
+    }
   }
   if (type %in% c("mu.1", "y.1", "icate", "ite")) {
     predictArgs[[2L]][[object$name.trt]] <- 1
     mu.1 <- do.call("predict", predictArgs)
-    
-    if (inherits(predictArgs[[1L]], "stan4bartFit"))
+
+    if (inherits(predictArgs[[1L]], "stan4bartFit")) {
       mu.1 <- aperm(mu.1, c(3L, 2L, 1L))
+    } else {
+      mu.1 <- dropSingleChainDim(mu.1, object$n.chains, 2L)
+    }
   }
   
   if (type %in% c("y.0", "ite"))

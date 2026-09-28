@@ -193,6 +193,8 @@ getBartTreatmentFit <- function(response, treatment, confounders, parametric, da
     }
   } else {
     samples <- extract(bartFit, combineChains = combineChains)
+    ## dbarts >= 1.0-0 keeps the one-chain margin extract() used to drop
+    if (!combineChains) samples <- dropSingleChainDim(samples, bartFit$n.chains, 2L)
   }
   
   result <- 
