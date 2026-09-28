@@ -126,6 +126,38 @@ test_that("ppd-based estimates match manual", {
   expect_equal(testData$y[testData$z == 0], unname(fitted(fit, "y.0")[testData$z == 0]))
 })
 
+test_that("pate matches a by-hand average of the individual effects on a one-chain bart-response fit", {
+  ## a one-chain fit's samples.indiv.diff array can carry a length-1 leading
+  ## chain margin; averaging over it with the default drop = TRUE silently
+  ## drops that margin and, one call later, matrix() recycles the result into
+  ## the wrong shape instead of erroring. Recompute pate from the same
+  ## per-observation draws using plain apply()/mean(), independent of
+  ## averageDifferences, to catch a return of that bug
+  set.seed(22)
+  oneChainFit <- bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "bart", verbose = FALSE,
+                       n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L)
+
+  pate.samples <- extract(oneChainFit, "pate", combineChains = FALSE)
+  expect_null(dim(pate.samples))
+  expect_equal(length(pate.samples), 13L)
+
+  ## reproduce the per-observation PPD draws bit for bit: extract() resets the
+  ## global RNG to the fit's own saved seed before drawing them and restores
+  ## it after, so the same reset here replays exactly what pate's extraction saw
+  oldSeed <- .GlobalEnv[[".Random.seed"]]
+  .GlobalEnv$.Random.seed <- oneChainFit$seed
+  y.cf      <- bartCause:::sampleFromPPD(oneChainFit, oneChainFit$mu.hat.cf)
+  y.obs.ppd <- bartCause:::sampleFromPPD(oneChainFit, oneChainFit$mu.hat.obs)
+  if (!is.null(oldSeed)) .GlobalEnv$.Random.seed <- oldSeed else rm(list = ".Random.seed", envir = .GlobalEnv)
+
+  trtSign <- ifelse(oneChainFit$trt == 1, 1, -1)
+  indiv.diff  <- t(t(y.obs.ppd - y.cf) * trtSign)
+  manualPate  <- apply(indiv.diff, 1L, mean)
+
+  expect_equal(pate.samples, manualPate)
+  expect_equal(unname(fitted(oneChainFit, "pate")), mean(manualPate))
+})
+
 test_that("summary object contains correct information", {
   sum <- summary(fit)
   
