@@ -261,7 +261,7 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
   ## the response transform, read before the sampler can go out of scope; the
   ## rows are per chain and the linear map is shared, which is asserted here
   ## rather than assumed
-  calibration <- sampler$getCalibration(1L)
+  calibration <- sampler$getLeafPrior(1L)
   response.scale <- calibration[1L, "response.scale"]
   response.shift <- calibration[1L, "response.shift"]
   if (any(calibration[, "response.scale"] != response.scale) ||
