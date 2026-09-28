@@ -133,7 +133,7 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
   }
   \item{crossvalidate}{
     One of \code{TRUE}, \code{FALSE}, \code{"trt"}, or \code{"rsp"}. Enables
-    code to attempt to estimate the optimal end-node sensitivity parameter. This
+    code to attempt to estimate the optimal leaf sensitivity parameter. This
     uses a rudimentary Bayesian optimization routine and can be extremely slow.
     Refused for semiparametric models - a \code{parametric} equation, or
     \code{group.by} with \code{use.ranef} equal to \code{TRUE} - and for
