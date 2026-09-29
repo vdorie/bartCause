@@ -265,13 +265,11 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
   sampler <- eval(samplerCall, envir = samplerEnv)
 
   ## the response transform, read before the sampler can go out of scope; the
-  ## rows are per chain and the linear map is shared, which is asserted here
-  ## rather than assumed
+  ## reader reports NA where the chains disagree on it
   calibration <- sampler$getLeafPrior(1L)
-  response.scale <- calibration[1L, "response.scale"]
-  response.shift <- calibration[1L, "response.shift"]
-  if (any(calibration[, "response.scale"] != response.scale) ||
-      any(calibration[, "response.shift"] != response.shift))
+  response.scale <- calibration$response.scale
+  response.shift <- calibration$response.shift
+  if (is.na(response.scale) || is.na(response.shift))
     stop("chains disagree on the response transform; the counterfactual identity needs one linear map")
 
   family <- sampler$model@family
