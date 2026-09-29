@@ -536,6 +536,18 @@ extract.bartBCF <-
   if (type == "sigma" && is.null(object[["sigma"]]))
     stop("binary response model does not have a residual standard deviation parameter (sigma)")
 
+  result <- extractBartBCF(object, type, forest, combineChains)
+  if (combineChains || object$n.chains != 1L || type == "sigma") return(result)
+
+  ## a one-chain result keeps its chain margin, as dbarts does
+  if (is.list(result)) lapply(result, addSingleChainDim, 2L) else addSingleChainDim(result, 2L)
+}
+
+## Works in the stored layout, where a one-chain result has no chain margin
+## (sigma always has one); extract.bartBCF() adds the margin on the way out.
+extractBartBCF <-
+  function(object, type, forest = NULL, combineChains = FALSE)
+{
   n.chains <- object$n.chains
 
   if (type == "varcount") {
@@ -565,6 +577,7 @@ extract.bartBCF <-
     glue     = glue,
     sigma    = sigma))
 
+  if (type == "sigma") return(if (combineChains) as.vector(t(result)) else result)
   if (combineChains) combineChains(result, n.chains) else result
 }
 
@@ -574,11 +587,13 @@ fitted.bartBCF <-
                     "glue", "sigma", "varcount"),
            ...)
 {
+  issueWarningForUnknownArguments()
+
   if (!is.character(type) || type[1L] %not_in% eval(formals(fitted.bartBCF)$type))
     stop("type must be in '", paste0(eval(formals(fitted.bartBCF)$type), collapse = "', '"), "'")
   type <- type[1L]
 
-  result <- extract(object, type = type, combineChains = FALSE, ...)
+  result <- extractBartBCF(object, type, combineChains = FALSE)
 
   if (type == "sigma") return(mean(result))
   if (is.list(result)) return(lapply(result, function(x) apply(x, length(dim(x)), mean)))

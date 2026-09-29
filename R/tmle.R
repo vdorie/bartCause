@@ -10,7 +10,7 @@ getPWeights <- function(estimand, z, weights, p.score, p.scoreBounds)
     switch(estimand,
            att = p.score / mean(z),
            atc = (1 - p.score) / mean(1 - z),
-           ate = array(1 / length(z), dim(p.score)))
+           ate = if (is.null(dim(p.score))) rep_len(1 / length(z), length(z)) else array(1 / length(z), dim(p.score)))
   }
 }
 

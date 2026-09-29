@@ -610,3 +610,55 @@ test_that("a one-chain fit keeps a chain margin of length 1 with combineChains =
   expect_silent(bartCause::plot_est(fit1))
   expect_silent(bartCause::plot_sigma(fit1))
 })
+
+test_that("fitted and extract warn about unknown arguments", {
+  set.seed(24)
+  fit <- bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "bart", verbose = FALSE,
+               n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L)
+  expect_warning(fitted(fit, "pate", foo = 1), "unknown argument")
+  expect_warning(extract(fit, "pate", foo = 1), "unknown argument")
+})
+
+test_that("combineChains = TRUE never leaves a chain dimension, for any type and method", {
+  n.obs <- length(testData$y)
+  types <- c("pate", "sate", "cate", "mu.obs", "mu.cf", "mu.0", "mu.1", "y.cf", "y.0", "y.1",
+             "icate", "ite", "p.score", "p.weights", "sigma")
+  for (method in c("bart", "tmle", "p.weight")) for (n.chains in 1:2) {
+    fit <- suppressWarnings(
+      bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = method, verbose = FALSE,
+            n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = n.chains, n.threads = 1L, maxIter = 5L))
+    for (type in types) {
+      if (method != "bart" && type %in% c("sate", "cate")) next
+      combined <- suppressWarnings(extract(fit, type, sample = "all"))
+      split    <- suppressWarnings(extract(fit, type, sample = "all", combineChains = FALSE))
+      label <- paste(method, n.chains, type)
+      if (type %in% c("pate", "sate", "cate", "sigma")) {
+        expect_null(dim(combined), label = label)
+        expect_equal(length(combined), 13L * n.chains, label = label)
+        expect_equal(dim(split), c(n.chains, 13L), label = label)
+      } else {
+        expect_equal(dim(combined), c(13L * n.chains, n.obs), label = label)
+        expect_equal(dim(split), c(n.chains, 13L, n.obs), label = label)
+      }
+    }
+  }
+})
+
+test_that("a one-chain fit keeps its chain margin for group effects", {
+  set.seed(25)
+  fit <- bartc(y, z, x, data = testData, method.trt = "glm", method.rsp = "bart", group.by = g,
+               group.effects = TRUE, use.ranef = FALSE, verbose = FALSE,
+               n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L)
+  cate <- extract(fit, "cate", combineChains = FALSE)
+  expect_true(is.list(cate))
+  for (element in cate) expect_equal(dim(element), c(1L, 13L))
+  for (element in extract(fit, "cate")) expect_null(dim(element))
+})
+
+test_that("p.weights work when the propensity score is a glm fit", {
+  set.seed(26)
+  fit <- bartc(y, z, x, data = testData, method.trt = "glm", method.rsp = "bart", verbose = FALSE,
+               n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L)
+  expect_equal(length(extract(fit, "p.weights", sample = "all")), length(testData$y))
+  expect_equal(length(fitted(fit, "p.weights", sample = "all")), length(testData$y))
+})

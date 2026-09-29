@@ -279,6 +279,8 @@ fitted.bartcFit <-
            sample = c("inferential", "all"),
            ...)
 {
+  issueWarningForUnknownArguments()
+
   if (!is.character(type) || type[1L] %not_in% eval(formals(fitted.bartcFit)$type))
     stop("type must be in '", paste0(eval(formals(fitted.bartcFit)$type), collapse = "', '"), "'")
   type <- type[1L]
@@ -317,6 +319,8 @@ fitted.bartcFit <-
   
   if (!is.null(dim(result)))
     apply(result, length(dim(result)), mean)
+  else if (type == "p.weights")
+    result ## no draws: one weight per observation already
   else
     mean(result)
 }
@@ -375,7 +379,8 @@ extractBartcFit <-
         s <- object$fit.rsp$sigma
         if (is.null(dim(s)) && n.chains > 1L) t(matrix(s, ncol = n.chains)) else s
       }
-    return(if (combineChains) combineChains(sigma, n.chains) else sigma)
+    ## combined is a plain vector at every chain count
+    return(if (combineChains) as.vector(t(sigma)) else sigma)
   }
   
   group.effects <- if (!is.null(object[["group.effects"]])) object[["group.effects"]] else FALSE
@@ -387,12 +392,14 @@ extractBartcFit <-
       warning("for method '", object$method.rsp, "' type '", type, "' does not have a clear interpretation")
     
     if (type == "pate") {
+      pateOf <- function(result) {
+        result <- ifelse_3(is.null(dim(result)), length(dim(result)) == 2L, result["est"], result[,"est"], result[,,"est"])
+        if (combineChains && length(dim(result)) == 2L) as.vector(t(result)) else result
+      }
       result <- object$est
       return(
-        if (is.null(object$group.by) || !group.effects)
-          ifelse_3(is.null(dim(result)), length(dim(result)) == 2L, result["est"], result[,"est"], result[,,"est"])
-        else lapply(result, function(result.i)
-          ifelse_3(is.null(dim(result.i)), length(dim(result.i)) == 2L, result.i["est"], result.i[,"est"], result.i[,,"est"]))
+        if (is.null(object$group.by) || !group.effects) pateOf(result)
+        else lapply(result, pateOf)
       )
     }
   }
@@ -475,13 +482,16 @@ extractBartcFit <-
   
   if (combineChains) result <- combineChains(result, n.chains)
   
-  subset <- rep_len(TRUE, dim(result)[length(dim(result))])
+  ## a score without samples (method.trt = "glm") gives weights with no draws
+  subset <- rep_len(TRUE, if (is.null(dim(result))) length(result) else dim(result)[length(dim(result))])
   if (sample == "inferential") {
     if (object$estimand == "att") subset <- object$trt > 0
     else if (object$estimand == "atc") subset <- object$trt <= 0
   }
   
-  if (length(dim(result)) > 2L)
+  if (is.null(dim(result)))
+    result[subset]
+  else if (length(dim(result)) > 2L)
     result[,,subset]
   else
     result[,subset]

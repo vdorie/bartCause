@@ -113,3 +113,14 @@ test_that("plot_support validates its arguments", {
   expect_error(plot_support(fit, xvar = "not-a-real-variable"), "unrecognized variable")
   expect_error(plot_support(fit, sample = "not-a-sample-arg"), "sample must be in")
 })
+
+test_that("plot_sigma works on a stan4bart fit that kept no warmup draws", {
+  skip_if_not_installed("stan4bart")
+  source(system.file("common", "friedmanData.R", package = "bartCause"))
+  td <- generateFriedmanData(60, ranef = TRUE, causal = TRUE)
+  df <- data.frame(td$x, y = td$y, z = td$z, g = td$g.1)
+  fit <- bartc(y, z, X1 + X2 + X3, parametric = (1 | g), data = df, seed = 0,
+               method.trt = fitted(glm(z ~ X1 + X2, data = df, family = binomial)),
+               iter = 20, warmup = 10, chains = 1, verbose = FALSE)
+  expect_error(plot_sigma(fit), NA)
+})

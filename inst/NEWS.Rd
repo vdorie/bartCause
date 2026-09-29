@@ -23,9 +23,11 @@
             single chain, as \pkg{dbarts} and \pkg{stan4bart} do: scalar
             quantities (\code{"pate"}, \code{"sigma"}, ...) are a 1 by
             n.samples matrix and per-observation quantities a 1 by n.samples by
-            n.obs array, on both back ends. Previously the dimension was
-            dropped. Results with \code{combineChains = TRUE} and the fields
-            stored in the fit are unchanged.
+            n.obs array. This holds for the \code{bart} and \code{stan4bart}
+            back ends of \code{bartc} alike (for \pkg{stan4bart} only the
+            per-observation types of \code{extract} changed) and for
+            \code{extract} on a \code{bartBCF} fit. Previously the dimension
+            was dropped. The fields stored in the fit are unchanged.
       \item Generics that accept \code{...} arguments but do not use them will
             now issue warnings when called with unknown arguments. Suggestion
             thanks to Joshua Bon.
@@ -65,6 +67,16 @@
   }
   \subsection{BUG-FIXES}{
     \itemize{
+      \item \code{extract} with \code{combineChains = TRUE} now returns
+            a plain vector for \code{type = "sigma"} at one chain on the
+            \code{stan4bart} and \code{bcf} back ends (it was a 1 by n.samples
+            matrix), and for \code{"pate"} from the \code{"tmle"} and
+            \code{"p.weight"} methods at several chains (it was left
+            chains by samples).
+      \item \code{extract} and \code{fitted} of \code{type = "p.weights"}
+            no longer fail when the propensity score is a \code{"glm"} fit,
+            and \code{plot} of the residual standard deviation trace works on
+            \code{stan4bart} fits, which do not keep warmup draws by default.
       \item \code{refit} now reads the response and the weights off a
             semiparametric fit instead of a \code{dbartsData} object, and no
             longer errors on one.

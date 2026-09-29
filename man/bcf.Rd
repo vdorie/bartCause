@@ -228,10 +228,18 @@ bcf(formula, data, subset, weights, offset,
           draw combines the forests through, named \code{"a"}, \code{"b.0"} and
           \code{"b.1"}
     \item \code{"sigma"} - the residual standard deviation; an error on a binary
-          fit
+          fit. \code{n.chains x n.samples} when chains are kept apart, a vector when combined
     \item \code{"varcount"} - per-forest, per-draw predictor split counts, a
           named list unless \code{forest} names one
   }
+
+  With \code{combineChains = FALSE}, \code{extract} keeps the chain dimension first
+  and of length one for a one-chain fit, as \pkg{dbarts} does: per-observation
+  quantities are \code{n.chains x n.samples x n.obs}, \code{"glue"} is
+  \code{n.chains x n.samples x 3}, each \code{"varcount"} element is
+  \code{n.chains x n.samples x n.predictors}, and \code{"sigma"} is
+  \code{n.chains x n.samples}. With \code{combineChains = TRUE} no result has a
+  chain dimension. The fields stored in the fit are not affected.
 
   \strong{What a Bayesian causal forest cannot do here.} \code{predict} is
   defined and refuses: out-of-sample \eqn{\mu(x)}{mu(x)} and \eqn{\tau(x)}{tau(x)}
@@ -266,9 +274,8 @@ bcf(formula, data, subset, weights, offset,
   \item{\code{sigma}, \code{first.sigma}}{the residual standard deviation for
                      the kept and the burn-in draws, each an
                      \code{n.chains x n.samples} matrix at every chain count
-                     (so \code{extract(type = "sigma")} of a one-chain fit is a
-                     \code{1 x n.samples} matrix, where a \code{bart} fit would
-                     give a vector). \code{first.sigma} has zero columns when
+                     (so \code{extract(type = "sigma", combineChains = FALSE)} of a
+                     one-chain fit is a \code{1 x n.samples} matrix). \code{first.sigma} has zero columns when
                      \code{n.burn} is 0, and both are absent on a binary fit}
   \item{\code{y}, \code{trt}}{the training response and treatment}
   \item{\code{name.trt}, \code{name.p.score}}{the resolved design column names;

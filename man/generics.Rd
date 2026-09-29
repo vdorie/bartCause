@@ -127,13 +127,15 @@ refit(object, newresp, \dots)
   it is absent.
   
   \itemize{
-    \item \code{"pate"}, \code{"sate"}, or \code{"cate"} - with \code{fitted}, a scalar; with
-          \code{extract}, \code{n.chains x n.samples}
+    \item \code{"pate"}, \code{"sate"}, \code{"cate"}, or \code{"sigma"} - with \code{fitted}, a scalar; with
+          \code{extract}, \code{n.chains x n.samples} (a vector of length \code{n.chains * n.samples}
+          when chains are combined)
     \item \code{"p.score"} - depending on the fitting method, samples may or not be present; when samples
           are absent, a vector is returned for both functions; when present, the same as \code{"y"}.
     \item all other types - with \code{fitted}, a vector of length equal to the number of
-          observations (\code{n.obs}); with \code{extract} or \code{predict}, a matrix or array of
-          dimensions \code{n.chains x n.samples x n.obs}.
+          observations (\code{n.obs}); with \code{extract} or \code{predict}, an array of
+          dimensions \code{n.chains x n.samples x n.obs}, or a matrix of
+          \code{(n.chains * n.samples) x n.obs} when chains are combined.
   }
   
   For \code{refit}, an object of class \code{bartcFit}.

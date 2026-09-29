@@ -458,3 +458,30 @@ test_that("tau.interactions resolves by bare name, including through a wrapper's
         n.threads = 1L, verbose = FALSE),
     "max.order")
 })
+
+test_that("extract keeps a length-1 chain margin at one chain and none when combined (dec-A79)", {
+  n.obs <- nrow(linearFrame)
+  set.seed(102)
+  fit <- bcf(y ~ x1 + x2 + x3, data = linearFrame, treatment = z,
+             n.trees = 20L, n.trees.treatment = 10L,
+             n.samples = 7L, n.burn = 5L, n.chains = 1L, n.threads = 1L, verbose = FALSE,
+             combineChains = FALSE)
+  for (type in c("mu.obs", "mu.cf", "mu.1", "mu.0", "icate", "mu", "tau"))
+    expect_equal(dim(extract(fit, type, combineChains = FALSE)), c(1L, 7L, n.obs), label = type)
+  expect_equal(dim(extract(fit, "glue", combineChains = FALSE)), c(1L, 7L, 3L))
+  expect_equal(dim(extract(fit, "sigma", combineChains = FALSE)), c(1L, 7L))
+  for (v in extract(fit, "varcount", combineChains = FALSE)) expect_equal(dim(v)[1:2], c(1L, 7L))
+  expect_equal(dim(extract(fit, "mu.obs", combineChains = TRUE)), c(7L, n.obs))
+  expect_null(dim(extract(fit, "sigma", combineChains = TRUE)))
+  expect_equal(length(extract(fit, "sigma", combineChains = TRUE)), 7L)
+  expect_equal(length(fitted(fit, "icate")), n.obs)
+  expect_equal(dim(fit$mu.hat.obs), c(7L, n.obs))
+
+  fit2 <- bcf(y ~ x1 + x2 + x3, data = linearFrame, treatment = z,
+              n.trees = 20L, n.trees.treatment = 10L,
+              n.samples = 7L, n.burn = 5L, n.chains = 2L, n.threads = 1L, verbose = FALSE)
+  expect_equal(dim(extract(fit2, "icate", combineChains = FALSE)), c(2L, 7L, n.obs))
+  expect_equal(dim(extract(fit2, "sigma", combineChains = FALSE)), c(2L, 7L))
+  expect_equal(dim(extract(fit2, "icate")), c(14L, n.obs))
+  expect_equal(length(extract(fit2, "sigma")), 14L)
+})

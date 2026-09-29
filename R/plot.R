@@ -6,8 +6,12 @@ plot_sigma <- function(x, main = "Traceplot sigma", xlab = "iteration", ylab = "
     stop("residual standard deviation plot requires a continuous response")
   
   if (inherits(x$fit.rsp, "stan4bartFit")) {
-    warmup.sigma <- t(extract(x$fit.rsp, "sigma", combine_chains = FALSE, include_warmup = "only"))
     sample.sigma <- t(extract(x$fit.rsp, "sigma", combine_chains = FALSE, include_warmup = FALSE))
+    ## stan4bart keeps warmup draws only when asked to (save_warmup = TRUE);
+    ## without them the trace starts at the first kept draw
+    warmup.sigma <- tryCatch(
+      t(extract(x$fit.rsp, "sigma", combine_chains = FALSE, include_warmup = "only")),
+      error = function(e) matrix(numeric(0L), nrow(sample.sigma), 0L))
   } else {
     warmup.sigma <- x$fit.rsp$first.sigma
     sample.sigma <- x$fit.rsp$sigma
@@ -35,7 +39,7 @@ plot_sigma <- function(x, main = "Traceplot sigma", xlab = "iteration", ylab = "
   }
   
   plot(NULL, xlim = c(1L, numSamples), ylim = range(sigma), main = main, xlab = xlab, ylab = ylab, ...)
-  abline(v = numBurnIn, col = "red", lwd = 0.5)
+  if (numBurnIn > 0L) abline(v = numBurnIn, col = "red", lwd = 0.5)
 
   numTotalSamples <- numBurnIn + numSamples
   

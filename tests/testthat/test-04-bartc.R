@@ -329,6 +329,17 @@ test_that("bartc runs the bcf response method at one and two chains (FB6)", {
   expect_gt(sum(fit$fit.rsp$varcount$mu[,,"ps"]), 0)
 })
 
+test_that("a bartc fit on bcf keeps a length-1 chain margin at one chain", {
+  n.obs <- length(testData$y)
+  fit <- bartc(y, z, x, data = testData, method.trt = "glm", method.rsp = "bcf", verbose = FALSE,
+               n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L)
+  expect_equal(dim(extract(fit, "icate", combineChains = FALSE)), c(1L, 13L, n.obs))
+  expect_equal(dim(extract(fit, "pate", combineChains = FALSE)), c(1L, 13L))
+  expect_equal(dim(extract(fit, "sigma", combineChains = FALSE)), c(1L, 13L))
+  expect_null(dim(extract(fit, "sigma")))
+  expect_null(dim(extract(fit, "pate")))
+})
+
 test_that("bartc's bcf response method defaults n.threads capped at n.chains", {
   # n.chains is fixed at 2 and n.threads left at its default; an uncapped
   # default warns "n.threads (N) exceeds n.chains (2)" out of dbartsControl
