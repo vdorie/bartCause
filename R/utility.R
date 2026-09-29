@@ -281,8 +281,9 @@ addDimsToSubset <- function(e) {
 ## margin, so a one-chain result had one fewer dimension. n.chains and the
 ## rank a one-chain result had before 1.0-0 (oldRank; 0 for a plain vector)
 ## are both known at the call site, so the now-present margin is detected
-## from rank alone and dropped, leaving bartCause's stored fields and
-## outputs at their pre-1.0-0 shape on either dbarts version.
+## from rank alone and dropped, leaving bartCause's stored fields at their
+## pre-1.0-0 shape. The readers add the margin back on the way out
+## (addSingleChainDim).
 dropSingleChainDim <- function(x, n.chains, oldRank) {
   if (n.chains != 1L || length(dim(x)) != oldRank + 1L) return(x)
 
@@ -297,6 +298,24 @@ dropSingleChainDim <- function(x, n.chains, oldRank) {
 
   dim(x) <- d
   if (!is.null(dn)) dimnames(x) <- dn[-1L]
+  x
+}
+
+## The inverse of dropSingleChainDim for a reader's output: give a one-chain
+## result the leading chain margin of length 1. oldRank is the rank the
+## result has without it (1 for a plain vector of scalar draws); a result
+## that already has more dimensions is left alone.
+addSingleChainDim <- function(x, oldRank) {
+  if (is.null(x)) return(x)
+  if (oldRank == 1L) {
+    if (!is.null(dim(x))) return(x)
+    return(matrix(x, 1L, length(x)))
+  }
+  if (length(dim(x)) != oldRank) return(x)
+  dn <- dimnames(x)
+  d <- dim(x)
+  dim(x) <- c(1L, d)
+  if (!is.null(dn)) dimnames(x) <- c(list(NULL), dn)
   x
 }
 

@@ -224,6 +224,6 @@ test_that("bartc handles missing response data with a single chain (no combined-
 
   icate <- extract(fit, "icate", combineChains = FALSE)
   expect_false(anyNA(icate))
-  expect_equal(dim(icate), c(13L, length(missData$y)))
+  expect_equal(dim(icate), c(1L, 13L, length(missData$y)))
 })
 

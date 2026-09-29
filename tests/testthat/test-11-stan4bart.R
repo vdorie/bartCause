@@ -206,3 +206,19 @@ test_that("stan4bart runs chains in parallel only when the cluster is repaid", {
   # n.thin is stan4bart's skip: transitions per kept draw, draws unchanged
   expect_equal(mapArgs(n.samples = 10L, n.burn = 5L, n.thin = 3L)[["skip"]], 3L)
 })
+
+test_that("one-chain stan4bart readers keep a chain margin, as the bart path does", {
+  skip_if_not_installed("stan4bart")
+
+  fit <- bartc(y, z, X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10,
+               parametric = (1 | g.1), seed = 0, data = test.df,
+               method.trt = fitted(glm(z ~ X1 + X2, data = test.df, family = binomial)),
+               iter = 20, warmup = 10, chains = 1, verbose = FALSE)
+  n.obs <- length(test.df$y)
+
+  expect_equal(dim(extract(fit, "sigma", combineChains = FALSE)), c(1L, 10L))
+  expect_equal(dim(extract(fit, "pate", combineChains = FALSE)), c(1L, 10L))
+  expect_equal(dim(extract(fit, "icate", "all", combineChains = FALSE)), c(1L, 10L, n.obs))
+  expect_equal(dim(extract(fit, "mu.obs", "all", combineChains = FALSE)), c(1L, 10L, n.obs))
+  expect_equal(dim(extract(fit, "icate", "all")), c(10L, n.obs))
+})

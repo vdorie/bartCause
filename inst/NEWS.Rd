@@ -18,6 +18,14 @@
   }
   \subsection{USER-VISIBLE CHANGES}{
     \itemize{
+      \item \code{extract} and \code{predict} with \code{combineChains = FALSE}
+            now keep a leading chain dimension of length one for a fit with a
+            single chain, as \pkg{dbarts} and \pkg{stan4bart} do: scalar
+            quantities (\code{"pate"}, \code{"sigma"}, ...) are a 1 by
+            n.samples matrix and per-observation quantities a 1 by n.samples by
+            n.obs array, on both back ends. Previously the dimension was
+            dropped. Results with \code{combineChains = TRUE} and the fields
+            stored in the fit are unchanged.
       \item Generics that accept \code{...} arguments but do not use them will
             now issue warnings when called with unknown arguments. Suggestion
             thanks to Joshua Bon.

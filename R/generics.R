@@ -186,7 +186,11 @@ predict.bartcFit <-
   
   n.chains <- object$n.chains
   if (type == "p.score")
-    return(if (combineChains && object$method.trt %not_in% "glm") combineChains(p.score, n.chains) else p.score)
+    return(
+      if (object$method.trt %in% "glm") p.score
+      else if (combineChains) combineChains(p.score, n.chains)
+      else if (n.chains == 1L) addSingleChainDim(p.score, 2L)
+      else p.score)
   
   if (p.scoreAsCovariate) {
     if (!is.null(dim(p.score))) p.score <- apply(p.score, length(dim(p.score)), mean)
@@ -263,7 +267,9 @@ predict.bartcFit <-
            y.1   = y.1,
            ite   = y.1 - y.0)
     
-  if (combineChains) combineChains(result, n.chains) else result
+  if (combineChains) combineChains(result, n.chains)
+  else if (n.chains == 1L) addSingleChainDim(result, 2L)
+  else result
 }
 
 fitted.bartcFit <-
@@ -293,7 +299,7 @@ fitted.bartcFit <-
     return(object$p.score[subset])
   }
   
-  result <- extract(object, type = type, sample = sample, ...)
+  result <- extractBartcFit(object, type, sample, combineChains = TRUE)
   
   group.effects <- if (!is.null(object[["group.effects"]])) object[["group.effects"]] else FALSE
   if (!is.null(object$group.by) && group.effects && type %in% c("pate", "sate", "cate")) {
@@ -328,10 +334,26 @@ extract.bartcFit <-
   if (!is.character(type) || type[1L] %not_in% eval(formals(extract.bartcFit)$type))
     stop("type must be in '", paste0(eval(formals(extract.bartcFit)$type), collapse = "', '"), "'")
   type <- type[1L]
-  
+
   if (!is.character(sample) || sample[1L] %not_in% eval(formals(extract.bartcFit)$sample))
     stop("sample must be in '", paste0(eval(formals(extract.bartcFit)$sample), collapse = "', '"), "'")
   sample <- sample[1L]
+
+  result <- extractBartcFit(object, type, sample, combineChains)
+  if (combineChains || object$n.chains != 1L || is.null(result)) return(result)
+
+  ## a one-chain result keeps its chain margin, as dbarts and stan4bart do:
+  ## 1 x n.samples for a scalar draw, 1 x n.samples x n.obs for a per-observation one
+  oldRank <- if (type %in% c("pate", "sate", "cate", "sigma")) 1L else 2L
+  if (is.list(result)) lapply(result, addSingleChainDim, oldRank)
+  else addSingleChainDim(result, oldRank)
+}
+
+## Works in the stored layout, where a one-chain result has no chain margin;
+## extract.bartcFit() adds the margin on the way out. Internal callers use this.
+extractBartcFit <-
+  function(object, type, sample = "inferential", combineChains = TRUE)
+{
   
   if (type == "p.weights" && is.null(object$p.score))
     stop("p.score cannot be NULL to extract p.weights")
@@ -475,7 +497,7 @@ sampleFromPPD <- function(object, ev)
     }
   } else {
     n.obs <- dim(ev)[length(dim(ev))]
-    sigma <- extract(object, "sigma", combineChains = FALSE)
+    sigma <- extractBartcFit(object, "sigma", combineChains = FALSE)
     sigma <- rep_len(sigma, n.obs * length(sigma))
     epsilon <- rnorm(length(sigma), 0, sigma)
     dim(epsilon) <- dim(ev)
@@ -525,15 +547,15 @@ refit.bartcFit <- function(object, newresp = NULL,
   group.by <- if (!is.null(object[["group.by"]])) object[["group.by"]] else NULL
   
   if (object$method.rsp %in% c("bart", "bcf")) {
-    samples.indiv.diff <- extract(object, type = "icate", combineChains = FALSE)
+    samples.indiv.diff <- extractBartcFit(object, "icate", combineChains = FALSE)
     
     object$est <- with(object,
       getEstimateSamples(samples.indiv.diff, treatmentRows, weights, estimand, group.by, group.effects, commonSup.sub))
    
   
   } else if (object$method.rsp == "p.weight") {
-    mu.hat.0 <- extract(object, "mu.0", combineChains = FALSE)
-    mu.hat.1 <- extract(object, "mu.1", combineChains = FALSE)
+    mu.hat.0 <- extractBartcFit(object, "mu.0", combineChains = FALSE)
+    mu.hat.1 <- extractBartcFit(object, "mu.1", combineChains = FALSE)
     if (length(dim(mu.hat.0)) > 2L) {
       mu.hat.0 <- aperm(mu.hat.0, c(3L, 1L, 2L))
       mu.hat.1 <- aperm(mu.hat.1, c(3L, 1L, 2L))
@@ -588,8 +610,8 @@ refit.bartcFit <- function(object, newresp = NULL,
       names(object$est) <- levels(object$group.by)
     }
   } else if (object$method.rsp == "tmle") {
-    mu.hat.0 <- extract(object, "mu.0", combineChains = FALSE)
-    mu.hat.1 <- extract(object, "mu.1", combineChains = FALSE)
+    mu.hat.0 <- extractBartcFit(object, "mu.0", combineChains = FALSE)
+    mu.hat.1 <- extractBartcFit(object, "mu.1", combineChains = FALSE)
     if (length(dim(mu.hat.0)) > 2L) {
       mu.hat.0 <- aperm(mu.hat.0, c(3L, 1L, 2L))
       mu.hat.1 <- aperm(mu.hat.1, c(3L, 1L, 2L))

@@ -138,8 +138,7 @@ test_that("pate matches a by-hand average of the individual effects on a one-cha
                        n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L)
 
   pate.samples <- extract(oneChainFit, "pate", combineChains = FALSE)
-  expect_null(dim(pate.samples))
-  expect_equal(length(pate.samples), 13L)
+  expect_equal(dim(pate.samples), c(1L, 13L))
 
   ## reproduce the per-observation PPD draws bit for bit: extract() resets the
   ## global RNG to the fit's own saved seed before drawing them and restores
@@ -154,7 +153,7 @@ test_that("pate matches a by-hand average of the individual effects on a one-cha
   indiv.diff  <- t(t(y.obs.ppd - y.cf) * trtSign)
   manualPate  <- apply(indiv.diff, 1L, mean)
 
-  expect_equal(pate.samples, manualPate)
+  expect_equal(as.vector(pate.samples), manualPate)
   expect_equal(unname(fitted(oneChainFit, "pate")), mean(manualPate))
 })
 
@@ -236,8 +235,8 @@ test_that("weighted tmle matches a direct getTMLEEstimates recomputation", {
   fit <- bartc(y, z, x, data = weightedData, method.trt = "bart", method.rsp = "tmle", weights = w, verbose = FALSE,
                n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L, maxIter = maxIter)
 
-  mu.hat.0 <- t(suppressWarnings(extract(fit, "mu.0", combineChains = FALSE)))
-  mu.hat.1 <- t(suppressWarnings(extract(fit, "mu.1", combineChains = FALSE)))
+  mu.hat.0 <- t(drop(suppressWarnings(extract(fit, "mu.0", combineChains = FALSE))))
+  mu.hat.1 <- t(drop(suppressWarnings(extract(fit, "mu.1", combineChains = FALSE))))
   p.score  <- t(fit$samples.p.score)
   w <- weightedData$w / sum(weightedData$w)
   manual <- bartCause:::getTMLEEstimates(weightedData$y, weightedData$z, w, "ate", mu.hat.0, mu.hat.1, p.score,
@@ -566,4 +565,48 @@ test_that("refit recomputes bcf estimates under a new common support rule (FB8)"
   # stays NULL and this is unreachable
   expect_equal(refitted$est, manualEst)
   expect_false(is.null(refitted$est))
+})
+
+test_that("a one-chain fit keeps a chain margin of length 1 with combineChains = FALSE", {
+  set.seed(23)
+  fitChains <- function(n.chains)
+    bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "bart", verbose = FALSE,
+          n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = n.chains, n.threads = 1L, keepTrees = TRUE)
+  fit1 <- fitChains(1L)
+  fit2 <- fitChains(2L)
+  n.obs <- length(testData$y)
+
+  for (type in c("pate", "sigma")) {
+    expect_equal(dim(extract(fit1, type, combineChains = FALSE)), c(1L, 13L))
+    expect_equal(dim(extract(fit2, type, combineChains = FALSE)), c(2L, 13L))
+    expect_equal(length(extract(fit1, type)), 13L)
+    expect_null(dim(extract(fit1, type)))
+  }
+  for (type in c("icate", "mu.obs", "mu.0", "y.1")) {
+    expect_equal(dim(extract(fit1, type, sample = "all", combineChains = FALSE)), c(1L, 13L, n.obs))
+    expect_equal(dim(extract(fit2, type, sample = "all", combineChains = FALSE)), c(2L, 13L, n.obs))
+    expect_equal(dim(extract(fit1, type, sample = "all")), c(13L, n.obs))
+  }
+
+  ## the chain margin carries the same draws
+  expect_equal(as.vector(extract(fit1, "icate", "all", combineChains = FALSE)),
+               as.vector(aperm(array(extract(fit1, "icate", "all"), c(13L, n.obs, 1L)), c(3L, 1L, 2L))))
+
+  ## stored fields keep their shapes
+  expect_equal(dim(fit1$mu.hat.obs), c(13L, n.obs))
+  expect_equal(dim(fit1$mu.hat.cf), c(13L, n.obs))
+  expect_equal(dim(fit2$mu.hat.obs), c(2L, 13L, n.obs))
+  expect_equal(dim(fit1$p.score), NULL)
+
+  ## fitted() and predict() agree
+  expect_equal(length(fitted(fit1, "icate")), n.obs)
+  expect_equal(length(fitted(fit1, "pate")), 1L)
+  expect_equal(dim(predict(fit1, testData$x[1:5,], type = "mu.1", combineChains = FALSE)), c(1L, 13L, 5L))
+  expect_equal(dim(predict(fit2, testData$x[1:5,], type = "mu.1", combineChains = FALSE)), c(2L, 13L, 5L))
+  expect_equal(dim(predict(fit1, testData$x[1:5,], type = "mu.1")), c(13L, 5L))
+  expect_equal(dim(predict(fit1, testData$x[1:5,], type = "p.score", combineChains = FALSE)), c(1L, 13L, 5L))
+
+  ## plots read the per-chain draws
+  expect_silent(bartCause::plot_est(fit1))
+  expect_silent(bartCause::plot_sigma(fit1))
 })

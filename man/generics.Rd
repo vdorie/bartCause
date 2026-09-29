@@ -57,8 +57,11 @@ refit(object, newresp, \dots)
     \code{att}) or \code{"all"} observations.
   }
   \item{combineChains}{
-    If the models were fit with more than one chain, results retain the chain structure unless
-    \code{combineChains} is \code{TRUE}.
+    Results retain the chain structure unless \code{combineChains} is \code{TRUE}. The chain
+    dimension comes first and is kept when there is only one chain, as it is by \pkg{dbarts} and
+    \pkg{stan4bart}: a scalar quantity (e.g. \code{"pate"}, \code{"sigma"}) is then a
+    chains by samples matrix, and a per-observation quantity (e.g. \code{"icate"}, \code{"mu.obs"})
+    a chains by samples by observations array. Fields stored in the fit object are not affected.
   }
   \item{newresp}{
     Not presently used, but provided for compatibility with other definitions of the \code{refit} generic.
@@ -119,8 +122,9 @@ refit(object, newresp, \dots)
 }
 \value{
   For \code{fitted}, \code{extract}, and \code{predict}, a matrix, array, or vector depending on the
-  dimensions of the result and the number of chains. For the following, when \code{n.chains} is one
-  the dimension is dropped.
+  dimensions of the result and whether chains are combined. With \code{combineChains = FALSE} the chain
+  dimension comes first and has length one when \code{n.chains} is one; with \code{combineChains = TRUE}
+  it is absent.
   
   \itemize{
     \item \code{"pate"}, \code{"sate"}, or \code{"cate"} - with \code{fitted}, a scalar; with
