@@ -3,24 +3,23 @@
 getPWeights <- function(estimand, z, weights, p.score, p.scoreBounds)
 {
   p.score <- boundValues(p.score, p.scoreBounds)
-  if (!is.null(weights)) {
-    ## each draw's weights are normalized to sum to one over the observations
-    perDraw <- function(x) {
-      x <- if (is.null(dim(x))) x * weights else multiplyArrayByVec(x, weights)
-      if (is.null(dim(x))) return(x / sum(x))
-      totals <- if (length(dim(x)) > 2L) apply(x, c(1L, 2L), sum) else rowSums(x)
-      x / as.vector(totals)
-    }
-    switch(estimand,
-           att = perDraw(p.score),
-           atc = perDraw(1 - p.score),
-           ate = weights)
-  } else {
-    switch(estimand,
-           att = p.score / mean(z),
-           atc = (1 - p.score) / mean(1 - z),
-           ate = if (is.null(dim(p.score))) rep_len(1 / length(z), length(z)) else array(1 / length(z), dim(p.score)))
+  ## the weights whose sum with the individual effects over the observations
+  ## is the p.weight estimate: each draw of the result sums over the last margin
+  onObs <- function(x) {
+    if (is.null(weights)) x
+    else if (is.null(dim(x))) x * weights
+    else multiplyArrayByVec(x, weights)
   }
+  perDraw <- function(x) {
+    if (is.null(dim(x))) return(x / sum(x))
+    totals <- if (length(dim(x)) > 2L) apply(x, c(1L, 2L), sum) else rowSums(x)
+    x / as.vector(totals)
+  }
+  ones <- if (is.null(dim(p.score))) rep_len(1, length(z)) else array(1, dim(p.score))
+  switch(estimand,
+         att = if (is.null(weights)) p.score / sum(z) else perDraw(onObs(p.score)),
+         atc = if (is.null(weights)) (1 - p.score) / sum(1 - z) else perDraw(onObs(1 - p.score)),
+         ate = if (is.null(weights)) ones / length(z) else onObs(ones))
 }
 
 getPWeightFunction <- function(estimand, weights, icate, p.score)

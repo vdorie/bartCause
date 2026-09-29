@@ -694,7 +694,7 @@ test_that("p.weights match a hand computation, weighted or not, for every estima
       v <- pick(p)
       if (estimand == "ate") return(if (weighted) w else rep_len(1 / length(z), length(z)))
       if (weighted) v * w / sum(v * w)
-      else v / mean(if (estimand == "att") z else 1 - z)
+      else v / sum(if (estimand == "att") z else 1 - z)
     }))
     if (is.null(dim(pw))) manual <- as.vector(manual[1L,])
     expect_equal(unname(pw), unname(manual), label = label)
@@ -702,5 +702,39 @@ test_that("p.weights match a hand computation, weighted or not, for every estima
     if (weighted && estimand != "ate")
       expect_equal(unname(as.vector(rowSums(if (is.null(dim(pw))) matrix(pw, 1L) else pw))),
                    rep_len(1, nrow(scores)), label = label)
+  }
+})
+
+test_that("p.weights sum with icate to the p.weight estimate, for every estimand, weighted or not", {
+  weightedData <- testData
+  set.seed(28)
+  weightedData$w <- runif(length(weightedData$y), 0.5, 1.5)
+
+  for (n.chains in 1:2) for (estimand in c("ate", "att", "atc")) for (weighted in c(FALSE, TRUE)) {
+    label <- paste(n.chains, estimand, weighted)
+    fit <- suppressMessages(suppressWarnings(
+      if (weighted)
+        bartc(y, z, x, data = weightedData, weights = w, estimand = estimand, method.trt = "bart",
+              method.rsp = "p.weight", commonSup.rule = "none", verbose = FALSE, n.burn = 3L,
+              n.samples = 7L, n.trees = 7L, n.chains = n.chains, n.threads = 1L)
+      else
+        bartc(y, z, x, data = testData, estimand = estimand, method.trt = "bart",
+              method.rsp = "p.weight", commonSup.rule = "none", verbose = FALSE, n.burn = 3L,
+              n.samples = 7L, n.trees = 7L, n.chains = n.chains, n.threads = 1L)))
+    
+    for (combineChains in c(TRUE, FALSE)) {
+      pw    <- extract(fit, "p.weights", sample = "all", combineChains = combineChains)
+      icate <- extract(fit, "icate", sample = "all", combineChains = combineChains)
+      est   <- extract(fit, "pate", combineChains = combineChains)
+      expect_equal(dim(pw), dim(icate), label = label)
+      ## the observation margin is last
+      total <- apply(pw * icate, seq_len(length(dim(pw)) - 1L), sum)
+      ## the estimator bounds the mean responses, which extract("icate") does not
+      expect_equal(unname(as.vector(total)), unname(as.vector(est)), tolerance = 1e-2, label = label)
+      ## exact except for the unweighted att and atc, which divide by the treated or control count
+      if (estimand == "ate" || weighted)
+        expect_equal(unname(as.vector(apply(pw, seq_len(length(dim(pw)) - 1L), sum))),
+                     rep_len(1, length(est)), label = label)
+    }
   }
 })

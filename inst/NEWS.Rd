@@ -63,6 +63,11 @@
             no tractable latent form, so the \code{stan4bart}-backed propensity
             models are now fit unweighted with a message, as the
             \code{dbarts}-backed ones already were.
+      \item Without \code{weights}, the \code{"att"} and \code{"atc"}
+            \code{p.weights} are now scaled to sum with the individual effects
+            over the observations to the \code{"p.weight"} estimate, as the
+            weighted ones and the \code{"ate"} ones already were. The reported
+            values are smaller by a factor of the sample size than in 1.0-10.
     }
   }
   \subsection{BUG-FIXES}{
@@ -79,7 +84,8 @@
             return \code{Inf} when the fit stores no propensity-score
             bounds, and with \code{weights} they now weight each
             observation and sum to one within each draw, where the weights
-            were recycled across draws.
+            were recycled across draws. \code{"ate"} with \code{weights}
+            now returns the weights for every draw, where it errored.
       \item \code{refit} now reads the response and the weights off a
             semiparametric fit instead of a \code{dbartsData} object, and no
             longer errors on one.
