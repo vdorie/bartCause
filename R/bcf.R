@@ -257,6 +257,11 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
     samplerCall[[argName]] <- as.symbol(paste0("bcf.arg.", argName))
   }
 
+  ## the family is named rather than left to dbarts's "auto", which announces
+  ## its choice; the rule is auto's own: a 0/1 response is probit
+  if ("family" %not_in% names(samplerCall))
+    samplerCall$family <- if (all(responseData@y %in% c(0, 1))) "probit" else "gaussian"
+
   sampler <- eval(samplerCall, envir = samplerEnv)
 
   ## the response transform, read before the sampler can go out of scope; the
@@ -270,7 +275,6 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
     stop("chains disagree on the response transform; the counterfactual identity needs one linear map")
 
   family <- sampler$model@family
-  if (family == "auto") family <- if (sampler$control@binary) "probit" else "gaussian"
   responseIsBinary <- sampler$control@binary
 
   sampler$sampleTreesFromPrior(updateState = FALSE)
