@@ -74,9 +74,12 @@
             \code{"p.weight"} methods at several chains (it was left
             chains by samples).
       \item \code{extract} and \code{fitted} of \code{type = "p.weights"}
-            no longer fail when the propensity score is a \code{"glm"} fit,
-            and \code{plot} of the residual standard deviation trace works on
-            \code{stan4bart} fits, which do not keep warmup draws by default.
+            no longer fail when the propensity score is a \code{"glm"} fit;
+            for the \code{"att"} and \code{"atc"} estimands they no longer
+            return \code{Inf} when the fit stores no propensity-score
+            bounds, and with \code{weights} they now weight each
+            observation and sum to one within each draw, where the weights
+            were recycled across draws.
       \item \code{refit} now reads the response and the weights off a
             semiparametric fit instead of a \code{dbartsData} object, and no
             longer errors on one.
