@@ -662,3 +662,45 @@ test_that("p.weights work when the propensity score is a glm fit", {
   expect_equal(length(extract(fit, "p.weights", sample = "all")), length(testData$y))
   expect_equal(length(fitted(fit, "p.weights", sample = "all")), length(testData$y))
 })
+
+test_that("p.weights match a hand computation, weighted or not, for every estimand and treatment model", {
+  weightedData <- testData
+  set.seed(27)
+  weightedData$w <- runif(length(weightedData$y), 0.5, 1.5)
+  w <- weightedData$w / sum(weightedData$w)
+  z <- testData$z
+
+  for (method.trt in c("glm", "bart")) for (estimand in c("ate", "att", "atc")) for (weighted in c(FALSE, TRUE)) {
+    label <- paste(method.trt, estimand, weighted)
+    fit <- suppressMessages(suppressWarnings(
+      if (weighted)
+        bartc(y, z, x, data = weightedData, weights = w, estimand = estimand, method.trt = method.trt,
+              method.rsp = "bart", verbose = FALSE, n.burn = 3L, n.samples = 13L, n.trees = 7L,
+              n.chains = 2L, n.threads = 1L)
+      else
+        bartc(y, z, x, data = testData, estimand = estimand, method.trt = method.trt,
+              method.rsp = "bart", verbose = FALSE, n.burn = 3L, n.samples = 13L, n.trees = 7L,
+              n.chains = 2L, n.threads = 1L)))
+
+    pw <- extract(fit, "p.weights", sample = "all")
+    ps <- extract(fit, "p.score", sample = "all")
+    if (is.null(ps)) ps <- fit$p.score
+    expect_true(all(is.finite(pw)), label = label)
+
+    ## the hand computation, one draw (or the one score vector) at a time
+    scores <- if (is.null(dim(ps))) matrix(ps, 1L) else ps
+    pick <- function(p) switch(estimand, att = p, atc = 1 - p, ate = rep_len(1, length(p)))
+    manual <- t(apply(scores, 1L, function(p) {
+      v <- pick(p)
+      if (estimand == "ate") return(if (weighted) w else rep_len(1 / length(z), length(z)))
+      if (weighted) v * w / sum(v * w)
+      else v / mean(if (estimand == "att") z else 1 - z)
+    }))
+    if (is.null(dim(pw))) manual <- as.vector(manual[1L,])
+    expect_equal(unname(pw), unname(manual), label = label)
+
+    if (weighted && estimand != "ate")
+      expect_equal(unname(as.vector(rowSums(if (is.null(dim(pw))) matrix(pw, 1L) else pw))),
+                   rep_len(1, nrow(scores)), label = label)
+  }
+})

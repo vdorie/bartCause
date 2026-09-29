@@ -69,7 +69,7 @@
     \itemize{
       \item \code{extract} with \code{combineChains = TRUE} now returns
             a plain vector for \code{type = "sigma"} at one chain on the
-            \code{stan4bart} and \code{bcf} back ends (it was a 1 by n.samples
+            \code{stan4bart} back end (it was a 1 by n.samples
             matrix), and for \code{"pate"} from the \code{"tmle"} and
             \code{"p.weight"} methods at several chains (it was left
             chains by samples).

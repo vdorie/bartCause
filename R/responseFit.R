@@ -399,6 +399,7 @@ getBCFResponseFit <- function(response, treatment, confounders, parametric, data
 }
 
 boundValues <- function(x, bounds){
+  if (is.null(bounds)) return(x)
   x[x > max(bounds)] <- max(bounds)
   x[x < min(bounds)] <- min(bounds)
   x

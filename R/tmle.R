@@ -1,10 +1,19 @@
+## Weights along the observation margin, the last one: a vector, a
+## samples x obs matrix or a chains x samples x obs array of scores.
 getPWeights <- function(estimand, z, weights, p.score, p.scoreBounds)
 {
   p.score <- boundValues(p.score, p.scoreBounds)
   if (!is.null(weights)) {
+    ## each draw's weights are normalized to sum to one over the observations
+    perDraw <- function(x) {
+      x <- if (is.null(dim(x))) x * weights else multiplyArrayByVec(x, weights)
+      if (is.null(dim(x))) return(x / sum(x))
+      totals <- if (length(dim(x)) > 2L) apply(x, c(1L, 2L), sum) else rowSums(x)
+      x / as.vector(totals)
+    }
     switch(estimand,
-           att = p.score * weights / apply(p.score * weights, 1L, sum),
-           atc = (1 - p.score) * weights / apply((1 - p.score) * weights, 2L, sum),
+           att = perDraw(p.score),
+           atc = perDraw(1 - p.score),
            ate = weights)
   } else {
     switch(estimand,
