@@ -1,126 +1,86 @@
 \name{NEWS}
 \title{bartCause News}
 \encoding{UTF-8}
-\section{CHANGES IN VERSION 1.0-10}{
+\section{CHANGES IN VERSION 1.1-0}{
   \subsection{NEW FEATURES}{
     \itemize{
       \item New \code{bcf} function fits a Bayesian causal forest, with
-            separate prognostic and treatment ensembles combined through
-            per-draw amplitudes. Both counterfactual surfaces, each forest's
-            per-draw fitted values and per-forest variable counts are reported
-            without a test matrix. Returns an object of class \code{bartBCF},
-            with \code{print}, \code{fitted}, \code{extract}, \code{residuals}
-            and \code{predict} methods.
+            separate prognostic and treatment ensembles. It reports both
+            counterfactual surfaces and each forest's fitted values without a
+            test matrix, and returns an object of class \code{bartBCF} with
+            \code{print}, \code{fitted}, \code{extract}, \code{residuals} and
+            \code{predict} methods.
       \item \code{bartc} accepts \code{method.rsp = "bcf"}, fitting the response
             surface with a Bayesian causal forest and estimating treatment
-            effects as for \code{"bart"}.
+            effects as for \code{"bart"}. \code{crossvalidate} is not
+            available with it.
+      \item \code{group.by} can be supplied together with \code{parametric};
+            the varying intercept is added to the parametric equation.
     }
   }
   \subsection{USER-VISIBLE CHANGES}{
     \itemize{
+      \item Requires \pkg{dbarts} >= 1.0-0. Its sampler differs from earlier
+            versions, so fits, and results that depend on them, will not
+            match those from 1.0-10 for the same seed.
+      \item \code{group.by} with \code{use.ranef = TRUE} is now fit by
+            \pkg{stan4bart}, which adds a \code{(1 | group.by)} term to the
+            model, for the response surface and for the BART propensity model
+            alike; \pkg{dbarts} no longer fits grouped random intercepts.
+            \pkg{stan4bart} must be installed for this. The \pkg{dbarts}
+            sampling arguments (\code{n.samples}, \code{n.burn},
+            \code{n.chains}, \code{n.thin}, \code{n.threads}, \code{n.trees},
+            \code{k}, \code{power}, \code{base}) are translated to their
+            \pkg{stan4bart} equivalents rather than left at
+            \pkg{stan4bart}'s defaults. \code{use.ranef = FALSE} is unchanged.
+      \item BART propensity models are always probit and cannot be weighted;
+            when \code{weights} are supplied they are ignored in the propensity
+            fit, with a message, and enter only the treatment effect
+            estimators.
       \item \code{extract} and \code{predict} with \code{combineChains = FALSE}
-            now keep a leading chain dimension of length one for a fit with a
-            single chain, as \pkg{dbarts} and \pkg{stan4bart} do: scalar
-            quantities (\code{"pate"}, \code{"sigma"}, ...) are a 1 by
-            n.samples matrix and per-observation quantities a 1 by n.samples by
-            n.obs array. This holds for the \code{bart} and \code{stan4bart}
-            back ends of \code{bartc} alike (for \pkg{stan4bart} only the
-            per-observation types of \code{extract} changed) and for
-            \code{extract} on a \code{bartBCF} fit. Previously the dimension
-            was dropped. The fields stored in the fit are unchanged.
-      \item Generics that accept \code{...} arguments but do not use them will
-            now issue warnings when called with unknown arguments. Suggestion
-            thanks to Joshua Bon.
-      \item \code{group.by} with \code{use.ranef = TRUE} is now fit by the
-            \code{stan4bart} package, which adds a \code{(1 | group.by)} term
-            to the model formula, for the response surface and for the BART
-            propensity model alike; \code{dbarts} no longer fits grouped
-            random intercepts. \code{stan4bart} is a suggested package, so the
-            route errors informatively when it is absent;
-            \code{use.ranef = FALSE}, which enters the grouping factor as
-            another predictor, needs no additional package. The \code{dbarts}
-            sampling arguments are translated onto \code{stan4bart}'s -
-            \code{n.samples} and \code{n.burn} onto \code{iter} (which counts
-            warmup) and \code{warmup}, \code{n.chains} onto \code{chains},
-            \code{n.thin} onto \code{skip}, \code{n.threads} onto \code{cores},
-            and \code{n.trees}, \code{k}, \code{power} and \code{base} into
-            \code{bart_args} - so these fits sample as they were asked to
-            rather than falling back on \code{stan4bart}'s own defaults.
-            Arguments written in \code{stan4bart}'s names win where both are
-            given. Chains run in a cluster only when there is more than one and
-            the fit is long enough to repay building it, and such a fit is
-            seeded off R's generator so that \code{set.seed} reproduces it.
-      \item \code{group.by} can now be supplied together with
-            \code{parametric}: the varying intercept is added to the parametric
-            equation rather than refused.
-      \item A missing response is now refused for semiparametric response
-            surfaces - a \code{parametric} equation, or \code{group.by} with
-            \code{use.ranef = TRUE}. The counterfactual comes from flipping
-            the treatment in the fitted model frame, which holds only the
-            complete cases, so a missing response has no counterfactual to
-            recover.
-      \item Every BART propensity model is a probit, and a weighted probit has
-            no tractable latent form, so the \code{stan4bart}-backed propensity
-            models are now fit unweighted with a message, as the
-            \code{dbarts}-backed ones already were.
+            now keep a leading chain dimension of length one for a
+            single-chain fit, as \pkg{dbarts} does: scalar quantities are a 1
+            by n.samples matrix and per-observation quantities a 1 by
+            n.samples by n.obs array. Previously the dimension was dropped.
       \item Without \code{weights}, the \code{"att"} and \code{"atc"}
-            \code{p.weights} are now scaled to sum with the individual effects
-            over the observations to the \code{"p.weight"} estimate, as the
-            weighted ones and the \code{"ate"} ones already were. The reported
-            values are smaller by a factor of the sample size than in 1.0-10.
+            \code{p.weights} are now scaled so that their sum with the
+            individual effects is the \code{"p.weight"} estimate, as the
+            weighted and \code{"ate"} ones already were. The reported values
+            are smaller by a factor of the sample size than in 1.0-10.
     }
   }
   \subsection{BUG-FIXES}{
     \itemize{
-      \item \code{extract} with \code{combineChains = TRUE} now returns
-            a plain vector for \code{type = "sigma"} at one chain on the
-            \code{stan4bart} back end (it was a 1 by n.samples
-            matrix), and for \code{"pate"} from the \code{"tmle"} and
-            \code{"p.weight"} methods at several chains (it was left
-            chains by samples).
       \item \code{extract} and \code{fitted} of \code{type = "p.weights"}
             no longer fail when the propensity score is a \code{"glm"} fit;
-            for the \code{"att"} and \code{"atc"} estimands they no longer
-            return \code{Inf} when the fit stores no propensity-score
-            bounds, and with \code{weights} they now weight each
-            observation and sum to one within each draw, where the weights
-            were recycled across draws. \code{"ate"} with \code{weights}
-            now returns the weights for every draw, where it errored.
-      \item \code{refit} now reads the response and the weights off a
-            semiparametric fit instead of a \code{dbartsData} object, and no
-            longer errors on one.
-      \item \code{predict} now takes the propensity score's column name from
-            the fit instead of re-deriving it from the response model's
-            predictor names. A confounder whose name began with the score's
-            own (e.g. a confounder \code{psps} against a score \code{ps})
-            could be resolved as the score, in which case predicted scores
-            were written over that confounder's values and the real score
-            column was left as supplied.
-      \item \code{extract(type = "sigma")} now returns posterior draws in
-            chain-major order, matching every other extracted quantity, and
-            per-chain sigma is now correctly assigned to its own chain;
-            previously multi-chain fits interleaved chains, which also
-            mis-paired sigma with the posterior predictive draws.
-      \item \code{bcf}'s default \code{n.threads} is now capped at
-            \code{n.chains}, matching \code{dbarts}; previously every
-            multi-core, default-argument \code{bcf} fit (directly or via
-            \code{bartc(method.rsp = "bcf")}) warned that \code{n.threads}
-            exceeded \code{n.chains}.
-      \item \code{bartc}'s \code{n.chains} is now read from the response
-            fitter's own record instead of guessed from the dimensions of
-            \code{mu.hat.obs}; \code{combineChains = TRUE} collapses those
-            dimensions, which previously made \code{n.chains} read back as 1
-            regardless of how many chains were actually run. The
-            \code{"p.weight"} and \code{"tmle"} estimate paths now take the
-            chain count from the same place rather than from those dimensions.
-      \item \code{method.rsp = "tmle"} gave a different estimate for a fit made
-            with \code{combineChains = TRUE} than for the same fit made with
-            its chains kept apart. The per-draw loop calls \code{tmle::tmle},
-            which draws on R's random number stream for its own nuisance fits,
-            so the order the posterior is visited in was part of the answer;
-            a chain-separated fit was visited chain-fastest and a combined one
-            sample-fastest. Both are now visited in the order \code{dbarts}
-            lays a combined fit out, chain block by chain block.
+            for \code{"att"} and \code{"atc"} they no longer return \code{Inf}
+            when the fit stores no propensity-score bounds; and with
+            \code{weights} they weight each observation and sum to one within
+            each draw, where the weights were recycled across draws.
+            \code{"ate"} with \code{weights} returns the weights for every
+            draw, where it errored.
+      \item \code{extract(type = "sigma", combineChains = TRUE)} returns a
+            plain vector, not a matrix, for a single-chain \pkg{stan4bart}
+            fit.
+      \item \code{refit} no longer errors on a semiparametric fit.
+      \item \code{predict} takes the propensity score's column name from the
+            fit. Previously a confounder whose name began with the score's
+            (e.g. \code{psps} against a score \code{ps}) could be mistaken for
+            it, and predicted scores were written over that confounder.
+      \item \code{method.rsp = "tmle"} gave a different estimate with
+            \code{combineChains = TRUE} than with chains kept apart, because
+            the posterior draws were visited in a different order and
+            \code{tmle::tmle} uses R's random number stream. Both now use the
+            same order.
+    }
+  }
+}
+\section{CHANGES IN VERSION 1.0-10}{
+  \subsection{USER-VISIBLE CHANGES}{
+    \itemize{
+      \item Generics that accept \code{...} arguments but do not use them will
+            now issue warnings when called with unknown arguments. Suggestion
+            thanks to Joshua Bon.
     }
   }
 }
