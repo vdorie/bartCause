@@ -50,13 +50,13 @@ test_that("bart w/TMLE matches old", {
 
   tmle_version <- packageVersion("tmle")
   if (tmle_version >= "2.1") {
-    # snapshot refreshed for dbarts fbff1989 (default proposal mixture moved
-    # to birth_death 0.6, swap 0, change 0.4), which the three snapshots above
-    # were refreshed for and this one - skipped on CRAN, so not exercised by
-    # the default run - was not. Noise-dominated fit (true tau ~ 0.27). Only
-    # the installed tmle branch (2.1.x) was regenerated; older-tmle branches
-    # below are historical.
-    expect_equal(fitted(fit, "pate"), 0.75292279834532738)
+    # tmle's default SuperLearner library fits its dbarts learner through
+    # dbarts's BayesTree-style door (bartBT), so this value tracks that
+    # door's tree-move mixture as well as bart's; recorded against dbarts
+    # 093dd035, which gave bartBT 0.9-34's mixture back. Skipped on CRAN.
+    # Noise-dominated fit (true tau ~ 0.27). Only the installed tmle branch
+    # (2.1.x) was regenerated; older-tmle branches below are historical.
+    expect_equal(fitted(fit, "pate"), 0.75358577915397007)
   } else if (tmle_version >= "2.0.1") {
     expect_equal(fitted(fit, "pate"), 0.445429512755897)
   } else if (tmle_version >= "1.5.0") {
