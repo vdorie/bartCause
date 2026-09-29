@@ -50,10 +50,12 @@ bartc <- function(
       (is.character(crossvalidate) && crossvalidate %not_in% c("rsp", "trt")))
     stop("crossvalidate must be one of TRUE, FALSE, 'rsp', or 'trt'")
   
+  # the fits below get their own seeds, and dbarts reads seed = NA as a
+  # retired spelling, so the forwarded call never carries this one
+  if (!is.null(matchedCall[["seed"]])) matchedCall[["seed"]] <- NULL
   if (!is.na(seed)) {
     oldSeed <- .GlobalEnv[[".Random.seed"]]
     set.seed(seed)
-    matchedCall[["seed"]] <- NULL
   }
   
   ## the grouping factor is resolved once, so the treatment fit, the response

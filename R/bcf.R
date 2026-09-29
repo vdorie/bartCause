@@ -205,12 +205,13 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
   ## the sampler: four calls, mirroring bart's standard path. Every per-draw
   ## channel arrives batched from the second run, so there is no per-sweep loop
   extraArgs <- list(...)
+  seed <- coerceOrError(seed, "integer")[1L]
   controlFormals <- names(formals(dbarts::dbartsControl))
   controlArgs <- list(n.chains = n.chains, n.threads = n.threads,
                       n.trees = coerceOrError(n.trees, "integer")[1L],
                       n.burn = n.burn, n.samples = n.samples,
                       verbose = as.logical(verbose)[1L],
-                      updateState = FALSE, seed = coerceOrError(seed, "integer")[1L])
+                      updateState = FALSE, seed = if (is.na(seed)) NULL else seed)
   extraControl <- extraArgs[names(extraArgs) %in% controlFormals &
                             names(extraArgs) %not_in% names(controlArgs)]
   control <- do.call(dbarts::dbartsControl, c(controlArgs, extraControl))
