@@ -33,6 +33,13 @@
             \code{k}, \code{power}, \code{base}) are translated to their
             \pkg{stan4bart} equivalents rather than left at
             \pkg{stan4bart}'s defaults. \code{use.ranef = FALSE} is unchanged.
+      \item Semiparametric response models, those with \code{parametric} or
+            with \code{group.by} and \code{use.ranef = TRUE}, now refuse a
+            response with missing values. In 1.0-10, \code{group.by} with
+            \code{use.ranef = TRUE} fit such data and estimated counterfactuals
+            for the missing rows; drop the incomplete rows, or use
+            \code{use.ranef = FALSE}, which enters the grouping factor as a
+            fixed effect in a \pkg{dbarts} fit and still accepts them.
       \item BART propensity models are always probit and cannot be weighted;
             when \code{weights} are supplied they are ignored in the propensity
             fit, with a message, and enter only the treatment effect
@@ -72,6 +79,26 @@
             the posterior draws were visited in a different order and
             \code{tmle::tmle} uses R's random number stream. Both now use the
             same order.
+      \item \code{predict} with \code{type = "y"} failed, as it sampled the
+            posterior predictive draws from an undefined object rather than
+            from the predicted means.
+      \item \code{refit} on a fit with \code{method.rsp = "p.weight"} or
+            \code{"tmle"} errored, as it requested an invalid quantity from
+            \code{extract}; with \code{group.effects = TRUE} the
+            \code{"tmle"} branch also referenced undefined variables and
+            mis-passed its \code{maxIter} and \code{n.threads} settings.
+      \item \code{bartc} with a \code{subset} and a propensity score fit on
+            that subset (with \code{data} supplied) assigned the score to the
+            wrong rows of the response model's data, silently when the lengths
+            divided evenly and with an error otherwise; it is now placed at the
+            subset's rows.
+      \item \code{bartc(..., p.score = <vector>)} matched the
+            \code{p.scoreAsCovariate} argument by partial matching and failed
+            with an unhelpful length error; the message now says so and points
+            to \code{method.trt = <vector>}.
+      \item \code{extract} on a fit dropped into R's debugger when the
+            result's dimensions could not be read, rather than signalling an
+            error.
     }
   }
 }
