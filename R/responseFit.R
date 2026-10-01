@@ -218,6 +218,9 @@ getBartResponseFit <- function(response, treatment, confounders, parametric, dat
     
   bartCall$formula <- quote(responseData)
   bartCall$data    <- NULL
+  ## arguments already carried by responseData are used from it alone
+  for (argName in c("subset", "weights", "offset", "factors", "na.action"))
+    if (!is.null(dbartsDataCall[[argName]]) && !is.null(bartCall[[argName]])) bartCall[[argName]] <- NULL
   bartCall$verbose <- FALSE
   if (is.null(bartCall[["n.chains"]])) bartCall[["n.chains"]] <- 10L
   
