@@ -557,15 +557,15 @@ refit.bartcFit <- function(object, newresp = NULL,
   group.by <- if (!is.null(object[["group.by"]])) object[["group.by"]] else NULL
   
   if (object$method.rsp %in% c("bart", "bcf")) {
-    samples.indiv.diff <- extractBartcFit(object, "icate", combineChains = FALSE)
+    samples.indiv.diff <- extractBartcFit(object, "icate", sample = "all", combineChains = FALSE)
     
     object$est <- with(object,
       getEstimateSamples(samples.indiv.diff, treatmentRows, weights, estimand, group.by, group.effects, commonSup.sub))
    
   
   } else if (object$method.rsp == "p.weight") {
-    mu.hat.0 <- extractBartcFit(object, "mu.0", combineChains = FALSE)
-    mu.hat.1 <- extractBartcFit(object, "mu.1", combineChains = FALSE)
+    mu.hat.0 <- extractBartcFit(object, "mu.0", sample = "all", combineChains = FALSE)
+    mu.hat.1 <- extractBartcFit(object, "mu.1", sample = "all", combineChains = FALSE)
     if (length(dim(mu.hat.0)) > 2L) {
       mu.hat.0 <- aperm(mu.hat.0, c(3L, 1L, 2L))
       mu.hat.1 <- aperm(mu.hat.1, c(3L, 1L, 2L))
@@ -620,8 +620,8 @@ refit.bartcFit <- function(object, newresp = NULL,
       names(object$est) <- levels(object$group.by)
     }
   } else if (object$method.rsp == "tmle") {
-    mu.hat.0 <- extractBartcFit(object, "mu.0", combineChains = FALSE)
-    mu.hat.1 <- extractBartcFit(object, "mu.1", combineChains = FALSE)
+    mu.hat.0 <- extractBartcFit(object, "mu.0", sample = "all", combineChains = FALSE)
+    mu.hat.1 <- extractBartcFit(object, "mu.1", sample = "all", combineChains = FALSE)
     if (length(dim(mu.hat.0)) > 2L) {
       mu.hat.0 <- aperm(mu.hat.0, c(3L, 1L, 2L))
       mu.hat.1 <- aperm(mu.hat.1, c(3L, 1L, 2L))
