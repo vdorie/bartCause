@@ -455,15 +455,21 @@ getPWeightEstimates <- function(y, z, weights, estimand, mu.hat.0, mu.hat.1, p.s
   tmleFuncs <- getTMLEFunctions(estimand)
   mu.hat.1.deriv <- tmleFuncs$mu.hat.1.deriv
   mu.hat.0.deriv <- tmleFuncs$mu.hat.0.deriv
+  ## the estimate's own divisor, one per draw: the (weighted) mean score
+  scoreMean <- function(score) {
+    if (!is.null(weights)) score <- score * weights
+    total <- if (is.null(dim(score))) sum(score) else colSums(score)
+    if (is.null(weights)) total / length(y) else total
+  }
   if (!is.null(weights)) {
     icBody <- switch(estimand,
-      att = quote((length(y) * weights * a.weight * (y - mu.hat) + z * t(t(icate) - psi)) / sum(p.score * weights)),
-      atc = quote((length(y) * weights * a.weight * (y - mu.hat) + (1 - z) * t(t(icate) - psi)) / sum((1 - p.score) * weights)),
+      att = quote(t(t(length(y) * weights * a.weight * (y - mu.hat) + z * t(t(icate) - psi)) / scoreMean(p.score))),
+      atc = quote(t(t(length(y) * weights * a.weight * (y - mu.hat) + (1 - z) * t(t(icate) - psi)) / scoreMean(1 - p.score))),
       ate = quote(length(y) * weights * a.weight * (y - mu.hat) + t(t(icate) - psi)))
   } else {
     icBody <- switch(estimand,
-      att = quote((a.weight * (y - mu.hat) + z * t(t(icate) - psi)) / mean(z)),
-      atc = quote((a.weight * (y - mu.hat) + (1 - z) * t(t(icate) - psi)) / mean(1 - z)),
+      att = quote(t(t(a.weight * (y - mu.hat) + z * t(t(icate) - psi)) / scoreMean(p.score))),
+      atc = quote(t(t(a.weight * (y - mu.hat) + (1 - z) * t(t(icate) - psi)) / scoreMean(1 - p.score))),
       ate = quote(a.weight * (y - mu.hat) + t(t(icate) - psi)))
   }
   getIC <- function(y, mu.hat, icate, psi, a.weight) { }
