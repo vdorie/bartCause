@@ -124,12 +124,37 @@ test_that("weighted tmle stops before any model is fit when the tmle package is 
   getTMLEFunction <- bartCause:::getTMLEFunction
   local_mocked_bindings(
     getTMLEFunction = function(weighted, ...) getTMLEFunction(weighted, version = package_version("1.5.0")),
+    ## errors if the fit gets as far as the treatment model
+    getBartTreatmentFit = function(...) stop("the treatment model was fit"),
     .package = "bartCause")
-  ## an unknown treatment method would error if the fit got that far
   expect_error(bartc(y, z, x1 + x2 + x3, data = wdata, weights = w, method.trt = "bart", method.rsp = "tmle",
-                     n.burn = 1L, n.samples = 1L, n.trees = 1L, n.chains = 1L, n.threads = 1L,
-                     p.scoreBounds = "not bounds"),
+                     n.burn = 1L, n.samples = 1L, n.trees = 1L, n.chains = 1L, n.threads = 1L),
                "version 2.0.0 or later")
+})
+
+test_that("weights and responses are paired with their rows in p.weight fits", {
+  ## the rows of subset, as if they were the data
+  args <- list(quote(y), quote(z), quote(x1 + x2 + x3), method.trt = "glm", method.rsp = "p.weight",
+               verbose = FALSE, n.burn = 3L, n.samples = 5L, n.trees = 7L, n.chains = 2L, n.threads = 1L)
+  wkeep <- wdata[keep,]
+  fit <- function(...) suppressWarnings(suppressMessages(do.call(bartc, c(args, list(...)))))
+  for (estimand in c("att", "ate")) {
+    set.seed(61)
+    fit.subset <- fit(data = quote(wdata), weights = quote(w), subset = quote(keep), estimand = estimand)
+    set.seed(61)
+    fit.rows <- fit(data = quote(wkeep), weights = quote(w), estimand = estimand)
+    expect_equal(fit.subset$est, fit.rows$est, label = estimand)
+  }
+
+  ## missing responses leave a defined estimate and standard error
+  mdata <- wdata
+  mdata$y[c(3L, 17L, 40L, 77L)] <- NA
+  for (weighted in c(FALSE, TRUE)) {
+    set.seed(62)
+    fit.missing <- if (weighted) fit(data = quote(mdata), estimand = "att", weights = quote(w))
+                   else fit(data = quote(mdata), estimand = "att")
+    expect_true(all(is.finite(fit.missing$est)), label = paste("missing", weighted))
+  }
 })
 
 test_that("the built-in tmle estimator runs on draws and on a single set of means", {
