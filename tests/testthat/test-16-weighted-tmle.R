@@ -134,7 +134,7 @@ test_that("weighted tmle stops before any model is fit when the tmle package is 
 
 test_that("weights and responses are paired with their rows in p.weight fits", {
   ## the rows of subset, as if they were the data
-  args <- list(quote(y), quote(z), quote(x1 + x2 + x3), method.trt = "glm", method.rsp = "p.weight",
+  args <- list(quote(y), quote(z), quote(x1 + x2 + x3), method.trt = "bart", method.rsp = "p.weight",
                verbose = FALSE, n.burn = 3L, n.samples = 5L, n.trees = 7L, n.chains = 2L, n.threads = 1L)
   wkeep <- wdata[keep,]
   fit <- function(...) suppressWarnings(suppressMessages(do.call(bartc, c(args, list(...)))))
@@ -154,6 +154,20 @@ test_that("weights and responses are paired with their rows in p.weight fits", {
     fit.missing <- if (weighted) fit(data = quote(mdata), estimand = "att", weights = quote(w))
                    else fit(data = quote(mdata), estimand = "att")
     expect_true(all(is.finite(fit.missing$est)), label = paste("missing", weighted))
+  }
+
+  ## the standard error is the estimator's on the observed responses of the rows that are kept
+  for (weighted in c(FALSE, TRUE)) {
+    set.seed(63)
+    pfit <- if (weighted) fit(data = quote(mdata), estimand = "att", weights = quote(w))
+            else fit(data = quote(mdata), estimand = "att")
+    mu.hat.0 <- suppressWarnings(aperm(extract(pfit, "mu.0", sample = "all", combineChains = FALSE), c(3L, 1L, 2L)))
+    mu.hat.1 <- suppressWarnings(aperm(extract(pfit, "mu.1", sample = "all", combineChains = FALSE), c(3L, 1L, 2L)))
+    p.score <- aperm(pfit$samples.p.score, c(3L, 1L, 2L))
+    expect_equal(dim(mu.hat.0)[1L], n)
+    manual <- bartCause:::getPWeightEstimates(mdata$y, pfit$trt, if (weighted) mdata$w, "att", mu.hat.0, mu.hat.1, p.score,
+                                              c(.005, .995), c(0.025, 0.975))
+    expect_equal(pfit$est, manual, label = paste("manual", weighted))
   }
 })
 
