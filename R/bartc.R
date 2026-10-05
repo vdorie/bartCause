@@ -44,6 +44,9 @@ bartc <- function(
     assign(argName, arg[1L])
   }
   
+  ## weights with tmle need the package: say so before fitting anything
+  if (method.rsp == "tmle" && !is.null(matchedCall[["weights"]])) getTMLEFunction(TRUE)
+  
   if (length(crossvalidate) != 1L ||
       (!is.logical(crossvalidate) && !is.character(crossvalidate)) ||
       (is.logical(crossvalidate) && is.na(crossvalidate)) ||
