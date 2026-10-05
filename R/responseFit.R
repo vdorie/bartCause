@@ -712,6 +712,11 @@ getTMLEEstimates <- function(
   
   mu.hat.0.samp <- flattenSamples.perm(mu.hat.0.st)
   mu.hat.1.samp <- flattenSamples.perm(mu.hat.1.st)
+  if (is.null(dim(mu.hat.0.samp))) {
+    ## one set of means rather than draws, as posteriorOfTMLE = FALSE passes
+    mu.hat.0.samp <- matrix(mu.hat.0.samp, ncol = 1L)
+    mu.hat.1.samp <- matrix(mu.hat.1.samp, ncol = 1L)
+  }
   
   p.score.samp <- boundValues(flattenSamples.perm(p.score), p.scoreBounds)
   
@@ -793,6 +798,8 @@ getTMLEEstimates <- function(
   
   if (!is.null(origDims) && length(origDims) > 2L)
     result <- unflattenSamples.perm(result, origDims)
+  else if (is.null(origDims))
+    result <- result[1L,]
   
   result
 }
