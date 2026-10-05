@@ -58,10 +58,14 @@
             \code{"p.weight"} estimate now divides by the sum of the propensity
             scores rather than by the treated (control) count, as the weighted
             estimate always did, so no weights and equal weights agree.
-            Estimates move slightly when the propensity score is a BART fit
-            and not at all for a \code{"glm"} one, apart from the bounding of
-            extreme scores. The \code{p.weights} returned now sum to one in
-            each draw, where 1.0-10 returned values that averaged about one.
+            Estimates move when the propensity score is a BART fit, by a
+            small part of a posterior standard deviation for the pooled
+            estimate and more for small groups with \code{group.effects}. For
+            a \code{"glm"} one they move only through the bounding of extreme
+            scores, and when a common support rule drops rows, as the kept
+            rows' scores then no longer sum to the kept treated count. The
+            \code{p.weights} returned now sum to one in each draw, where
+            1.0-10 returned values that averaged about one.
     }
   }
   \subsection{BUG-FIXES}{
@@ -69,7 +73,30 @@
       \item The standard errors of weighted \code{method.rsp = "tmle"} fits,
             which came from the built-in estimator, were not converted back to
             the scale of the response, and \code{weights} together with
-            \code{posteriorOfTMLE = FALSE} failed with an error.
+            \code{posteriorOfTMLE = FALSE} failed with an error. The standard
+            errors of \code{"p.weight"} fits and of the built-in estimator
+            used without \pkg{tmle} remain on the scale of the unit interval
+            the estimators work on, not of the response.
+      \item The built-in \code{method.rsp = "tmle"} estimator, used when
+            \pkg{tmle} is not installed and there are no \code{weights},
+            failed with \code{posteriorOfTMLE = FALSE}.
+      \item The \code{"p.weight"} standard error of an \code{"att"} or
+            \code{"atc"} fit divides each draw by the sum of its scores, as the
+            estimate does, with and without \code{weights}. With \code{weights}
+            and several draws it summed over every draw and was too small by
+            the number of draws.
+      \item \code{weights} are now taken for the rows of \code{subset} in
+            \code{"p.weight"} and \code{"tmle"} response fits, where those of
+            the first rows of the data were used or \pkg{tmle} stopped with
+            an empty message, and with missing responses the response is
+            paired with its own rows, weights and scores in both.
+      \item \code{refit} of an \code{"att"} or \code{"atc"} fit with
+            \code{method.rsp = "p.weight"} or \code{"tmle"} returned a wrong
+            estimate, or failed with group effects or a common support rule that
+            drops rows.
+      \item Multi-threaded \code{method.rsp = "tmle"} workers are seeded from
+            the session's random number stream, and the cluster is closed if a
+            worker fails.
       \item \code{extract} and \code{fitted} of \code{type = "p.weights"}
             no longer fail when the propensity score is a \code{"glm"} fit;
             for \code{"att"} and \code{"atc"} they no longer return \code{Inf}

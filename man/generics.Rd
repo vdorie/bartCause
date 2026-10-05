@@ -109,10 +109,14 @@ refit(object, newresp, \dots)
                          \eqn{\hat{mu}_i(1) - \hat{mu}_i(0)}
     \item \code{"p.score"} - probability that each observation is assigned to the treatment group
     \item \code{"p.weights"} - weights assigned to each individual difference if the response method
-                               is \code{"p.weight"}; within each draw they sum to one over
-                               observations, and the sum over observations of a weight and its
-                               individual effect is the estimate (up to the bounding of extreme
-                               mean responses the estimator applies)
+                               is \code{"p.weight"}; they are normalized to sum to one over
+                               all observations in each draw, and with \code{sample = "all"}, no
+                               group effects and no observations dropped by a common support rule,
+                               the sum over observations of a weight and its individual effect is
+                               the estimate, up to the bounding of extreme mean responses the
+                               estimator applies, which can matter in small groups. The default
+                               \code{sample = "inferential"} returns only the treated (\code{"att"})
+                               or control (\code{"atc"}) observations, so their sum is below one
     \item \code{"sigma"} - residual standard deviation from continuous response models
   }
   
