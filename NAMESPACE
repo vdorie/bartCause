@@ -29,7 +29,7 @@ importFrom(stats, quantile, setNames, coef)
 importFrom(graphics, abline, hist, lines, plot)
 importFrom(graphics, legend, mtext, par, points, polygon)
 
-importFrom(parallel, makeCluster, clusterExport, clusterEvalQ, clusterApply, stopCluster)
+importFrom(parallel, makeCluster, clusterExport, clusterEvalQ, clusterApply, clusterSetRNGStream, stopCluster)
 
 importFrom(utils, tail)
 importFrom(grDevices, rgb)

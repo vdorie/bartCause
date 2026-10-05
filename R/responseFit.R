@@ -617,11 +617,15 @@ getTMLEEstimates <- function(
   }
   
   tmle <- getTMLEFunction(!is.null(weights))
+  ## tmle before 2.0.0 has no obsWeights argument: name it only when there are weights
+  if (!is.null(tmle) && !is.null(weights)) {
+    tmlePackage <- tmle
+    tmle <- function(...) tmlePackage(..., obsWeights = weights)
+  }
   
   if (!is.null(tmle)) {
     if (is.null(dim(mu.hat.0))) { 
-      result <- tmle(Y = y, A = z, W = matrix(0, length(y), 1L), Q = cbind(Q0W = mu.hat.0, Q1W = mu.hat.1), g1W = p.score,
-                     obsWeights = weights)
+      result <- tmle(Y = y, A = z, W = matrix(0, length(y), 1L), Q = cbind(Q0W = mu.hat.0, Q1W = mu.hat.1), g1W = p.score)
       result <- unlist(result$estimates[[switch(estimand, ate = "ATE", att = "ATT", atc = "ATC")]][c("psi", "var.psi")])
       names(result) <- c("est", "se")
       result["se"] <- sqrt(result["se"])
@@ -635,12 +639,13 @@ getTMLEEstimates <- function(
       
       if (n.threads == 1L) {
         result <- t(sapply(seq_len(dim(Q)[3L]), function(i) {
-          res <- tmle(Y = y, A = z, W = W, Q = Q[,,i], g1W = if (!is.null(dim(p.score))) p.score[,i] else p.score,
-                      obsWeights = weights)
+          res <- tmle(Y = y, A = z, W = W, Q = Q[,,i], g1W = if (!is.null(dim(p.score))) p.score[,i] else p.score)
           unlist(res$estimates[[switch(estimand, ate = "ATE", att = "ATT", atc = "ATC")]][c("psi", "var.psi")])
         }))
       } else {
         cluster <- makeCluster(n.threads)
+        on.exit(stopCluster(cluster))
+        clusterSetRNGStream(cluster, sample.int(.Machine$integer.max, 1L))
         
         clusterExport(cluster, c("y", "z", "W", "weights", "estimand"), sys.frame(sys.nframe()))
         
@@ -658,16 +663,13 @@ getTMLEEstimates <- function(
           Q <- x$Q
           p.score <- x$p.score
           sapply(seq_len(dim(Q)[3L]), function(i) {
-            res <- tmle(Y = y, A = z, W = W, Q = Q[,,i], g1W = if (!is.null(dim(p.score))) p.score[,i] else p.score,
-                        obsWeights = weights)
+            res <- tmle(Y = y, A = z, W = W, Q = Q[,,i], g1W = if (!is.null(dim(p.score))) p.score[,i] else p.score)
             unlist(res$estimates[[switch(estimand, ate = "ATE", att = "ATT", atc = "ATC")]][c("psi", "var.psi")])
           })
         }), error = function(x) x)
 
         if (inherits(tryResult, "error")) stop("multithreaded tmle failed with error: ", tryResult$message)
     
-        stopCluster(cluster)
-        
         result <- t(matrix(unlist(results.list), 2L, numSamples))
       }
       result[,2L] <- sqrt(result[,2L])
