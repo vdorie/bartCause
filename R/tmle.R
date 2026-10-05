@@ -75,41 +75,20 @@ getPWeightFunction <- function(estimand, weights, icate, p.score)
 
 
 ## The estimate the built-in TMLE targets, with the influence curve of
-## getTMLEFunctions derived for it: unweighted att and atc divide by the treated
-## (control) share rather than by the sum of the scores as getPWeightFunction does.
-getTMLEPWeightFunction <- function(estimand, weights, icate, p.score)
+## getTMLEFunctions derived for it: att and atc divide by the treated (control)
+## share rather than by the sum of the scores as getPWeightFunction does.
+getTMLEPWeightFunction <- function(estimand, icate, p.score)
 {
-  fnBody <- if (!is.null(weights)) {
-    if (!is.null(dim(p.score))) {
-      switch(estimand,
-             att = quote(apply(icate * p.score * weights, 2L, sum) / apply(p.score * weights, 2L, sum)),
-             atc = quote(apply(icate * (1 - p.score) * weights, 2L, sum) / apply((1 - p.score) * weights, 2L, sum)),
-             ate = quote(apply(icate * weights, 2L, sum)))
-    } else {
-      if (!is.null(dim(icate))) {
-        switch(estimand,
-               att = quote(apply(icate * p.score * weights, 2L, sum) / sum(p.score * weights)),
-               atc = quote(apply(icate * (1 - p.score) * weights, 2L, sum) / sum((1 - p.score) * weights)),
-               ate = quote(apply(icate * weights, 2L, sum)))
-      } else {
-        switch(estimand,
-               att = quote(sum(icate * p.score * weights) / sum(p.score * weights)),
-               atc = quote(sum(icate * (1 - p.score) * weights) / sum((1 - p.score) * weights)),
-               ate = quote(sum(icate * weights)))
-      }
-    }
+  fnBody <- if (!is.null(dim(icate))) {
+    switch(estimand,
+           att = quote(apply(icate * p.score, 2L, mean) / mean(z)),
+           atc = quote(apply(icate * (1 - p.score), 2L, mean)  / mean(1 - z)),
+           ate = quote(apply(icate, 2L, mean)))
   } else {
-    if (!is.null(dim(icate))) {
-      switch(estimand,
-             att = quote(apply(icate * p.score, 2L, mean) / mean(z)),
-             atc = quote(apply(icate * (1 - p.score), 2L, mean)  / mean(1 - z)),
-             ate = quote(apply(icate, 2L, mean)))
-    } else {
-      switch(estimand,
-             att = quote(mean(icate * p.score) / mean(z)),
-             atc = quote(mean(icate * (1 - p.score)) / mean(1 - z)),
-             ate = quote(mean(icate)))
-    }
+    switch(estimand,
+           att = quote(mean(icate * p.score) / mean(z)),
+           atc = quote(mean(icate * (1 - p.score)) / mean(1 - z)),
+           ate = quote(mean(icate)))
   }
   
   result <- function(z, weights, icate, p.score) NULL
@@ -119,9 +98,24 @@ getTMLEPWeightFunction <- function(estimand, weights, icate, p.score)
   result
 }
 
+## The function that calls the tmle package, or NULL, with a warning, when it
+## is absent and the fit is unweighted: the built-in estimator then stands in.
+## Weights need the package's obsWeights, which came with version 2.0.0.
+getTMLEFunction <- function(weighted, version = tryCatch(utils::packageVersion("tmle"), error = function(e) NULL))
+{
+  if (weighted) {
+    if (is.null(version) || version < "2.0.0")
+      stop("weights with method.rsp = 'tmle' need the tmle package, version 2.0.0 or later")
+    return(tmle::tmle)
+  }
+  
+  tmle <- NULL
+  if (inherits(tryCatch(tmle <- tmle::tmle, error = function(e) e), "error"))
+    warning("tmle package not found; install for up-to-date results with method.rsp = 'tmle'")
+  tmle
+}
 
-
-getTMLEFunctions <- function(estimand, weights) {
+getTMLEFunctions <- function(estimand) {
   createFunctionWithBody <- function(body, ...)
   {
     matchedCall <- match.call()
@@ -146,43 +140,23 @@ getTMLEFunctions <- function(estimand, weights) {
   }
   ## for R CMD check
   a.weight <- icate <- p.score <- psi <- x <- y <- mu.hat <- z <- NULL
-  if (!is.null(weights)) {
-    if (estimand == "att") {
-      mu.hat.0Body <- quote(-p.score / (1 - p.score))
-      mu.hat.1Body <- quote(1)
-      p.scoreBody <- quote(icate - psi)
-      icBody <- quote((length(y) * weights * a.weight * (y - mu.hat) + z * (icate - psi)) / sum(p.score * weights))
-    } else if (estimand == "atc") {
-      mu.hat.0Body <- quote(1)
-      mu.hat.1Body <- quote(-(1 - p.score) / p.score)
-      p.scoreBody <- quote(icate - psi)
-      icBody <- quote((length(y) * weights * a.weight * (y - mu.hat) + (1 - z) * (icate - psi)) / sum((1 - p.score) * weights))
-    } else if (estimand == "ate") {
-      mu.hat.0Body <- quote(1 - p.score / (1 - p.score))
-      mu.hat.1Body <- quote(1 - (1 - p.score) / p.score)
-      p.scoreBody <- quote(icate - psi)
-      icBody <- quote(length(y) * weights * a.weight * (y - mu.hat) + (icate - psi))
-    }
-    calcLossBody <- quote(-mean(weights * (y * log(mu.hat) + (1 - y) * log(1 - mu.hat) + z * log(p.score) + (1 - z) * log(1 - p.score))))
-  } else {
-    if (estimand == "att") {
-      mu.hat.0Body <- quote(-p.score / (1 - p.score))
-      mu.hat.1Body <- quote(1)
-      p.scoreBody <- quote(icate - psi)
-      icBody <- quote((a.weight * (y - mu.hat) + z * (icate - psi)) / mean(z))
-    } else if (estimand == "atc") {
-      mu.hat.0Body <- quote(1)
-      mu.hat.1Body <- quote(-(1 - p.score) / p.score)
-      p.scoreBody <- quote(icate - psi)
-      icBody <- quote((a.weight * (y - mu.hat) + (1 - z) * (icate - psi)) / mean(1 - z))
-    } else if (estimand == "ate") {
-      mu.hat.0Body <- quote(1 - p.score / (1 - p.score))
-      mu.hat.1Body <- quote(1 - (1 - p.score) / p.score)
-      p.scoreBody <- quote(icate - psi)
-      icBody <- quote(a.weight * (y - mu.hat) + (icate - psi))
-    }
-    calcLossBody <- quote(-mean(y * log(mu.hat) + (1 - y) * log(1 - mu.hat) + z * log(p.score) + (1 - z) * log(1 - p.score)))
+  if (estimand == "att") {
+    mu.hat.0Body <- quote(-p.score / (1 - p.score))
+    mu.hat.1Body <- quote(1)
+    p.scoreBody <- quote(icate - psi)
+    icBody <- quote((a.weight * (y - mu.hat) + z * (icate - psi)) / mean(z))
+  } else if (estimand == "atc") {
+    mu.hat.0Body <- quote(1)
+    mu.hat.1Body <- quote(-(1 - p.score) / p.score)
+    p.scoreBody <- quote(icate - psi)
+    icBody <- quote((a.weight * (y - mu.hat) + (1 - z) * (icate - psi)) / mean(1 - z))
+  } else if (estimand == "ate") {
+    mu.hat.0Body <- quote(1 - p.score / (1 - p.score))
+    mu.hat.1Body <- quote(1 - (1 - p.score) / p.score)
+    p.scoreBody <- quote(icate - psi)
+    icBody <- quote(a.weight * (y - mu.hat) + (icate - psi))
   }
+  calcLossBody <- quote(-mean(y * log(mu.hat) + (1 - y) * log(1 - mu.hat) + z * log(p.score) + (1 - z) * log(1 - p.score)))
   
   mu.hat.0.deriv <- createFunctionWithBody(mu.hat.0Body, z, weights, p.score)
   mu.hat.1.deriv <- createFunctionWithBody(mu.hat.1Body, z, weights, p.score)

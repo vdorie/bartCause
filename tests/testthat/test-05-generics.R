@@ -221,30 +221,133 @@ test_that("generics work for p.weights", {
   expect_equal(apply(p.weights, length(dim(p.weights)), mean), fitted(pfit, "p.weights", sample = "all"))
 })
 
-test_that("weighted tmle matches a direct getTMLEEstimates recomputation", {
+test_that("weighted tmle calls the tmle package, with the weights as obsWeights", {
   skip_on_cran()
   skip_if_not_installed("tmle")
 
-  # weights route getTMLEEstimates around the 'tmle' package entirely (only
-  # taken when weights are NULL) and into its own from-scratch implementation,
-  # which is otherwise never exercised when the suggested 'tmle' package is on
-  # the machine (the common case)
+  set.seed(31)
+  n <- length(testData$y)
+  w <- runif(n, 0.5, 1.5)
+  mu.hat.0 <- rnorm(n, 0, 0.3)
+  mu.hat.1 <- mu.hat.0 + 0.5
+  p.score <- runif(n, 0.2, 0.8)
+  bounds <- c(.005, .995)
+  scoreBounds <- c(0.025, 0.975)
+
+  for (estimand in c("ate", "att", "atc")) {
+    name <- switch(estimand, ate = "ATE", att = "ATT", atc = "ATC")
+    set.seed(32)
+    direct <- tmle::tmle(Y = testData$y, A = testData$z, W = matrix(0, n, 1L),
+                         Q = cbind(Q0W = mu.hat.0, Q1W = mu.hat.1), g1W = p.score, obsWeights = w)
+    direct <- unlist(direct$estimates[[name]][c("psi", "var.psi")])
+    ## a vector of draws, as posteriorOfTMLE = FALSE passes
+    set.seed(32)
+    est <- bartCause:::getTMLEEstimates(testData$y, testData$z, w, estimand, mu.hat.0, mu.hat.1, p.score,
+                                        bounds, scoreBounds, 0.001, 20L, n.threads = 1L)
+    expect_equal(unname(est), unname(c(direct[1L], sqrt(direct[2L]))), label = estimand)
+    ## and a matrix of draws, one tmle call per column
+    set.seed(32)
+    est <- bartCause:::getTMLEEstimates(testData$y, testData$z, w, estimand, cbind(mu.hat.0), cbind(mu.hat.1),
+                                        cbind(p.score), bounds, scoreBounds, 0.001, 20L, n.threads = 1L)
+    expect_equal(dim(est), c(1L, 2L))
+    expect_true(all(is.finite(est)))
+  }
+})
+
+test_that("weights with method.rsp = 'tmle' need the tmle package, version 2.0.0 or later", {
+  expect_error(bartCause:::getTMLEFunction(TRUE, version = NULL), "version 2.0.0 or later")
+  expect_error(bartCause:::getTMLEFunction(TRUE, version = package_version("1.5.0")), "version 2.0.0 or later")
+  skip_if_not_installed("tmle")
+  expect_true(is.function(bartCause:::getTMLEFunction(TRUE, version = package_version("2.0.0"))))
+  expect_true(is.function(bartCause:::getTMLEFunction(FALSE)))
+})
+
+test_that("weighted tmle runs for every estimand, with and without the posterior of the adjustment", {
+  skip_on_cran()
+  skip_if_not_installed("tmle")
+
   weightedData <- testData
+  set.seed(33)
   weightedData$w <- runif(length(weightedData$y), 0.5, 1.5)
 
-  maxIter <- 20L  # keep the fluctuation loop short; the default (2000) is slow
-  set.seed(22)
-  fit <- bartc(y, z, x, data = weightedData, method.trt = "bart", method.rsp = "tmle", weights = w, verbose = FALSE,
-               n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 1L, n.threads = 1L, maxIter = maxIter)
+  for (estimand in c("ate", "att", "atc")) for (posteriorOfTMLE in c(TRUE, FALSE)) {
+    label <- paste(estimand, posteriorOfTMLE)
+    set.seed(34)
+    fit <- suppressMessages(bartc(y, z, x, data = weightedData, weights = w, method.trt = "bart",
+                                  method.rsp = "tmle", estimand = estimand, verbose = FALSE,
+                                  n.burn = 3L, n.samples = 7L, n.trees = 7L, n.chains = 2L, n.threads = 1L,
+                                  posteriorOfTMLE = posteriorOfTMLE))
+    expect_true(all(is.finite(fit$est)), label = label)
+    expect_true(is.finite(fitted(fit, "pate")), label = label)
+    if (posteriorOfTMLE) expect_equal(dim(fit$est), c(2L, 7L, 2L), label = label)
+    else expect_equal(names(fit$est), c("est", "se"), label = label)
+  }
 
-  mu.hat.0 <- t(drop(suppressWarnings(extract(fit, "mu.0", combineChains = FALSE))))
-  mu.hat.1 <- t(drop(suppressWarnings(extract(fit, "mu.1", combineChains = FALSE))))
-  p.score  <- t(fit$samples.p.score)
-  w <- weightedData$w / sum(weightedData$w)
-  manual <- bartCause:::getTMLEEstimates(weightedData$y, weightedData$z, w, "ate", mu.hat.0, mu.hat.1, p.score,
-                                         c(.005, .995), c(0.025, 0.975), 0.001, maxIter, n.threads = 1L)
-  expect_equal(fit$est, manual)
+  ## the worker processes need the weights
+  set.seed(35)
+  fit <- suppressMessages(bartc(y, z, x, data = weightedData, weights = w, method.trt = "bart",
+                                method.rsp = "tmle", estimand = "att", verbose = FALSE,
+                                n.burn = 3L, n.samples = 7L, n.trees = 7L, n.chains = 2L, n.threads = 2L))
   expect_true(all(is.finite(fit$est)))
+  expect_equal(dim(fit$est), c(2L, 7L, 2L))
+})
+
+test_that("weighted tmle with weights of one gives the unweighted estimate", {
+  skip_on_cran()
+  skip_if_not_installed("tmle")
+
+  weightedData <- testData
+  weightedData$w <- rep(1, length(weightedData$y))
+
+  for (estimand in c("att", "ate")) for (posteriorOfTMLE in c(TRUE, FALSE)) {
+    label <- paste(estimand, posteriorOfTMLE)
+    fits <- lapply(c(FALSE, TRUE), function(weighted) {
+      set.seed(36)
+      suppressMessages(
+        if (weighted)
+          bartc(y, z, x, data = weightedData, weights = w, method.trt = "bart", method.rsp = "tmle",
+                estimand = estimand, verbose = FALSE, n.burn = 3L, n.samples = 7L, n.trees = 7L,
+                n.chains = 2L, n.threads = 1L, posteriorOfTMLE = posteriorOfTMLE)
+        else
+          bartc(y, z, x, data = weightedData, method.trt = "bart", method.rsp = "tmle",
+                estimand = estimand, verbose = FALSE, n.burn = 3L, n.samples = 7L, n.trees = 7L,
+                n.chains = 2L, n.threads = 1L, posteriorOfTMLE = posteriorOfTMLE))
+    })
+    expect_equal(fits[[2L]]$est, fits[[1L]]$est, label = label)
+  }
+
+  ## equal weights of any size, at the level of the estimator
+  set.seed(37)
+  n <- length(weightedData$y)
+  mu.hat.0 <- matrix(rnorm(n * 3L, 0, 0.3), n, 3L)
+  mu.hat.1 <- mu.hat.0 + 0.5
+  p.score <- matrix(runif(n * 3L, 0.2, 0.8), n, 3L)
+  est <- lapply(list(NULL, rep(1, n), rep(3, n)), function(w) {
+    set.seed(38)
+    bartCause:::getTMLEEstimates(weightedData$y, weightedData$z, w, "att", mu.hat.0, mu.hat.1, p.score,
+                                 c(.005, .995), c(0.025, 0.975), 0.001, 20L, n.threads = 1L)
+  })
+  expect_equal(est[[2L]], est[[1L]])
+  expect_equal(est[[3L]], est[[1L]])
+})
+
+test_that("weighted tmle works with group.by", {
+  skip_on_cran()
+  skip_if_not_installed("tmle")
+
+  weightedData <- testData
+  set.seed(39)
+  weightedData$w <- runif(length(weightedData$y), 0.5, 1.5)
+
+  for (posteriorOfTMLE in c(TRUE, FALSE)) {
+    set.seed(40)
+    fit <- suppressMessages(bartc(y, z, x, data = weightedData, weights = w, method.trt = "bart",
+                                  method.rsp = "tmle", estimand = "att", group.by = g, group.effects = TRUE,
+                                  use.ranef = FALSE, verbose = FALSE, n.burn = 3L, n.samples = 7L,
+                                  n.trees = 7L, n.chains = 2L, n.threads = 1L, posteriorOfTMLE = posteriorOfTMLE))
+    expect_equal(length(fit$est), nlevels(as.factor(weightedData$g)))
+    for (est in fit$est) expect_true(all(is.finite(est)))
+  }
 })
 
 test_that("summary works with different styles", {

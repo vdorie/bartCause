@@ -216,7 +216,11 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
     \item \code{"tmle"} - individual effects are estimated as in \code{"bart"}
           and a weighted average is taken as in \code{"p.weight"}, however the
           response surface estimates and propensity scores are corrected by
-          using the Targeted Minimum Loss based Estimation method.
+          using the Targeted Minimum Loss based Estimation method. This uses
+          the \pkg{tmle} package; without \code{weights}, a built-in
+          implementation stands in, with a warning, when the package is not
+          installed. With \code{weights}, \pkg{tmle} version 2.0.0 or later
+          is required, and the weights are passed to it as \code{obsWeights}.
   }
   
   \strong{Treatment Assignment}

@@ -452,7 +452,7 @@ getPWeightEstimates <- function(y, z, weights, estimand, mu.hat.0, mu.hat.1, p.s
   }
     
   getPWeightEstimate <- getPWeightFunction(estimand, weights, icate, p.score)
-  tmleFuncs <- getTMLEFunctions(estimand, weights)
+  tmleFuncs <- getTMLEFunctions(estimand)
   mu.hat.1.deriv <- tmleFuncs$mu.hat.1.deriv
   mu.hat.0.deriv <- tmleFuncs$mu.hat.0.deriv
   if (!is.null(weights)) {
@@ -616,13 +616,12 @@ getTMLEEstimates <- function(
     addDimsToSubset(p.score <- p.score[completeRows, drop = FALSE])
   }
   
-  tmle <- NULL
-  if (is.null(weights) && inherits(tryCatch(tmle <- tmle::tmle, error = function(e) e), "error"))
-    warning("tmle package not found; install for up-to-date results with method.rsp = 'tmle'")
+  tmle <- getTMLEFunction(!is.null(weights))
   
   if (!is.null(tmle)) {
     if (is.null(dim(mu.hat.0))) { 
-      result <- tmle(Y = y, A = z, W = matrix(0, length(y), 1L), Q = cbind(Q0W = mu.hat.0, Q1W = mu.hat.1), g1W = p.score)
+      result <- tmle(Y = y, A = z, W = matrix(0, length(y), 1L), Q = cbind(Q0W = mu.hat.0, Q1W = mu.hat.1), g1W = p.score,
+                     obsWeights = weights)
       result <- unlist(result$estimates[[switch(estimand, ate = "ATE", att = "ATT", atc = "ATC")]][c("psi", "var.psi")])
       names(result) <- c("est", "se")
       result["se"] <- sqrt(result["se"])
@@ -636,13 +635,14 @@ getTMLEEstimates <- function(
       
       if (n.threads == 1L) {
         result <- t(sapply(seq_len(dim(Q)[3L]), function(i) {
-          res <- tmle(Y = y, A = z, W = W, Q = Q[,,i], g1W = if (!is.null(dim(p.score))) p.score[,i] else p.score)
+          res <- tmle(Y = y, A = z, W = W, Q = Q[,,i], g1W = if (!is.null(dim(p.score))) p.score[,i] else p.score,
+                      obsWeights = weights)
           unlist(res$estimates[[switch(estimand, ate = "ATE", att = "ATT", atc = "ATC")]][c("psi", "var.psi")])
         }))
       } else {
         cluster <- makeCluster(n.threads)
         
-        clusterExport(cluster, c("y", "z", "W", "estimand"), sys.frame(sys.nframe()))
+        clusterExport(cluster, c("y", "z", "W", "weights", "estimand"), sys.frame(sys.nframe()))
         
         numSamples <- dim(Q)[3L]
         numSamplesPerThread <- numSamples %/% n.threads + if (numSamples %% n.threads != 0L) 1L else 0L
@@ -658,7 +658,8 @@ getTMLEEstimates <- function(
           Q <- x$Q
           p.score <- x$p.score
           sapply(seq_len(dim(Q)[3L]), function(i) {
-            res <- tmle(Y = y, A = z, W = W, Q = Q[,,i], g1W = if (!is.null(dim(p.score))) p.score[,i] else p.score)
+            res <- tmle(Y = y, A = z, W = W, Q = Q[,,i], g1W = if (!is.null(dim(p.score))) p.score[,i] else p.score,
+                        obsWeights = weights)
             unlist(res$estimates[[switch(estimand, ate = "ATE", att = "ATT", atc = "ATC")]][c("psi", "var.psi")])
           })
         }), error = function(x) x)
@@ -677,11 +678,6 @@ getTMLEEstimates <- function(
       }
     }
     return(result)
-  }
-  
-  if (!is.null(weights)) {
-    weights <- rep_len(weights, length(y))
-    weights <- weights / sum(weights)
   }
   
   r <- range(y)
@@ -703,10 +699,10 @@ getTMLEEstimates <- function(
   
   origDims <- dim(mu.hat.0)
   
-  getPWeightEstimate <- getTMLEPWeightFunction(estimand, weights, numeric(), numeric())
+  getPWeightEstimate <- getTMLEPWeightFunction(estimand, numeric(), numeric())
   
   mu.hat.0.deriv <- mu.hat.1.deriv <- p.score.deriv <- getIC <- calcLoss <- NULL
-  assignAll(getTMLEFunctions(estimand, weights))
+  assignAll(getTMLEFunctions(estimand))
   
   result <- t(sapply(seq_len(ncol(mu.hat.0.samp)), function(i) {
     mu.hat.0 <- mu.hat.0.samp[,i]

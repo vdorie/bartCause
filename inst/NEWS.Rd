@@ -40,6 +40,11 @@
             for the missing rows; drop the incomplete rows, or use
             \code{use.ranef = FALSE}, which enters the grouping factor as a
             fixed effect in a \pkg{dbarts} fit and still accepts them.
+      \item With \code{weights}, \code{method.rsp = "tmle"} now uses the
+            \pkg{tmle} package, version 2.0.0 or later, which is required for
+            this; a built-in estimator was used in 1.0-10. Weighted TMLE
+            estimates and standard errors change. Without \code{weights}
+            nothing changes.
       \item BART propensity models are always probit and cannot be weighted;
             when \code{weights} are supplied they are ignored in the propensity
             fit, with a message, and enter only the treatment effect
@@ -61,6 +66,10 @@
   }
   \subsection{BUG-FIXES}{
     \itemize{
+      \item The standard errors of weighted \code{method.rsp = "tmle"} fits,
+            which came from the built-in estimator, were not converted back to
+            the scale of the response, and \code{weights} together with
+            \code{posteriorOfTMLE = FALSE} failed with an error.
       \item \code{extract} and \code{fitted} of \code{type = "p.weights"}
             no longer fail when the propensity score is a \code{"glm"} fit;
             for \code{"att"} and \code{"atc"} they no longer return \code{Inf}
