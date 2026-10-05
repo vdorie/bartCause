@@ -503,8 +503,11 @@ getPWeightResponseFit <-
   
   if (weightsAreMissing) {
     weights <- NULL
-  } else if (!dataAreMissing) {
-    weights <- eval(matchedCall$weights, envir = data)
+  } else {
+    if (!dataAreMissing) weights <- eval(matchedCall$weights, envir = data)
+    ## the rows the response model is fit to, as dbartsData takes them
+    if (!is.null(weights) && !is.null(matchedCall[["subset"]]))
+      weights <- weights[if (dataAreMissing) subset else eval(matchedCall[["subset"]], data, callingEnv)]
   }
   
   bartCall <- redirectCall(matchedCall, quoteInNamespace(getBartResponseFit))
@@ -799,8 +802,11 @@ getTMLEResponseFit <-
   
   if (weightsAreMissing) {
     weights <- NULL
-  } else if (!dataAreMissing) {
-    weights <- eval(matchedCall$weights, envir = data)
+  } else {
+    if (!dataAreMissing) weights <- eval(matchedCall$weights, envir = data)
+    ## the rows the response model is fit to, as dbartsData takes them
+    if (!is.null(weights) && !is.null(matchedCall[["subset"]]))
+      weights <- weights[if (dataAreMissing) subset else eval(matchedCall[["subset"]], data, callingEnv)]
   }
   
   bartCall <- redirectCall(matchedCall, quoteInNamespace(getBartResponseFit))
