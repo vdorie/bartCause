@@ -428,10 +428,10 @@ getPWeightEstimates <- function(y, z, weights, estimand, mu.hat.0, mu.hat.1, p.s
   m <- min(y, na.rm = TRUE)
   M <- max(y, na.rm = TRUE)
   
-  r <- range(y)
+  r <- range(y, na.rm = TRUE)
   r <- r + 0.1 * c(-abs(r[1L]), abs(r[2L]))
   y.st <- boundValues(y, r)
-  r.st <- range(y.st)
+  r.st <- range(y.st, na.rm = TRUE)
   y.st <- (y.st - min(r.st)) / diff(r.st)
   
   origDims <- dim(mu.hat.0)
@@ -476,7 +476,7 @@ getPWeightEstimates <- function(y, z, weights, estimand, mu.hat.0, mu.hat.1, p.s
   a.weight <- z * mu.hat.1.deriv(z, weights, p.score) + (1 - z) * mu.hat.0.deriv(z, weights, p.score)
   ic <- getIC(y.st, mu.hat, icate, psi, a.weight)
   
-  se <- apply(ic, 2L, sd) / sqrt(length(y))
+  se <- apply(ic, 2L, sd, na.rm = TRUE) / sqrt(sum(!is.na(y)))
   result <- c(psi * (M - m), sd(ic) / sqrt(length(y)))
   
   if (!is.null(origDims) && length(origDims) > 2L)
@@ -516,6 +516,13 @@ getPWeightResponseFit <-
   fit <- data <- mu.hat.obs <- mu.hat.cf <- name.trt <- name.p.score <- trt <- sd.obs <- sd.cf <- commonSup.sub <- missingRows <- NULL
   assignAll(eval(bartCall, envir = callingEnv))
   
+  ## fit$y holds the complete rows only; the estimates, the treatment and the scores run over every row
+  y.all <- fit$y
+  if (any(missingRows) && length(y.all) < length(trt)) {
+    y.all <- rep_len(NA_real_, length(trt))
+    y.all[!missingRows] <- fit$y
+  }
+  
   treatmentRows <- trt > 0
   
   mu.hat.obs.orig <- mu.hat.obs
@@ -554,7 +561,7 @@ getPWeightResponseFit <-
       if (!is.null(weights)) weights <- weights[commonSup.sub]
     }
       
-    est <- getPWeightEstimates(fit$y[commonSup.sub], trt[commonSup.sub], weights, estimand, mu.hat.0, mu.hat.1, p.score, yBounds, p.scoreBounds)
+    est <- getPWeightEstimates(y.all[commonSup.sub], trt[commonSup.sub], weights, estimand, mu.hat.0, mu.hat.1, p.score, yBounds, p.scoreBounds)
   } else {
     # we might have been given fixed effects which would live in a data frame, but we need
     # a literal to estimate within subsets
@@ -569,7 +576,7 @@ getPWeightResponseFit <-
       
       if (!is.null(weights)) weights <- weights[levelRows]
       
-      getPWeightEstimates(fit$y[levelRows], trt[levelRows], weights, estimand, mu.hat.0, mu.hat.1, p.score, yBounds, p.scoreBounds)
+      getPWeightEstimates(y.all[levelRows], trt[levelRows], weights, estimand, mu.hat.0, mu.hat.1, p.score, yBounds, p.scoreBounds)
     })
     names(est) <- levels(group.by)
   }
@@ -815,6 +822,13 @@ getTMLEResponseFit <-
   fit <- data <- mu.hat.obs <- mu.hat.cf <- name.trt <- name.p.score <- trt <- sd.obs <- sd.cf <- commonSup.sub <- missingRows <- NULL
   assignAll(eval(bartCall, envir = callingEnv))
   
+  ## fit$y holds the complete rows only; the estimates, the treatment and the scores run over every row
+  y.all <- fit$y
+  if (any(missingRows) && length(y.all) < length(trt)) {
+    y.all <- rep_len(NA_real_, length(trt))
+    y.all[!missingRows] <- fit$y
+  }
+  
   mu.hat.obs.orig <- mu.hat.obs
   mu.hat.cf.orig  <- mu.hat.cf
   # input dims are n.chains x n.samples x n.obs
@@ -858,11 +872,11 @@ getTMLEResponseFit <-
     
     if (posteriorOfTMLE) {
       n.threads <- if ("n.threads" %in% names(list(...))) list(...)[["n.threads"]] else dbarts::guessNumCores()
-      est <- getTMLEEstimates(fit$y[commonSup.sub], trt[commonSup.sub], weights, estimand,
+      est <- getTMLEEstimates(y.all[commonSup.sub], trt[commonSup.sub], weights, estimand,
                               mu.hat.0, mu.hat.1, p.score, yBounds, p.scoreBounds, depsilon, maxIter,
                               n.threads = n.threads)
     } else {
-      est <- getTMLEEstimates(fit$y[commonSup.sub], trt[commonSup.sub], weights, estimand,
+      est <- getTMLEEstimates(y.all[commonSup.sub], trt[commonSup.sub], weights, estimand,
                               apply(mu.hat.0, 1L, mean),
                               apply(mu.hat.1, 1L, mean),
                               if (!is.null(dim(p.score))) apply(p.score, 1L, mean) else p.score,
@@ -883,11 +897,11 @@ getTMLEResponseFit <-
       
       if (posteriorOfTMLE) {
         n.threads <- if ("n.threads" %in% names(list(...))) list(...)[["n.threads"]] else dbarts::guessNumCores()
-        getTMLEEstimates(fit$y[levelRows], trt[levelRows], weights, estimand,
+        getTMLEEstimates(y.all[levelRows], trt[levelRows], weights, estimand,
                          mu.hat.0, mu.hat.1, p.score, yBounds, p.scoreBounds, depsilon, maxIter,
                          n.threads = n.threads)
       } else {
-        est <- getTMLEEstimates(fit$y[levelRows], trt[levelRows], weights, estimand,
+        est <- getTMLEEstimates(y.all[levelRows], trt[levelRows], weights, estimand,
                                 apply(mu.hat.0, 1L, mean),
                                 apply(mu.hat.1, 1L, mean),
                                 if (!is.null(dim(p.score))) apply(p.score, 1L, mean) else p.score,
