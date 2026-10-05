@@ -109,8 +109,10 @@ refit(object, newresp, \dots)
                          \eqn{\hat{mu}_i(1) - \hat{mu}_i(0)}
     \item \code{"p.score"} - probability that each observation is assigned to the treatment group
     \item \code{"p.weights"} - weights assigned to each individual difference if the response method
-                               is \code{"p.weight"}; the sum over observations of a weight and its
-                               individual effect is the estimate
+                               is \code{"p.weight"}; within each draw they sum to one over
+                               observations, and the sum over observations of a weight and its
+                               individual effect is the estimate (up to the bounding of extreme
+                               mean responses the estimator applies)
     \item \code{"sigma"} - residual standard deviation from continuous response models
   }
   

@@ -17,12 +17,67 @@ getPWeights <- function(estimand, z, weights, p.score, p.scoreBounds)
   }
   ones <- if (is.null(dim(p.score))) rep_len(1, length(z)) else array(1, dim(p.score))
   switch(estimand,
-         att = if (is.null(weights)) p.score / sum(z) else perDraw(onObs(p.score)),
-         atc = if (is.null(weights)) (1 - p.score) / sum(1 - z) else perDraw(onObs(1 - p.score)),
+         att = perDraw(onObs(p.score)),
+         atc = perDraw(onObs(1 - p.score)),
          ate = if (is.null(weights)) ones / length(z) else onObs(ones))
 }
 
 getPWeightFunction <- function(estimand, weights, icate, p.score)
+{
+  fnBody <- if (!is.null(weights)) {
+    if (!is.null(dim(p.score))) {
+      switch(estimand,
+             att = quote(apply(icate * p.score * weights, 2L, sum) / apply(p.score * weights, 2L, sum)),
+             atc = quote(apply(icate * (1 - p.score) * weights, 2L, sum) / apply((1 - p.score) * weights, 2L, sum)),
+             ate = quote(apply(icate * weights, 2L, sum)))
+    } else {
+      if (!is.null(dim(icate))) {
+        switch(estimand,
+               att = quote(apply(icate * p.score * weights, 2L, sum) / sum(p.score * weights)),
+               atc = quote(apply(icate * (1 - p.score) * weights, 2L, sum) / sum((1 - p.score) * weights)),
+               ate = quote(apply(icate * weights, 2L, sum)))
+      } else {
+        switch(estimand,
+               att = quote(sum(icate * p.score * weights) / sum(p.score * weights)),
+               atc = quote(sum(icate * (1 - p.score) * weights) / sum((1 - p.score) * weights)),
+               ate = quote(sum(icate * weights)))
+      }
+    }
+  } else {
+    ## weights of one: every divisor is the sum of the scores
+    if (!is.null(dim(p.score))) {
+      switch(estimand,
+             att = quote(apply(icate * p.score, 2L, sum) / apply(p.score, 2L, sum)),
+             atc = quote(apply(icate * (1 - p.score), 2L, sum) / apply(1 - p.score, 2L, sum)),
+             ate = quote(apply(icate, 2L, mean)))
+    } else {
+      if (!is.null(dim(icate))) {
+        switch(estimand,
+               att = quote(apply(icate * p.score, 2L, sum) / sum(p.score)),
+               atc = quote(apply(icate * (1 - p.score), 2L, sum) / sum(1 - p.score)),
+               ate = quote(apply(icate, 2L, mean)))
+      } else {
+        switch(estimand,
+               att = quote(sum(icate * p.score) / sum(p.score)),
+               atc = quote(sum(icate * (1 - p.score)) / sum(1 - p.score)),
+               ate = quote(mean(icate)))
+      }
+    }
+  }
+  
+  result <- function(z, weights, icate, p.score) NULL
+  body(result) <- fnBody
+  environment(result) <- parent.frame(1L)
+  
+  result
+}
+
+
+
+## The estimate the built-in TMLE targets, with the influence curve of
+## getTMLEFunctions derived for it: unweighted att and atc divide by the treated
+## (control) share rather than by the sum of the scores as getPWeightFunction does.
+getTMLEPWeightFunction <- function(estimand, weights, icate, p.score)
 {
   fnBody <- if (!is.null(weights)) {
     if (!is.null(dim(p.score))) {

@@ -703,7 +703,7 @@ getTMLEEstimates <- function(
   
   origDims <- dim(mu.hat.0)
   
-  getPWeightEstimate <- getPWeightFunction(estimand, weights, numeric(), numeric())
+  getPWeightEstimate <- getTMLEPWeightFunction(estimand, weights, numeric(), numeric())
   
   mu.hat.0.deriv <- mu.hat.1.deriv <- p.score.deriv <- getIC <- calcLoss <- NULL
   assignAll(getTMLEFunctions(estimand, weights))

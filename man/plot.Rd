@@ -134,7 +134,7 @@ plot_support(x, main = "Common Support Scatterplot",
   \item \code{"indiv.diff"} - Individual treatment effect estimates, or \eqn{\hat{y}(1) - \hat{y}(0)}.
   \item \code{"p.score"} - Propensity score used to fit the response model (if applicable).
   \item \code{"p.weights"} - Weights used when taking average of individual differences for response method
-    \code{"p.weight"}.
+    \code{"p.weight"}; they sum to one within each draw.
   \item predictor columns - Given by name or number.
   \item supplied vector - Any vector of length equal to the number of observations.
 }

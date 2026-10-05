@@ -207,9 +207,12 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
     \item \code{"p.weight"} - individual effects are estimated as in
           \code{"bart"}, but treatment effect estimates are obtained by using a
           propensity score weighted average. For the average treatment effect on
-          the treated, these weights are \eqn{p(z_i | x_i) / (\sum z / n)}. For
-          ATC, replace \eqn{z} with \eqn{1 - z}. For ATE, \code{"p.weight"} is
-          equal to \code{"bart"}.
+          the treated, the weights are proportional to the propensity score
+          \eqn{p(z_i | x_i)}, normalized to sum to one within each posterior
+          draw. For ATC, they are proportional to \eqn{1 - p(z_i | x_i)}. When
+          \code{weights} are supplied, each is multiplied by its observation's
+          weight before normalizing. For ATE, \code{"p.weight"} is equal to
+          \code{"bart"}.
     \item \code{"tmle"} - individual effects are estimated as in \code{"bart"}
           and a weighted average is taken as in \code{"p.weight"}, however the
           response surface estimates and propensity scores are corrected by

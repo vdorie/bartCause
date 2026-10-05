@@ -31,7 +31,7 @@ test_that("bart w/p.weighting matches old", {
                n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L, n.trees = 5L, n.reps = 5L)
   # snapshot refreshed for dbarts fbff1989 (default proposal mixture moved);
   # noise-dominated fit (true tau ~ 0.27)
-  expect_equal(fitted(fit, "pate"), 0.0605258119600773)
+  expect_equal(fitted(fit, "pate"), 0.07396684265852906)
 })
 
 test_that("bart w/TMLE matches old", {

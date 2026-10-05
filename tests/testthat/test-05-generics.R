@@ -212,7 +212,9 @@ test_that("generics work for p.weights", {
     # f <- bartCause:::getPWeightFunction("att", NULL, icate, boundValues(p.weights[g.sel[[j]],], p.scoreBounds))
     # mean(f(testData$z[g.sel[[j]]], NULL, icate, p.score[g.sel[[j]],])) * (M - m)
     
-    est.unscaled <- mean(apply((icate * boundValues(p.score[,g.sel[[j]]], p.scoreBounds)), 2L, mean)) / mean(testData$z[g.sel[[j]]])
+    ## per draw, the scores-weighted average of the individual effects
+    scores <- boundValues(p.score[,g.sel[[j]]], p.scoreBounds)
+    est.unscaled <- mean(rowSums(icate * scores) / rowSums(scores))
     expect_equal(pfit.sum$est$estimate[j], est.unscaled * (M - m))
   }
   
@@ -694,14 +696,13 @@ test_that("p.weights match a hand computation, weighted or not, for every estima
       v <- pick(p)
       if (estimand == "ate") return(if (weighted) w else rep_len(1 / length(z), length(z)))
       if (weighted) v * w / sum(v * w)
-      else v / sum(if (estimand == "att") z else 1 - z)
+      else v / sum(v)
     }))
     if (is.null(dim(pw))) manual <- as.vector(manual[1L,])
     expect_equal(unname(pw), unname(manual), label = label)
 
-    if (weighted && estimand != "ate")
-      expect_equal(unname(as.vector(rowSums(if (is.null(dim(pw))) matrix(pw, 1L) else pw))),
-                   rep_len(1, nrow(scores)), label = label)
+    expect_equal(unname(as.vector(rowSums(if (is.null(dim(pw))) matrix(pw, 1L) else pw))),
+                 rep_len(1, nrow(scores)), label = label)
   }
 })
 
@@ -731,10 +732,66 @@ test_that("p.weights sum with icate to the p.weight estimate, for every estimand
       total <- apply(pw * icate, seq_len(length(dim(pw)) - 1L), sum)
       ## the estimator bounds the mean responses, which extract("icate") does not
       expect_equal(unname(as.vector(total)), unname(as.vector(est)), tolerance = 1e-2, label = label)
-      ## exact except for the unweighted att and atc, which divide by the treated or control count
-      if (estimand == "ate" || weighted)
-        expect_equal(unname(as.vector(apply(pw, seq_len(length(dim(pw)) - 1L), sum))),
-                     rep_len(1, length(est)), label = label)
+      ## exact in every case: each draw's weights sum to one
+      expect_equal(unname(as.vector(apply(pw, seq_len(length(dim(pw)) - 1L), sum))),
+                   rep_len(1, length(est)), label = label)
     }
   }
+})
+
+test_that("p.weights and estimates are the same with no weights and with equal weights", {
+  equalData <- testData
+  equalData$w <- rep(3, length(equalData$y))
+
+  for (method.trt in c("glm", "bart")) for (estimand in c("att", "atc")) {
+    label <- paste(method.trt, estimand)
+    fit <- function(weighted) {
+      set.seed(29)
+      suppressMessages(suppressWarnings(
+        if (weighted)
+          bartc(y, z, x, data = equalData, weights = w, estimand = estimand, method.trt = method.trt,
+                method.rsp = "p.weight", commonSup.rule = "none", verbose = FALSE, n.burn = 3L,
+                n.samples = 7L, n.trees = 7L, n.chains = 2L, n.threads = 1L)
+        else
+          bartc(y, z, x, data = testData, estimand = estimand, method.trt = method.trt,
+                method.rsp = "p.weight", commonSup.rule = "none", verbose = FALSE, n.burn = 3L,
+                n.samples = 7L, n.trees = 7L, n.chains = 2L, n.threads = 1L)))
+    }
+    unweighted <- fit(FALSE)
+    weighted <- fit(TRUE)
+    expect_equal(extract(weighted, "pate", combineChains = FALSE),
+                 extract(unweighted, "pate", combineChains = FALSE), label = label)
+    expect_equal(extract(weighted, "p.weights", sample = "all"),
+                 extract(unweighted, "p.weights", sample = "all"), label = label)
+  }
+})
+
+test_that("the unweighted p.weight estimate divides by the sum of the scores, for every shape", {
+  set.seed(30)
+  n <- 11L; n.samp <- 5L
+  z <- rbinom(n, 1L, 0.5)
+  f <- function(estimand, icate, p.score)
+    bartCause:::getPWeightFunction(estimand, NULL, icate, p.score)(z, NULL, icate, p.score)
+  icateVec <- rnorm(n); icateMat <- matrix(rnorm(n * n.samp), n, n.samp)
+  psVec <- runif(n, 0.1, 0.9); psMat <- matrix(runif(n * n.samp, 0.1, 0.9), n, n.samp)
+
+  for (estimand in c("att", "atc")) {
+    sc <- function(p) if (estimand == "att") p else 1 - p
+    ## vector effects, vector scores
+    expect_equal(f(estimand, icateVec, psVec), sum(icateVec * sc(psVec)) / sum(sc(psVec)))
+    ## matrix effects, vector scores
+    expect_equal(f(estimand, icateMat, psVec),
+                 sapply(seq_len(n.samp), function(i) sum(icateMat[,i] * sc(psVec)) / sum(sc(psVec))))
+    ## matrix effects, matrix scores
+    expect_equal(f(estimand, icateMat, psMat),
+                 sapply(seq_len(n.samp), function(i) sum(icateMat[,i] * sc(psMat[,i])) / sum(sc(psMat[,i]))))
+    ## vector effects, matrix scores
+    expect_equal(f(estimand, icateVec, psMat),
+                 sapply(seq_len(n.samp), function(i) sum(icateVec * sc(psMat[,i])) / sum(sc(psMat[,i]))))
+    ## the same as weights of one
+    expect_equal(f(estimand, icateMat, psMat),
+                 bartCause:::getPWeightFunction(estimand, rep(1 / n, n), icateMat, psMat)(z, rep(1 / n, n), icateMat, psMat))
+  }
+  expect_equal(f("ate", icateVec, psVec), mean(icateVec))
+  expect_equal(f("ate", icateMat, psMat), colMeans(icateMat))
 })

@@ -50,10 +50,13 @@
             by n.samples matrix and per-observation quantities a 1 by
             n.samples by n.obs array. Previously the dimension was dropped.
       \item Without \code{weights}, the \code{"att"} and \code{"atc"}
-            \code{p.weights} are now scaled so that their sum with the
-            individual effects is the \code{"p.weight"} estimate, as the
-            weighted and \code{"ate"} ones already were. The reported values
-            are smaller by a factor of the sample size than in 1.0-10.
+            \code{"p.weight"} estimate now divides by the sum of the propensity
+            scores rather than by the treated (control) count, as the weighted
+            estimate always did, so no weights and equal weights agree.
+            Estimates move slightly when the propensity score is a BART fit
+            and not at all for a \code{"glm"} one, apart from the bounding of
+            extreme scores. The \code{p.weights} returned now sum to one in
+            each draw, where 1.0-10 returned values that averaged about one.
     }
   }
   \subsection{BUG-FIXES}{
