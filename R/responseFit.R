@@ -632,11 +632,18 @@ getTMLEEstimates <- function(
     addDimsToSubset(p.score <- p.score[completeRows, drop = FALSE])
   }
   
+  ## equal weights are no weights, however large: tmle normalizes them to sum to
+  ## the number of rows, which for a constant other than one is off by rounding
+  if (!is.null(weights) && all(weights == weights[1L])) weights <- NULL
+  
   tmle <- getTMLEFunction(!is.null(weights))
-  ## tmle before 2.0.0 has no obsWeights argument: name it only when there are weights
+  ## tmle before 2.0.0 has no obsWeights argument: name it only when there are weights.
+  ## With weights, also name the library for tmle's own refit of the treatment mechanism
+  ## (the only SuperLearner fit that runs when Q and g1W are supplied): its default
+  ## includes a dbarts learner, which dbarts refuses to fit under weights that are not 0 or 1.
   if (!is.null(tmle) && !is.null(weights)) {
     tmlePackage <- tmle
-    tmle <- function(...) tmlePackage(..., obsWeights = weights)
+    tmle <- function(...) tmlePackage(..., obsWeights = weights, g.SL.library = c("SL.glm", "SL.gam"))
   }
   
   if (!is.null(tmle)) {
