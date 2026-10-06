@@ -377,7 +377,7 @@ test_that("tmle is handed weights and a treatment library only when the weights 
 
 test_that("weighted tmle runs without learner errors and agrees with tmle called directly", {
   skip_on_cran()
-  skip_if_not_installed("tmle")
+  skip_if_not_installed("tmle", "2.0.0")
   skip_if_not_installed("gam")
 
   set.seed(81)
