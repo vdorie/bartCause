@@ -431,7 +431,9 @@ test_that("the tmle workers are shut down when one fails", {
   skip_on_cran()
   failTMLE <- function(Y, A, W, Q, g1W, obsWeights = NULL, ...) stop("worker failure")
   environment(failTMLE) <- baseenv()
-  before <- nrow(showConnections(all = TRUE))
+  stopped <- 0L
+  stopCluster <- parallel::stopCluster
+  local_mocked_bindings(stopCluster = function(cl) { stopped <<- stopped + 1L; stopCluster(cl) }, .package = "bartCause")
   expect_error(fitStub(failTMLE, n.threads = 2L), "multithreaded tmle failed")
-  expect_equal(nrow(showConnections(all = TRUE)), before)
+  expect_equal(stopped, 1L)
 })
