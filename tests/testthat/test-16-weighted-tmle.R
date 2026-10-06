@@ -479,5 +479,5 @@ test_that("the p.weight summary combines the posterior variance with a standard 
   se  <- as.vector(fit$est[,,"se"])
   expect_equal(summary(fit, target = "pate")$estimates$sd, sqrt(var(est) + mean(se^2)))
   ## the standard error is not on the unit interval: it is that of an estimate of the response's scale
-  expect_gt(mean(se), 0.01 * diff(range(wdata$y)) * 0.1)
+  expect_gt(mean(se), 0.01 * diff(range(wdata$y)))
 })

@@ -226,7 +226,7 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
           with the library for its own refit of the treatment mechanism
           limited to a glm and a gam, since \pkg{dbarts} refuses to weight
           the probit BART learner in its default library; weights that are all
-          equal are not passed, so they give the unweighted fit.
+          equal are not passed, so they give the unweighted fit to rounding.
   }
   
   \strong{Treatment Assignment}

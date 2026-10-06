@@ -44,7 +44,7 @@
             \pkg{tmle} package, version 2.0.0 or later, which is required for
             this; a built-in estimator was used in 1.0-10. Weighted TMLE
             estimates and standard errors change. Weights that are all equal
-            give the unweighted fit, and \pkg{tmle}'s own refit of the
+            give the unweighted fit to rounding, and \pkg{tmle}'s own refit of the
             treatment mechanism, which it does for the effect on the treated
             and on the controls when it trims controls, uses a glm and a gam
             only, as \pkg{dbarts} does not fit a probit model under weights
