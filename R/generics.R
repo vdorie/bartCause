@@ -553,6 +553,18 @@ refit.bartcFit <- function(object, newresp = NULL,
   if (length(weights) == 0L) weights <- NULL
   if (!is.null(weights)) weights <- weights / sum(weights)
   
+  ## the fit keeps the response and the weights of the complete rows only, while
+  ## the estimators below run over every row, as in the response fits
+  if (object$method.rsp %in% c("p.weight", "tmle") && any(object$missingRows) && length(y.rsp) < length(object$trt)) {
+    if (!is.null(weights))
+      stop("refit of a weighted '", object$method.rsp, "' fit with missing responses is not supported, ",
+           "as the fit does not keep the weights of the rows with a missing response; ",
+           "call bartc again with the new common support rule instead")
+    y.all <- rep_len(NA_real_, length(object$trt))
+    y.all[!object$missingRows] <- y.rsp
+    y.rsp <- y.all
+  }
+  
   group.effects <- if (!is.null(object[["group.effects"]])) object[["group.effects"]] else FALSE
   group.by <- if (!is.null(object[["group.by"]])) object[["group.by"]] else NULL
   
