@@ -70,7 +70,10 @@
   \item{\code{n.chains}}{total number of chains}
   \item{\code{commonSup.rule}}{common support rule used when fitting object to produce estimates}
   \item{\code{estimates}}{a \code{data.frame} with columns \code{"estimate"} - the target,
-                          \code{"sd"} - standard deviation of posterior of estimate,
+                          \code{"sd"} - standard deviation of posterior of estimate (for
+                          \code{"p.weight"} and \code{"tmle"} response methods, the square root of its
+                          variance plus the mean squared standard error of the draws, in the units
+                          of the response),
                           \code{"ci.lower"} - lower bound of credible region,
                           \code{"ci.upper"} - upper bound of credible region,
                           and optionally \code{"n.cut"} - how many observations were dropped using 

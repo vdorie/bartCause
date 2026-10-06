@@ -482,8 +482,8 @@ getPWeightEstimates <- function(y, z, weights, estimand, mu.hat.0, mu.hat.1, p.s
   a.weight <- z * mu.hat.1.deriv(z, weights, p.score) + (1 - z) * mu.hat.0.deriv(z, weights, p.score)
   ic <- getIC(y.st, mu.hat, icate, psi, a.weight)
   
-  se <- apply(ic, 2L, sd, na.rm = TRUE) / sqrt(sum(!is.na(y)))
-  result <- c(psi * (M - m), sd(ic) / sqrt(length(y)))
+  ## the estimate and its standard error both go back from the unit interval to the response's scale
+  se <- apply(ic, 2L, sd, na.rm = TRUE) / sqrt(sum(!is.na(y))) * (M - m)
   
   if (!is.null(origDims) && length(origDims) > 2L)
     array(c(psi * (M - m), se), c(origDims[2L], origDims[3L], 2L), dimnames = list(NULL, NULL, c("est", "se")))
@@ -801,7 +801,7 @@ getTMLEEstimates <- function(
       c(psi, sd(ic) / sqrt(length(y.st)))
   }))
   
-  result[,1L] <- result[,1L] * (max(r.st) - min(r.st))
+  result <- result * (max(r.st) - min(r.st))
   colnames(result) <- c("est", "se")
 
   

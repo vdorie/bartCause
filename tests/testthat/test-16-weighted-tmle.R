@@ -179,13 +179,13 @@ test_that("the built-in tmle estimator runs on draws and on a single set of mean
   getEst <- function(estimand, mu.hat.0, mu.hat.1, p.score)
     suppressWarnings(bartCause:::getTMLEEstimates(wdata$y, wdata$z, NULL, estimand, mu.hat.0, mu.hat.1, p.score,
                                                   c(.005, .995), c(0.025, 0.975), 0.001, 20L, n.threads = 1L))
-  ## recorded from the estimator before weights were routed to the tmle package
-  expect_equal(getEst("att", mu.hat.0, mu.hat.1, p.score), c(0.14705762506, 0.07409820776), tolerance = 1e-8, check.attributes = FALSE)
-  expect_equal(getEst("atc", mu.hat.0, mu.hat.1, p.score), c(0.31851007328, 0.04977879461), tolerance = 1e-8, check.attributes = FALSE)
-  expect_equal(getEst("ate", mu.hat.0, mu.hat.1, p.score), c(0.14439369418, 0.02480104011), tolerance = 1e-8, check.attributes = FALSE)
+  ## recorded from the estimator before weights were routed to the tmle package; the standard error is on the response's scale
+  expect_equal(getEst("att", mu.hat.0, mu.hat.1, p.score), c(0.1470576251, 1.0439643746), tolerance = 1e-8, check.attributes = FALSE)
+  expect_equal(getEst("atc", mu.hat.0, mu.hat.1, p.score), c(0.3185100733, 0.7013298939), tolerance = 1e-8, check.attributes = FALSE)
+  expect_equal(getEst("ate", mu.hat.0, mu.hat.1, p.score), c(0.1443936942, 0.3494200887), tolerance = 1e-8, check.attributes = FALSE)
   ## one set of means is one draw
   est <- getEst("att", cbind(mu.hat.0), cbind(mu.hat.1), cbind(p.score))
-  expect_equal(unname(est[1L,]), c(0.14705762506, 0.07409820776), tolerance = 1e-8)
+  expect_equal(unname(est[1L,]), c(0.1470576251, 1.0439643746), tolerance = 1e-8)
 })
 
 test_that("the p.weight standard error divides each draw by its own sum of scores", {
@@ -241,7 +241,7 @@ test_that("the p.weight standard error under missing responses is the influence 
     e <- p.score[,i]; z <- wdata$z
     psi <- mean(q1 - q0)
     ic <- (z * (1 - (1 - e) / e) + (1 - z) * (1 - e / (1 - e))) * (y.st - ifelse(z == 1, q1, q0)) + (q1 - q0 - psi)
-    expect_equal(unname(got[i, "se"]), sd(ic[obs]) / sqrt(sum(obs)))
+    expect_equal(unname(got[i, "se"]), sd(ic[obs]) / sqrt(sum(obs)) * (M - m))
   }
 })
 
@@ -436,4 +436,48 @@ test_that("the tmle workers are shut down when one fails", {
   local_mocked_bindings(stopCluster = function(cl) { stopped <<- stopped + 1L; stopCluster(cl) }, .package = "bartCause")
   expect_error(fitStub(failTMLE, n.threads = 2L), "multithreaded tmle failed")
   expect_equal(stopped, 1L)
+})
+
+test_that("standard errors are in the units of the response", {
+  set.seed(91)
+  n.draws <- 4L
+  mu.hat.0 <- matrix(rnorm(n * n.draws, 0, 0.3), n, n.draws)
+  mu.hat.1 <- mu.hat.0 + 0.5 + matrix(rnorm(n * n.draws, 0, 0.1), n, n.draws)
+  p.scores <- list(matrix = matrix(runif(n * n.draws, 0.2, 0.8), n, n.draws), vector = runif(n, 0.2, 0.8))
+  scale <- 100
+  for (estimand in c("ate", "att", "atc")) for (weights in list(NULL, wdata$w)) for (kind in names(p.scores)) {
+    label <- paste(estimand, kind, if (is.null(weights)) "unweighted" else "weighted")
+    getEst <- function(y, mu.hat.0, mu.hat.1)
+      bartCause:::getPWeightEstimates(y, wdata$z, weights, estimand, mu.hat.0, mu.hat.1, p.scores[[kind]], c(.005, .995), c(0.025, 0.975))
+    est <- getEst(wdata$y, mu.hat.0, mu.hat.1)
+    est.scaled <- getEst(wdata$y * scale, mu.hat.0 * scale, mu.hat.1 * scale)
+    expect_equal(est.scaled, est * scale, label = label)
+  }
+
+  ## the built-in estimator, as used when tmle is absent
+  local_mocked_bindings(getTMLEFunction = function(weighted, ...) NULL, .package = "bartCause")
+  p.score <- p.scores$vector
+  for (estimand in c("att", "atc", "ate")) {
+    getEst <- function(y, mu.hat.0, mu.hat.1, p.score)
+      suppressWarnings(bartCause:::getTMLEEstimates(y, wdata$z, NULL, estimand, mu.hat.0, mu.hat.1, p.score,
+                                                    c(.005, .995), c(0.025, 0.975), 0.001, 20L, n.threads = 1L))
+    est <- getEst(wdata$y, mu.hat.0[,1L], mu.hat.1[,1L], p.score)
+    est.scaled <- getEst(wdata$y * scale, mu.hat.0[,1L] * scale, mu.hat.1[,1L] * scale, p.score)
+    expect_equal(est.scaled, est * scale, label = paste("built-in", estimand))
+    est <- getEst(wdata$y, mu.hat.0, mu.hat.1, p.scores$matrix)
+    est.scaled <- getEst(wdata$y * scale, mu.hat.0 * scale, mu.hat.1 * scale, p.scores$matrix)
+    expect_equal(est.scaled, est * scale, label = paste("built-in draws", estimand))
+  }
+})
+
+test_that("the p.weight summary combines the posterior variance with a standard error in the response's units", {
+  set.seed(92)
+  fit <- suppressWarnings(suppressMessages(
+    bartc(y, z, x1 + x2 + x3, data = wdata, method.trt = "bart", method.rsp = "p.weight", estimand = "att",
+          verbose = FALSE, n.burn = 3L, n.samples = 8L, n.trees = 7L, n.chains = 2L, n.threads = 1L)))
+  est <- as.vector(fit$est[,,"est"])
+  se  <- as.vector(fit$est[,,"se"])
+  expect_equal(summary(fit, target = "pate")$estimates$sd, sqrt(var(est) + mean(se^2)))
+  ## the standard error is not on the unit interval: it is that of an estimate of the response's scale
+  expect_gt(mean(se), 0.01 * diff(range(wdata$y)) * 0.1)
 })

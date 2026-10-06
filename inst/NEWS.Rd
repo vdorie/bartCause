@@ -78,10 +78,13 @@
       \item The standard errors of weighted \code{method.rsp = "tmle"} fits,
             which came from the built-in estimator, were not converted back to
             the scale of the response, and \code{weights} together with
-            \code{posteriorOfTMLE = FALSE} failed with an error. The standard
-            errors of \code{"p.weight"} fits and of the built-in estimator
-            used without \pkg{tmle} remain on the scale of the unit interval
-            the estimators work on, not of the response.
+            \code{posteriorOfTMLE = FALSE} failed with an error.
+      \item The standard errors of \code{"p.weight"} fits, and of the
+            built-in \code{"tmle"} estimator used when \pkg{tmle} is not
+            installed, were on a 0 to 1 scale and are now in the units of the
+            response, as the estimates are. The \code{sd} and the intervals
+            from \code{summary} for those fits are wider than before, by about
+            40 to 50 percent in a simulation with a response of range 38.
       \item The built-in \code{method.rsp = "tmle"} estimator, used when
             \pkg{tmle} is not installed and there are no \code{weights},
             failed with \code{posteriorOfTMLE = FALSE}.
