@@ -316,3 +316,113 @@ test_that("a seeded fit on two tmle workers is reproducible", {
   environment(drawTMLE) <- baseenv()
   expect_equal(fitStub(drawTMLE, n.threads = 2L)$est, fitStub(drawTMLE, n.threads = 2L)$est)
 })
+
+test_that("refit with missing responses pairs the response with its rows, and stops for weights", {
+  mdata <- wdata
+  mdata$y[c(3L, 17L, 40L, 77L)] <- NA
+  set.seed(65)
+  fit <- suppressWarnings(suppressMessages(
+    bartc(y, z, x1 + x2 + x3, data = mdata, method.trt = "glm", method.rsp = "p.weight", estimand = "att",
+          verbose = FALSE, n.burn = 3L, n.samples = 5L, n.trees = 7L, n.chains = 2L, n.threads = 1L)))
+  expect_equal(suppressWarnings(refit(fit))$est, fit$est)
+  ## tmle, through the stub, which reports the mean of the response it was handed
+  tfit <- fitStub(stubTMLE, data = mdata, weighted = FALSE)
+  expectRows(suppressWarnings(refit(tfit))$est, rowsOf(tfit, seq_len(n), data = mdata), data = mdata, weighted = FALSE,
+             label = "tmle")
+  for (method.rsp in c("p.weight", "tmle")) {
+    wfit <- if (method.rsp == "tmle") fitStub(stubTMLE, data = mdata)
+            else suppressWarnings(suppressMessages(
+              bartc(y, z, x1 + x2 + x3, data = mdata, weights = w, method.trt = "glm", method.rsp = "p.weight", estimand = "att",
+                    verbose = FALSE, n.burn = 3L, n.samples = 5L, n.trees = 7L, n.chains = 2L, n.threads = 1L)))
+    expect_error(refit(wfit), "call bartc again", label = method.rsp)
+  }
+})
+
+## a stub that reports which of the weight arguments tmle was handed: 1 for obsWeights,
+## 2 for the treatment library of the glm and the gam, 4 for any other library
+argsTMLE <- function(Y, A, W, Q, g1W, obsWeights = NULL, g.SL.library = NULL, ...) {
+  code <- (!is.null(obsWeights)) + if (is.null(g.SL.library)) 0 else if (identical(g.SL.library, c("SL.glm", "SL.gam"))) 2 else 4
+  est <- list(psi = code, var.psi = 1)
+  list(estimates = list(ATE = est, ATT = est, ATC = est))
+}
+environment(argsTMLE) <- baseenv()
+
+test_that("tmle is handed weights and a treatment library only when the weights differ", {
+  estOf <- function(e) if (is.null(dim(e))) e[["est"]] else unique(as.vector(e[,,"est"]))
+  codes <- function(fit) if (is.list(fit$est)) vapply(fit$est, estOf, 0) else estOf(fit$est)
+  ## varied weights, in every caller
+  expect_equal(codes(fitStub(argsTMLE)), 3)
+  expect_equal(codes(fitStub(argsTMLE, post = FALSE)), 3)
+  expect_equal(unname(codes(fitStub(argsTMLE, grouped = TRUE))), c(3, 3, 3))
+  expect_equal(codes(fitStub(argsTMLE, subset = keep)), 3)
+  ## equal weights, of any size, are no weights
+  for (constant in c(0.7, 1, 3)) {
+    cdata <- wdata
+    cdata$w <- constant
+    label <- paste("constant", constant)
+    expect_equal(codes(fitStub(argsTMLE, data = cdata)), 0, label = label)
+    expect_equal(codes(fitStub(argsTMLE, data = cdata, post = FALSE)), 0, label = label)
+    fit <- fitStub(argsTMLE, data = cdata)
+    expect_equal(codes(suppressWarnings(refit(fit, commonSup.rule = "sd", commonSup.cut = -0.5))), 0, label = label)
+  }
+  ## the weights that count are those of the rows used: constant in one group, in the rows of subset
+  gdata <- wdata
+  gdata$w[gdata$grp == levels(gdata$grp)[1L]] <- 0.7
+  expect_equal(unname(codes(fitStub(argsTMLE, data = gdata, grouped = TRUE))), c(0, 3, 3))
+  sdata <- wdata
+  sdata$w[keep] <- 2
+  expect_equal(codes(fitStub(argsTMLE, data = sdata, subset = keep)), 0)
+  expect_equal(codes(fitStub(argsTMLE, data = sdata)), 3)
+})
+
+test_that("weighted tmle runs without learner errors and agrees with tmle called directly", {
+  skip_on_cran()
+  skip_if_not_installed("tmle")
+  skip_if_not_installed("gam")
+
+  set.seed(81)
+  mu.hat.0 <- rnorm(n, 0, 0.3)
+  mu.hat.1 <- mu.hat.0 + 0.5
+  ## scores with a clearly lower treated minimum, so tmle refits the treatment mechanism
+  p.score <- ifelse(wdata$z == 1, runif(n, 0.3, 0.8), runif(n, 0.05, 0.6))
+  bounds <- c(.005, .995)
+  scoreBounds <- c(0.025, 0.975)
+  for (estimand in c("att", "atc", "ate")) {
+    name <- switch(estimand, ate = "ATE", att = "ATT", atc = "ATC")
+    set.seed(82)
+    direct <- tmle::tmle(Y = wdata$y, A = wdata$z, W = matrix(0, n, 1L), Q = cbind(Q0W = mu.hat.0, Q1W = mu.hat.1),
+                         g1W = p.score, obsWeights = wdata$w, g.SL.library = c("SL.glm", "SL.gam"))
+    direct <- unlist(direct$estimates[[name]][c("psi", "var.psi")])
+    set.seed(82)
+    log <- character()
+    est <- withCallingHandlers({
+      log <- c(log, capture.output(est <- bartCause:::getTMLEEstimates(wdata$y, wdata$z, wdata$w, estimand, mu.hat.0, mu.hat.1, p.score,
+                                                                        bounds, scoreBounds, 0.001, 20L, n.threads = 1L)))
+      est
+    }, message = function(m) { log <<- c(log, conditionMessage(m)); invokeRestart("muffleMessage") })
+    expect_equal(unname(est), unname(c(direct[1L], sqrt(direct[2L]))), label = estimand)
+    expect_false(any(grepl("enforceWeightPolicy|Error in", log)), label = estimand)
+  }
+})
+
+test_that("equal weights of any size reproduce the unweighted tmle estimate exactly", {
+  skip_on_cran()
+  skip_if_not_installed("tmle")
+
+  set.seed(84)
+  mu.hat.0 <- matrix(rnorm(n * 3L, 0, 0.3), n, 3L)
+  mu.hat.1 <- mu.hat.0 + 0.5
+  ## scores with a clearly lower treated minimum, so tmle refits the treatment mechanism
+  p.score <- matrix(ifelse(wdata$z == 1, runif(n * 3L, 0.3, 0.8), runif(n * 3L, 0.05, 0.6)), n, 3L)
+  for (estimand in c("att", "ate")) for (draws in c(TRUE, FALSE)) {
+    est <- lapply(list(NULL, rep(0.7, n), rep(3, n)), function(w) {
+      set.seed(85)
+      suppressWarnings(bartCause:::getTMLEEstimates(wdata$y, wdata$z, w, estimand,
+                                                    if (draws) mu.hat.0 else mu.hat.0[,1L], if (draws) mu.hat.1 else mu.hat.1[,1L],
+                                                    if (draws) p.score else p.score[,1L], c(.005, .995), c(0.025, 0.975), 0.001, 20L,
+                                                    n.threads = 1L))
+    })
+    expect_identical(est[[2L]], est[[1L]], label = paste("0.7", estimand, draws))
+    expect_identical(est[[3L]], est[[1L]], label = paste("3", estimand, draws))
+  }
+})
