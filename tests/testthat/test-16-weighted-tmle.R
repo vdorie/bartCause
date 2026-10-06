@@ -426,3 +426,12 @@ test_that("equal weights of any size reproduce the unweighted tmle estimate exac
     expect_identical(est[[3L]], est[[1L]], label = paste("3", estimand, draws))
   }
 })
+
+test_that("the tmle workers are shut down when one fails", {
+  skip_on_cran()
+  failTMLE <- function(Y, A, W, Q, g1W, obsWeights = NULL, ...) stop("worker failure")
+  environment(failTMLE) <- baseenv()
+  before <- nrow(showConnections(all = TRUE))
+  expect_error(fitStub(failTMLE, n.threads = 2L), "multithreaded tmle failed")
+  expect_equal(nrow(showConnections(all = TRUE)), before)
+})
