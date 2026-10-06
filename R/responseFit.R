@@ -661,7 +661,9 @@ getTMLEEstimates <- function(
       } else {
         cluster <- makeCluster(n.threads)
         on.exit(stopCluster(cluster))
-        clusterSetRNGStream(cluster, sample.int(.Machine$integer.max, 1L))
+        ## drawn here, not inside clusterSetRNGStream, which evaluates its seed after saving the stream it restores
+        workerSeed <- sample.int(.Machine$integer.max, 1L)
+        clusterSetRNGStream(cluster, workerSeed)
         
         clusterExport(cluster, c("y", "z", "W", "weights", "estimand"), sys.frame(sys.nframe()))
         
