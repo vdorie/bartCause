@@ -208,7 +208,6 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
   seed <- coerceOrError(seed, "integer")[1L]
   controlFormals <- names(formals(dbarts::dbartsControl))
   controlArgs <- list(n.chains = n.chains, n.threads = n.threads,
-                      n.trees = coerceOrError(n.trees, "integer")[1L],
                       n.burn = n.burn, n.samples = n.samples,
                       verbose = as.logical(verbose)[1L],
                       updateState = FALSE, seed = if (is.na(seed)) NULL else seed)
@@ -236,7 +235,8 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
   ## by bare name wherever they fall in it, in samplerEnv's chain back to the
   ## caller of bcf() - including a '..N' left by a forwarding wrapper, which
   ## is dbarts's own recovery to make, not a bare eval here.
-  muForestCall <- call("forest", vars = muVars, sd = sd.control,
+  muForestCall <- call("forest", vars = muVars,
+                       n.trees = coerceOrError(n.trees, "integer")[1L], sd = sd.control,
                        update.amplitude = update.a,
                        interactions = mu.interactions)
   tauForestCall <- call("forest", vars = tauVars,
@@ -273,7 +273,7 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
     stop("chains disagree on the response transform; the counterfactual identity needs one linear map")
 
   family <- sampler$model@family
-  responseIsBinary <- sampler$control@binary
+  responseIsBinary <- family %in% c("probit", "logistic")
 
   sampler$sampleTreesFromPrior(updateState = FALSE)
   ## run(0L, 0L) returns NULL rather than an empty set of channels, so a
@@ -329,7 +329,7 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
     family,
     response.scale,
     response.shift,
-    n.trees = c(mu = control@n.trees, tau = coerceOrError(n.trees.treatment, "integer")[1L]),
+    n.trees = c(mu = coerceOrError(n.trees, "integer")[1L], tau = coerceOrError(n.trees.treatment, "integer")[1L]),
     n.chains = n.chains,
     n.samples = n.samples,
     n.burn = n.burn,
