@@ -1,4 +1,3 @@
-context("weighted tmle and p.weight alignment")
 
 ## tmle::tmle is replaced by a stub that returns the weighted mean of Y as the estimate and
 ## the weighted mean of A as the standard error, with the obsWeights it was handed. Its answer
@@ -222,4 +221,98 @@ test_that("refit reproduces att and atc estimates", {
 
   fit <- fitStub(stubTMLE, estimand = "atc")
   expectRows(suppressWarnings(refit(fit))$est, seq_len(n), label = "tmle atc")
+})
+
+test_that("the p.weight standard error under missing responses is the influence curve's over the observed rows", {
+  set.seed(71)
+  n.draws <- 4L
+  mu.hat.0 <- matrix(rnorm(n * n.draws, 0, 0.3), n, n.draws)
+  mu.hat.1 <- mu.hat.0 + 0.5
+  p.score <- matrix(runif(n * n.draws, 0.2, 0.8), n, n.draws)
+  y <- wdata$y; y[c(3L, 17L, 40L, 77L)] <- NA
+  obs <- !is.na(y)
+  got <- bartCause:::getPWeightEstimates(y, wdata$z, NULL, "ate", mu.hat.0, mu.hat.1, p.score, NULL, NULL)
+  ## by hand, unweighted ate: bounded and scaled as the estimator does
+  m <- min(y, na.rm = TRUE); M <- max(y, na.rm = TRUE)
+  r <- c(m - 0.1 * abs(m), M + 0.1 * abs(M))
+  y.st <- (pmin(pmax(y, r[1L]), r[2L]) - m) / (M - m)
+  for (i in seq_len(n.draws)) {
+    q0 <- (pmin(pmax(mu.hat.0[,i], m), M) - m) / (M - m); q1 <- (pmin(pmax(mu.hat.1[,i], m), M) - m) / (M - m)
+    e <- p.score[,i]; z <- wdata$z
+    psi <- mean(q1 - q0)
+    ic <- (z * (1 - (1 - e) / e) + (1 - z) * (1 - e / (1 - e))) * (y.st - ifelse(z == 1, q1, q0)) + (q1 - q0 - psi)
+    expect_equal(unname(got[i, "se"]), sd(ic[obs]) / sqrt(sum(obs)))
+  }
+})
+
+test_that("weights are the rows of subset when the variables are not in a data frame", {
+  y <- wdata$y; z <- wdata$z; x <- as.matrix(wdata[, c("x1", "x2", "x3")]); w <- wdata$w
+  yk <- y[keep]; zk <- z[keep]; xk <- x[keep,]; wk <- w[keep]
+  args <- list(method.trt = "glm", method.rsp = "p.weight", estimand = "att", verbose = FALSE,
+               n.burn = 3L, n.samples = 5L, n.trees = 7L, n.chains = 2L, n.threads = 1L)
+  set.seed(61)
+  fit.subset <- suppressWarnings(suppressMessages(do.call(bartc, c(list(quote(y), quote(z), quote(x), weights = quote(w), subset = quote(keep)), args))))
+  set.seed(61)
+  fit.rows <- suppressWarnings(suppressMessages(do.call(bartc, c(list(quote(yk), quote(zk), quote(xk), weights = quote(wk)), args))))
+  expect_equal(fit.subset$est, fit.rows$est)
+})
+
+test_that("a fit with the built-in estimator and posteriorOfTMLE = FALSE carries one named estimate", {
+  local_mocked_bindings(getTMLEFunction = function(weighted, ...) NULL, .package = "bartCause")
+  set.seed(8)
+  fit <- suppressWarnings(suppressMessages(bartc(y, z, x1 + x2 + x3, data = wdata, method.trt = "glm", method.rsp = "tmle", estimand = "att",
+    posteriorOfTMLE = FALSE, verbose = FALSE, n.burn = 3L, n.samples = 4L, n.trees = 7L, n.chains = 2L, n.threads = 1L)))
+  expect_null(dim(fit$est))
+  expect_named(fit$est, c("est", "se"))
+  expect_true(all(is.finite(fit$est)))
+  expect_true(is.finite(suppressWarnings(summary(fit))$estimates$estimate))
+})
+
+test_that("refit of an att fit with method.rsp = bart reproduces its summary", {
+  set.seed(23)
+  fit <- bartc(y, z, x1 + x2 + x3, data = wdata, method.trt = "glm", method.rsp = "bart", estimand = "att",
+               verbose = FALSE, n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L)
+  refitted <- refit(fit)
+  set.seed(5); s1 <- summary(fit, target = "cate")$estimates
+  set.seed(5); s2 <- summary(refitted, target = "cate")$estimates
+  expect_equal(s2, s1)
+})
+
+test_that("an unweighted tmle fit never asks for the weighted tmle function", {
+  local_mocked_bindings(getTMLEFunction = function(weighted, ...) if (weighted) stop("asked for the weighted function") else stubTMLE1,
+                        .package = "bartCause")
+  expect_error(suppressWarnings(suppressMessages(bartc(y, z, x1 + x2 + x3, data = wdata, method.trt = "glm", method.rsp = "tmle",
+    verbose = FALSE, n.burn = 3L, n.samples = 2L, n.trees = 7L, n.chains = 1L, n.threads = 1L))), NA)
+})
+
+test_that("grouped fits pair the response with its rows when some are missing", {
+  mdata <- wdata
+  mdata$y[c(3L, 17L, 40L, 77L)] <- NA
+  all <- seq_len(n)
+  fit <- fitStub(stubTMLE, data = mdata, grouped = TRUE, post = FALSE)
+  for (g in levels(wdata$grp))
+    expectRows(fit$est[[g]], rowsOf(fit, all, g, data = mdata), data = mdata, label = paste("missing group nopost", g))
+  ## p.weight: each group's estimate has a defined standard error, and that of the group's own rows
+  set.seed(64)
+  pfit <- suppressWarnings(suppressMessages(bartc(y, z, x1 + x2 + x3, data = mdata, method.trt = "bart", method.rsp = "p.weight", estimand = "att",
+    group.by = grp, group.effects = TRUE, use.ranef = FALSE, verbose = FALSE, n.burn = 3L, n.samples = 5L, n.trees = 7L, n.chains = 2L, n.threads = 1L)))
+  mu.hat.0 <- suppressWarnings(aperm(extract(pfit, "mu.0", sample = "all", combineChains = FALSE), c(3L, 1L, 2L)))
+  mu.hat.1 <- suppressWarnings(aperm(extract(pfit, "mu.1", sample = "all", combineChains = FALSE), c(3L, 1L, 2L)))
+  p.score <- aperm(pfit$samples.p.score, c(3L, 1L, 2L))
+  for (g in levels(mdata$grp)) {
+    rows <- mdata$grp == g
+    manual <- bartCause:::getPWeightEstimates(mdata$y[rows], pfit$trt[rows], NULL, "att", mu.hat.0[rows,,,drop = FALSE], mu.hat.1[rows,,,drop = FALSE],
+                                              p.score[rows,,,drop = FALSE], c(.005, .995), c(0.025, 0.975))
+    expect_equal(pfit$est[[g]], manual, label = paste("manual group", g))
+  }
+})
+
+test_that("a seeded fit on two tmle workers is reproducible", {
+  skip_on_cran()
+  drawTMLE <- function(Y, A, W, Q, g1W, obsWeights = NULL, ...) {
+    est <- list(psi = stats::runif(1L), var.psi = 1)
+    list(estimates = list(ATE = est, ATT = est, ATC = est))
+  }
+  environment(drawTMLE) <- baseenv()
+  expect_equal(fitStub(drawTMLE, n.threads = 2L)$est, fitStub(drawTMLE, n.threads = 2L)$est)
 })
