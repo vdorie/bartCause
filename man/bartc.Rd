@@ -220,7 +220,11 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
           the \pkg{tmle} package; without \code{weights}, a built-in
           implementation stands in, with a warning, when the package is not
           installed. With \code{weights}, \pkg{tmle} version 2.0.0 or later
-          is required, and the weights are passed to it as \code{obsWeights}.
+          is required, and the weights are passed to it as \code{obsWeights},
+          with the library for its own refit of the treatment mechanism
+          limited to a glm and a gam, since \pkg{dbarts} refuses to weight
+          the probit BART learner in its default library; weights that are all
+          equal are not passed, so they give the unweighted fit.
   }
   
   \strong{Treatment Assignment}

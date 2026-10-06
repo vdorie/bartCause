@@ -43,8 +43,12 @@
       \item With \code{weights}, \code{method.rsp = "tmle"} now uses the
             \pkg{tmle} package, version 2.0.0 or later, which is required for
             this; a built-in estimator was used in 1.0-10. Weighted TMLE
-            estimates and standard errors change. Without \code{weights}
-            nothing changes.
+            estimates and standard errors change. Weights that are all equal
+            give the unweighted fit, and \pkg{tmle}'s own refit of the
+            treatment mechanism, which it does for the effect on the treated
+            and on the controls when it trims controls, uses a glm and a gam
+            only, as \pkg{dbarts} does not fit a probit model under weights
+            other than 0 and 1. Without \code{weights} nothing changes.
       \item BART propensity models are always probit and cannot be weighted;
             when \code{weights} are supplied they are ignored in the propensity
             fit, with a message, and enter only the treatment effect
@@ -62,8 +66,9 @@
             small part of a posterior standard deviation for the pooled
             estimate and more for small groups with \code{group.effects}. For
             a \code{"glm"} one they move only through the bounding of extreme
-            scores, and when a common support rule drops rows, as the kept
-            rows' scores then no longer sum to the kept treated count. The
+            scores, when a common support rule drops rows, as the kept rows'
+            scores then no longer sum to the kept treated count, and, for group
+            estimates, when the treatment model has a varying intercept. The
             \code{p.weights} returned now sum to one in each draw, where
             1.0-10 returned values that averaged about one.
     }
@@ -87,13 +92,11 @@
             the number of draws.
       \item \code{weights} are now taken for the rows of \code{subset} in
             \code{"p.weight"} and \code{"tmle"} response fits, where those of
-            the first rows of the data were used or \pkg{tmle} stopped with
-            an empty message, and with missing responses the response is
-            paired with its own rows, weights and scores in both.
-      \item \code{refit} of an \code{"att"} or \code{"atc"} fit with
-            \code{method.rsp = "p.weight"} or \code{"tmle"} returned a wrong
-            estimate, or failed with group effects or a common support rule that
-            drops rows.
+            the first rows of the data were used, and with missing responses
+            the response is paired with its own rows, weights and scores in
+            both.
+      \item \code{refit} of an \code{"att"} or \code{"atc"} fit failed with a
+            subscript error.
       \item Multi-threaded \code{method.rsp = "tmle"} workers are seeded from
             the session's random number stream, and the cluster is closed if a
             worker fails.

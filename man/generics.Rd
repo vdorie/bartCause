@@ -114,7 +114,7 @@ refit(object, newresp, \dots)
                                group effects and no observations dropped by a common support rule,
                                the sum over observations of a weight and its individual effect is
                                the estimate, up to the bounding of extreme mean responses the
-                               estimator applies, which can matter in small groups. The default
+                               estimator applies, which can matter in small samples. The default
                                \code{sample = "inferential"} returns only the treated (\code{"att"})
                                or control (\code{"atc"}) observations, so their sum is below one
     \item \code{"sigma"} - residual standard deviation from continuous response models
