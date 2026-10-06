@@ -139,7 +139,7 @@ getTMLEFunctions <- function(estimand) {
     result
   }
   ## for R CMD check
-  a.weight <- icate <- p.score <- psi <- x <- y <- mu.hat <- z <- NULL
+  a.weight <- icate <- p.score <- psi <- x <- y <- mu.hat <- z <- weights <- NULL
   if (estimand == "att") {
     mu.hat.0Body <- quote(-p.score / (1 - p.score))
     mu.hat.1Body <- quote(1)
