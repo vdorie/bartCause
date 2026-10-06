@@ -18,11 +18,11 @@ handBCFSampler <- function(frame, n.trees = 20L, n.trees.treatment = 10L,
                              bases = list(NULL, cbind(1 - frame$z, frame$z)))
   if (is.null(muVars))  muVars  <- setdiff(colnames(data@x), "z")
   if (is.null(tauVars)) tauVars <- setdiff(colnames(data@x), "z")
-  control <- dbarts::dbartsControl(n.chains = n.chains, n.threads = 1L, n.trees = n.trees,
+  control <- dbarts::dbartsControl(n.chains = n.chains, n.threads = 1L,
                                    n.burn = 5L, n.samples = 7L, verbose = FALSE,
                                    updateState = FALSE, seed = rngSeed)
   dbarts::dbarts(data, control = control, tree.prior = dbarts::dbartsPriors$cgm(2.0, 0.95),
-                 forests = list(forest(vars = muVars),
+                 forests = list(forest(vars = muVars, n.trees = n.trees),
                                 forest(vars = tauVars, n.trees = n.trees.treatment,
                                        base = 0.25, power = 3, sd = 1,
                                        amplitude.prior.variance = 0.5,
@@ -287,6 +287,15 @@ test_that("a binary response is linked last and reports no sigma (FB7)", {
                     n.threads = 1L, verbose = FALSE)
   expect_true(bartCause:::responseIsBinary(bartcBCF))
   expect_error(extract(bartcBCF, "sigma"), "binary response model does not have")
+
+  logit <- bcf(y ~ x1 + x2 + x3, data = binaryFrame, treatment = z, n.trees = 20L,
+               n.samples = 5L, n.burn = 3L, n.chains = 2L, n.threads = 1L, verbose = FALSE,
+               family = "logistic")
+  expect_equal(logit$family, "logistic")
+  expect_null(logit$sigma)
+  expect_null(logit$first.sigma)
+  expect_true(all(logit$mu.hat.obs > 0 & logit$mu.hat.obs < 1))
+  expect_error(extract(logit, "sigma"), "does not have a residual standard deviation")
 })
 
 test_that("plot_sigma reads a bcf fit's per-chain sigma (FB10)", {
