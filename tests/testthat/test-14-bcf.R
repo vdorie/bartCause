@@ -25,8 +25,7 @@ handBCFSampler <- function(frame, n.trees = 20L, n.trees.treatment = 10L,
                  forests = list(forest(vars = muVars, n.trees = n.trees),
                                 forest(vars = tauVars, n.trees = n.trees.treatment,
                                        base = 0.25, power = 3, sd = 1,
-                                       amplitude.prior.variance = 0.5,
-                                       update.amplitude = TRUE)))
+                                       amplitude.prior.variance = 0.5)))
 }
 
 toBartCause <- function(x) aperm(x, c(3L, 2L, 1L))
@@ -493,4 +492,19 @@ test_that("extract keeps a length-1 chain margin at one chain and none when comb
   expect_equal(dim(extract(fit2, "sigma", combineChains = FALSE)), c(2L, 7L))
   expect_equal(dim(extract(fit2, "icate")), c(14L, n.obs))
   expect_equal(length(extract(fit2, "sigma")), 14L)
+})
+
+test_that("update.a and update.b are read as flags", {
+  fitFlag <- function(...)
+    bcf(y ~ x1 + x2 + x3, data = linearFrame, treatment = z, n.trees = 5L,
+        n.samples = 3L, n.burn = 2L, n.chains = 1L, verbose = FALSE, ...)
+
+  expect_error(fitFlag(update.a = NA), "'update.a' must be TRUE or FALSE")
+  expect_error(fitFlag(update.a = "yes"), "'update.a' must be TRUE or FALSE")
+  expect_error(fitFlag(update.b = c(TRUE, FALSE)), "'update.b' must be TRUE or FALSE")
+
+  ## 0 and 1 are taken as FALSE and TRUE, and NULL as not stated
+  expect_s3_class(fitFlag(update.a = 0, update.b = 1), "bartBCF")
+  expect_s3_class(fitFlag(update.a = FALSE, update.b = FALSE), "bartBCF")
+  expect_s3_class(fitFlag(update.b = NULL), "bartBCF")
 })

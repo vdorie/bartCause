@@ -235,15 +235,26 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
   ## by bare name wherever they fall in it, in samplerEnv's chain back to the
   ## caller of bcf() - including a '..N' left by a forwarding wrapper, which
   ## is dbarts's own recovery to make, not a bare eval here.
+  ## update.a and update.b are read as dbarts read them: NULL is "not stated"
+  ## and draws, and anything as.logical() makes one TRUE or FALSE is taken
+  asFlag <- function(value, name) {
+    if (is.null(value)) return(TRUE)
+    flag <- suppressWarnings(as.logical(value))
+    if (length(flag) != 1L || is.na(flag))
+      stop("'", name, "' must be TRUE or FALSE")
+    flag
+  }
+  update.a <- asFlag(update.a, "update.a")
+  update.b <- asFlag(update.b, "update.b")
   muForestCall <- call("forest", vars = muVars,
                        n.trees = coerceOrError(n.trees, "integer")[1L], sd = sd.control,
-                       update.amplitude = update.a,
+                       amplitude = if (update.a) NULL else quote(fixed()),
                        interactions = mu.interactions)
   tauForestCall <- call("forest", vars = tauVars,
                        n.trees = coerceOrError(n.trees.treatment, "integer")[1L],
                        base = treatment.base, power = treatment.power,
                        sd = sd.moderate, amplitude.prior.variance = b.prior.variance,
-                       update.amplitude = update.b,
+                       amplitude = if (update.b) NULL else quote(fixed()),
                        interactions = tau.interactions,
                        blocks = tau.blocks)
 
