@@ -5,6 +5,9 @@ plot_sigma <- function(x, main = "Traceplot sigma", xlab = "iteration", ylab = "
   if (responseIsBinary(x))
     stop("residual standard deviation plot requires a continuous response")
   
+  if (!is.null(heldSigma(x)))
+    stop("residual standard deviation plot requires a drawn sigma; the response model holds it fixed")
+  
   if (inherits(x$fit.rsp, "stan4bartFit")) {
     sample.sigma <- t(extract(x$fit.rsp, "sigma", combine_chains = FALSE, include_warmup = FALSE))
     ## stan4bart keeps warmup draws only when asked to (save_warmup = TRUE);

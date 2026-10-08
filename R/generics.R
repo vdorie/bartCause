@@ -366,8 +366,14 @@ extractBartcFit <-
   if (type == "sigma") {
     if (responseIsBinary(object))
       stop("binary response model does not have a residual standard deviation parameter (sigma)")
+    held <- heldSigma(object)
     sigma <-
-      if (inherits(object$fit.rsp, "stan4bartFit")) {
+      if (!is.null(held)) {
+        ## a held sigma is one number; repeat it in the drawn layout, which is
+        ## [n.chains, n.samples] with the chain margin dropped at one chain
+        n.samples <- dim(object$mu.hat.obs)[length(dim(object$mu.hat.obs)) - 1L]
+        if (n.chains > 1L) matrix(held, n.chains, n.samples) else rep(held, n.samples)
+      } else if (inherits(object$fit.rsp, "stan4bartFit")) {
         t(extract(object$fit.rsp, "sigma", combine_chains = FALSE))
       } else {
         ## dbarts returns sigma pre-combined as a length n.chains*n.samples,

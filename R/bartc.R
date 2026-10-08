@@ -224,7 +224,16 @@ responseIsBinary <- function(object) {
   if (inherits(object$fit.rsp, "stan4bartFit")) {
     object$fit.rsp$family$family != "gaussian"
   } else {
-    is.null(object$fit.rsp[["sigma"]])
+    ## a held sigma lives only in the fit's $fixed, so it is not binary
+    is.null(object$fit.rsp[["sigma"]]) && is.null(heldSigma(object))
   }
+}
+
+## The residual standard deviation a dbarts response fit holds fixed
+## (family = gaussian(sigma = fixed(v)), or aft), a single number, else NULL.
+heldSigma <- function(object) {
+  fit <- object$fit.rsp
+  if (inherits(fit, "stan4bartFit") || is.null(fit)) return(NULL)
+  fit[["fixed"]][["sigma"]]
 }
 

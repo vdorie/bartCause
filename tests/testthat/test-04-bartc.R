@@ -384,3 +384,38 @@ test_that("bartc honors the subset argument", {
   expect_equal(as.numeric(fit$trt), testData$z[sub])
   expect_equal(dim(fit$mu.hat.obs), c(13L, 60L))
 })
+
+test_that("a held response sigma is not a binary response and extracts as the held value", {
+  ## fixed() takes the variance, so a held variance of 4 is an sd of 2
+  held <- dbarts::dbartsFamilies$gaussian(sigma = dbarts::dbartsPriors$fixed(4))
+  for (n.chains in 1:2) {
+    fit <- bartc(y, z, x, data = testData, method.trt = "glm", method.rsp = "bart", verbose = FALSE,
+                 n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = n.chains, n.threads = 1L,
+                 args.rsp = list(family = held))
+    expect_null(fit$fit.rsp[["sigma"]])
+    expect_equal(fit$fit.rsp$fixed$sigma, 2)
+    expect_false(bartCause:::responseIsBinary(fit))
+
+    expect_equal(extract(fit, "sigma"), rep(2, 13L * n.chains))
+    expect_null(dim(extract(fit, "sigma")))
+    if (n.chains == 1L) {
+      expect_equal(extract(fit, "sigma", combineChains = FALSE), matrix(2, 1L, 13L))
+    } else {
+      expect_equal(extract(fit, "sigma", combineChains = FALSE), matrix(2, n.chains, 13L))
+    }
+
+    expect_error(plot_sigma(fit), "holds it fixed")
+    expect_error(capture.output(print(fit)), NA)
+    expect_error(capture.output(print(summary(fit))), NA)
+  }
+})
+
+test_that("a held sigma reaches the bcf response method as a constant sigma", {
+  held <- dbarts::dbartsFamilies$gaussian(sigma = dbarts::dbartsPriors$fixed(4))
+  fit <- bartc(y, z, x, data = testData, method.trt = "glm", method.rsp = "bcf", verbose = FALSE,
+               n.burn = 3L, n.samples = 13L, n.trees = 7L, n.chains = 2L, n.threads = 1L,
+               args.rsp = list(family = held))
+  expect_false(bartCause:::responseIsBinary(fit))
+  expect_equal(extract(fit, "sigma"), rep(2, 26L))
+  expect_error(capture.output(print(summary(fit))), NA)
+})
