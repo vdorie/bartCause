@@ -23,7 +23,7 @@ bcf(formula, data, subset, weights, offset,
     n.trees = 200L, base = 0.95, power = 2.0,
     n.trees.treatment = 50L,
     treatment.base = 0.25, treatment.power = 3,
-    sd.control = NULL, sd.moderate = 1,
+    sd.control = NULL, sd.moderate = NULL,
     b.prior.variance = 0.5,
     update.a = TRUE, update.b = TRUE,
     mu.interactions = NULL, tau.interactions = NULL,
@@ -94,11 +94,12 @@ bcf(formula, data, subset, weights, offset,
     The same, for the treatment forest, whose default prior is shallower.
   }
   \item{sd.control}{
-    Scale of the prognostic forest's amplitude prior, or \code{NULL} for the
-    family default.
+    Size of the prognostic forest, in the response's units; \code{NULL} takes
+    \pkg{dbarts}'s default.
   }
   \item{sd.moderate}{
-    Scale of the treatment forest's leaf prior.
+    Size of the treatment forest, in the response's units; \code{NULL} takes
+    \pkg{dbarts}'s default.
   }
   \item{b.prior.variance}{
     Prior variance of the treatment forest's amplitudes \eqn{(b_0, b_1)}{(b0,
