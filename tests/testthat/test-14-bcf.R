@@ -524,6 +524,11 @@ test_that("a held prognostic forest takes bcf's size and b.prior.variance is ref
   expect_identical(fitHeld(update.a = FALSE, sd.control = 1.5)$fit$getLeafPrior(1L)$sd, 1.5)
   ## drawn, dbarts's default stands
   expect_false(fitHeld()$fit$getLeafPrior(1L)$sd.stated)
+  ## under case weights, the sd of the rows with a positive weight
+  w <- rep(1, n.obs)
+  w[seq(1L, n.obs, by = 4L)] <- 0
+  weighted <- fitHeld(weights = w, update.a = FALSE)$fit$getLeafPrior(1L)
+  expect_equal(weighted$sd, 2 * sd(linearFrame$y[w > 0]), tolerance = 1e-12)
 })
 
 test_that("a held prognostic forest's size follows the family, not the response's values", {
