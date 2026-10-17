@@ -94,10 +94,10 @@ bcf(formula, data, subset, weights, offset,
   }
   \item{sd.control}{
     Size of the prognostic forest, in the response's units; \code{NULL} takes
-    \pkg{dbarts}'s default, except where \code{update.a} is \code{FALSE} under a
-    continuous response, where it is twice the standard deviation of the
-    response over the observations with a positive weight, \code{bcf}'s own
-    convention.
+    \pkg{dbarts}'s default, except where \code{update.a} is \code{FALSE} and the
+    family is not probit or logistic, where it is twice the standard deviation
+    of the response over the observations with a positive weight, \code{bcf}'s
+    own convention.
   }
   \item{sd.moderate}{
     Size of the treatment forest, in the response's units; \code{NULL} takes

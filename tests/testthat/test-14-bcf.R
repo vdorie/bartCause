@@ -525,3 +525,23 @@ test_that("a held prognostic forest takes bcf's size and b.prior.variance is ref
   ## drawn, dbarts's default stands
   expect_false(fitHeld()$fit$getLeafPrior(1L)$sd.stated)
 })
+
+test_that("a held prognostic forest's size follows the family, not the response's values", {
+  source(system.file("common", "binaryData.R", package = "bartCause"), local = TRUE)
+  binaryFrame <- with(testData, data.frame(y = y, z = z, x1 = x[,1], x2 = x[,2], x3 = x[,3]))
+  fitHeld <- function(...)
+    bcf(y ~ x1 + x2 + x3, data = binaryFrame, treatment = z, n.trees = 5L,
+        n.samples = 3L, n.burn = 2L, n.chains = 1L, verbose = FALSE,
+        keepSampler = TRUE, update.a = FALSE, ...)
+
+  ## a 0/1 response fit as gaussian takes 2 sd(y)
+  for (family in list("gaussian", stats::gaussian())) {
+    held <- fitHeld(family = family)
+    expect_equal(held$family, "gaussian")
+    expect_equal(held$fit$getLeafPrior(1L)$sd, 2 * sd(binaryFrame$y), tolerance = 1e-12)
+  }
+  ## fit as probit, stated or not, or as logistic, dbarts's default stands
+  expect_false(fitHeld()$fit$getLeafPrior(1L)$sd.stated)
+  for (family in list("probit", "logistic", stats::binomial()))
+    expect_false(fitHeld(family = family)$fit$getLeafPrior(1L)$sd.stated)
+})

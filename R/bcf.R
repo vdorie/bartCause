@@ -246,11 +246,25 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
   }
   update.a <- asFlag(update.a, "update.a")
   update.b <- asFlag(update.b, "update.b")
+  ## whether the family the sampler takes is a binary one, read from the
+  ## family handed over where there is one and otherwise from the rule that
+  ## names it below: a 0/1 response is probit
+  binaryResponse <- local({
+    family <- extraArgs[["family"]]
+    if (is.null(family)) return(all(responseData@y %in% c(0, 1)))
+    if (is.function(family)) family <- family()
+    if (inherits(family, "family"))
+      return(family$family %in% c("binomial", "quasibinomial"))
+    if (inherits(family, "dbartsFamily")) family <- family@token
+    if (!is.character(family) || length(family) == 0L) return(FALSE)
+    if (identical(family[1L], "auto")) return(all(responseData@y %in% c(0, 1)))
+    !is.na(pmatch(family[1L], c("probit", "logistic", "binomial", "quasibinomial")))
+  })
   ## a held prognostic forest is held at bcf's own size, 2 sd(y) over the rows
   ## handed to dbarts with a positive weight, where dbarts's default for a held
   ## forest with no basis is the size bart() gives its forest; under a binary
-  ## response dbarts's default, one unit of the link, stands
-  if (!update.a && is.null(sd.control) && !all(responseData@y %in% c(0, 1))) {
+  ## family dbarts's default, one unit of the link, stands
+  if (!update.a && is.null(sd.control) && !binaryResponse) {
     rowsIn <- if (length(responseData@weights) > 0L) responseData@weights > 0 else TRUE
     sd.control <- 2 * stats::sd(responseData@y[rowsIn])
   }
