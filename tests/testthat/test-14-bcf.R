@@ -15,7 +15,7 @@ handBCFSampler <- function(frame, n.trees = 20L, n.trees.treatment = 10L,
   formula <- eval(str2lang(paste0("y ~ ", rhs)))
   ## the basis covers the frame before 'subset', which dbarts restricts it with
   data <- dbarts::dbartsData(formula, data = frame, subset = subset,
-                             bases = list(NULL, cbind(1 - frame$z, frame$z)))
+                             bases = list(NULL, factor(frame$z, levels = c(0, 1))))
   if (is.null(muVars))  muVars  <- setdiff(colnames(data@x), "z")
   if (is.null(tauVars)) tauVars <- setdiff(colnames(data@x), "z")
   control <- dbarts::dbartsControl(n.chains = n.chains, n.threads = 1L,
@@ -221,11 +221,11 @@ test_that("every subset kind reaches the same fit, and the basis covers the full
   ## the data before 'subset' is restricted to the kept rows, and one already at
   ## the kept-row count is refused loudly rather than aligned by position
   aligned <- dbarts::dbartsData(y ~ x1 + x2 + x3 + z, data = namedFrame, subset = keep,
-                                bases = list(NULL, cbind(1 - namedFrame$z, namedFrame$z)))
+                                bases = list(NULL, factor(namedFrame$z, levels = c(0, 1))))
   expect_equal(as.vector(aligned@bases[[2L]][, 2L]), as.numeric(namedFrame$z[keep]))
   expect_error(
     dbarts::dbartsData(y ~ x1 + x2 + x3 + z, data = namedFrame, subset = keep,
-                       bases = list(NULL, cbind(1 - namedFrame$z[keep], namedFrame$z[keep]))),
+                       bases = list(NULL, factor(namedFrame$z[keep], levels = c(0, 1)))),
     paste0("matching 'subset' (", length(keep), ") but not the full data (", n.obs, " rows)"),
     fixed = TRUE)
   ## a subset that loses an arm is refused by name

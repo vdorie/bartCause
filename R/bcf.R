@@ -8,10 +8,11 @@
 ##
 ## The prognostic forest mu splits on the confounders and the propensity score;
 ## the treatment forest tau splits on the moderators only and reaches the model
-## through a basis of treatment indicators, whose amplitudes (b.0, b.1) are what
-## make the counterfactual free. No test surface is involved -- a multi-forest
-## sampler refuses one at creation -- so the counterfactual is recovered by
-## swapping the amplitude the treatment forest is multiplied by.
+## through a basis of the treatment as a two-level factor, one indicator column
+## per arm, whose amplitudes (b.0, b.1) are what make the counterfactual free.
+## No test surface is involved -- a multi-forest sampler refuses one at
+## creation -- so the counterfactual is recovered by swapping the amplitude the
+## treatment forest is multiplied by.
 
 ## The forest-indexed containers are keyed by these names, in the engine's own
 ## order: the prognostic forest first, the treatment forest second.
@@ -139,10 +140,10 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
   ## the basis is built from the FULL-LENGTH treatment and handed over at that
   ## length: both interfaces check a forest basis against the data before
   ## 'subset' and restrict it to the kept rows themselves, and one arriving
-  ## already at the kept-row count is refused. The column order is (1 - z, z),
-  ## which is model.matrix(~ factor(z) - 1)'s and the order the run's glue
-  ## channel stacks (a, b.0, b.1) in
-  basis <- cbind(1 - z, z)
+  ## already at the kept-row count is refused. The basis is a factor of levels 0
+  ## and 1, in that order, which dbarts reads as the two indicator columns
+  ## (1 - z, z): the order the run's glue channel stacks (a, b.0, b.1) in
+  basis <- factor(z, levels = c(0, 1))
 
   fitEnv <- new.env(parent = evalEnv)
   fitEnv[["bcf.bases"]] <- list(NULL, basis)

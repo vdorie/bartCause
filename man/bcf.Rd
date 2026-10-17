@@ -178,7 +178,8 @@ bcf(formula, data, subset, weights, offset,
 \details{
   A Bayesian causal forest fits two ensembles at once. The prognostic forest
   \eqn{\mu}{mu} is an ordinary sum of trees; the treatment forest \eqn{\tau}{tau}
-  reaches the model through a basis of treatment indicators, so each draw
+  reaches the model through a basis, the treatment as a two-level factor with one
+  indicator per arm, so each draw
   carries a pair of amplitudes \eqn{(b_0, b_1)}{(b0, b1)} - one per arm - and
   the fitted value is
   \eqn{a\mu(x_i) + b_{z_i}\tau(x_i)}{a mu(x_i) + b_z_i tau(x_i)}. Swapping
