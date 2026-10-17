@@ -91,7 +91,6 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
                    n.trees.treatment = 50L,
                    treatment.base = 0.25, treatment.power = 3,
                    sd.control = NULL, sd.moderate = NULL,
-                   b.prior.variance = 0.5,
                    update.a = TRUE, update.b = TRUE,
                    mu.interactions = NULL, tau.interactions = NULL,
                    tau.blocks = NULL,
@@ -247,6 +246,14 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
   }
   update.a <- asFlag(update.a, "update.a")
   update.b <- asFlag(update.b, "update.b")
+  ## a held prognostic forest is held at bcf's own size, 2 sd(y) over the rows
+  ## handed to dbarts with a positive weight, where dbarts's default for a held
+  ## forest with no basis is the size bart() gives its forest; under a binary
+  ## response dbarts's default, one unit of the link, stands
+  if (!update.a && is.null(sd.control) && !all(responseData@y %in% c(0, 1))) {
+    rowsIn <- if (length(responseData@weights) > 0L) responseData@weights > 0 else TRUE
+    sd.control <- 2 * stats::sd(responseData@y[rowsIn])
+  }
   muForestCall <- call("forest", vars = muVars,
                        n.trees = coerceOrError(n.trees, "integer")[1L], sd = sd.control,
                        amplitude = if (update.a) NULL else quote(fixed()),
@@ -254,7 +261,7 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
   tauForestCall <- call("forest", vars = tauVars,
                        n.trees = coerceOrError(n.trees.treatment, "integer")[1L],
                        base = treatment.base, power = treatment.power,
-                       sd = sd.moderate, amplitude.prior.variance = b.prior.variance,
+                       sd = sd.moderate,
                        amplitude = if (update.b) NULL else quote(fixed()),
                        interactions = tau.interactions,
                        blocks = tau.blocks)
@@ -373,7 +380,6 @@ bcf <- function(formula, data, subset, weights, offset,
                 n.trees.treatment = 50L,
                 treatment.base = 0.25, treatment.power = 3,
                 sd.control = NULL, sd.moderate = NULL,
-                b.prior.variance = 0.5,
                 update.a = TRUE, update.b = TRUE,
                 mu.interactions = NULL, tau.interactions = NULL,
                 tau.blocks = NULL,
@@ -400,6 +406,10 @@ bcf <- function(formula, data, subset, weights, offset,
   for (argName in c("forests", "bases", "test", "offset.test", "x.test"))
     if (!is.null(matchedCall[[argName]]))
       stop("'", argName, "' is set by bcf() itself and cannot be supplied")
+  ## the dots would otherwise take it in silence
+  if (!is.null(matchedCall[["b.prior.variance"]]))
+    stop("'b.prior.variance' is no longer an argument: the treatment coefficients' prior ",
+         "variance is fixed; state the effect's size with 'sd.moderate'")
 
   dataValue <- if (dataAreMissing) NULL else data
   usesFormula <- is.formula(formula)
@@ -474,7 +484,6 @@ bcf <- function(formula, data, subset, weights, offset,
                   n.trees.treatment = n.trees.treatment,
                   treatment.base = treatment.base, treatment.power = treatment.power,
                   sd.control = sd.control, sd.moderate = sd.moderate,
-                  b.prior.variance = b.prior.variance,
                   update.a = update.a, update.b = update.b,
                   mu.interactions = matchedCall$mu.interactions,
                   tau.interactions = matchedCall$tau.interactions,

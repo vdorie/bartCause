@@ -24,8 +24,7 @@ handBCFSampler <- function(frame, n.trees = 20L, n.trees.treatment = 10L,
   dbarts::dbarts(data, control = control, tree.prior = dbarts::dbartsPriors$cgm(2.0, 0.95),
                  forests = list(forest(vars = muVars, n.trees = n.trees),
                                 forest(vars = tauVars, n.trees = n.trees.treatment,
-                                       base = 0.25, power = 3,
-                                       amplitude.prior.variance = 0.5)))
+                                       base = 0.25, power = 3)))
 }
 
 toBartCause <- function(x) aperm(x, c(3L, 2L, 1L))
@@ -507,4 +506,22 @@ test_that("update.a and update.b are read as flags", {
   expect_s3_class(fitFlag(update.a = 0, update.b = 1), "bartBCF")
   expect_s3_class(fitFlag(update.a = FALSE, update.b = FALSE), "bartBCF")
   expect_s3_class(fitFlag(update.b = NULL), "bartBCF")
+})
+
+test_that("a held prognostic forest takes bcf's size and b.prior.variance is refused", {
+  fitHeld <- function(...)
+    bcf(y ~ x1 + x2 + x3, data = linearFrame, treatment = z, n.trees = 5L,
+        n.samples = 3L, n.burn = 2L, n.chains = 1L, verbose = FALSE,
+        keepSampler = TRUE, ...)
+
+  expect_error(fitHeld(b.prior.variance = 1),
+               "'b.prior.variance' is no longer an argument", fixed = TRUE)
+  ## held, sd.control not given: 2 sd(y), held exactly
+  held <- fitHeld(update.a = FALSE)$fit$getLeafPrior(1L)
+  expect_equal(held$sd, 2 * sd(linearFrame$y), tolerance = 1e-12)
+  expect_equal(held$k.scale, held$sd, tolerance = 1e-12)
+  ## stated, it is the stated number
+  expect_identical(fitHeld(update.a = FALSE, sd.control = 1.5)$fit$getLeafPrior(1L)$sd, 1.5)
+  ## drawn, dbarts's default stands
+  expect_false(fitHeld()$fit$getLeafPrior(1L)$sd.stated)
 })

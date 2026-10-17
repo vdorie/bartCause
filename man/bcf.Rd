@@ -24,7 +24,6 @@ bcf(formula, data, subset, weights, offset,
     n.trees.treatment = 50L,
     treatment.base = 0.25, treatment.power = 3,
     sd.control = NULL, sd.moderate = NULL,
-    b.prior.variance = 0.5,
     update.a = TRUE, update.b = TRUE,
     mu.interactions = NULL, tau.interactions = NULL,
     tau.blocks = NULL,
@@ -95,19 +94,21 @@ bcf(formula, data, subset, weights, offset,
   }
   \item{sd.control}{
     Size of the prognostic forest, in the response's units; \code{NULL} takes
-    \pkg{dbarts}'s default.
+    \pkg{dbarts}'s default, except where \code{update.a} is \code{FALSE} under a
+    continuous response, where it is twice the standard deviation of the
+    response over the observations with a positive weight, \code{bcf}'s own
+    convention.
   }
   \item{sd.moderate}{
     Size of the treatment forest, in the response's units; \code{NULL} takes
     \pkg{dbarts}'s default.
   }
-  \item{b.prior.variance}{
-    Prior variance of the treatment forest's amplitudes \eqn{(b_0, b_1)}{(b0,
-    b1)}.
-  }
   \item{update.a, update.b}{
     Whether the prognostic and treatment amplitudes are drawn; when
-    \code{FALSE} the corresponding amplitude is fixed at its prior center.
+    \code{FALSE} the coefficient is held, at 1 for the prognostic forest and at
+    0 and 1 for control and treated, and \code{sd.control} or
+    \code{sd.moderate} is then that forest's prior standard deviation,
+    exactly.
   }
   \item{mu.interactions, tau.interactions}{
     Optional \code{\link[dbarts]{interactions}} constraints, one per forest.
