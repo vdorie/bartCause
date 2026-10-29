@@ -210,7 +210,7 @@ getBartTreatmentFit <- function(response, treatment, confounders, parametric, da
     bartCall <- optimizeBARTCall(bartCall, evalEnv)
   
   bartFit <- eval(bartCall, envir = evalEnv)
-  combineChains <- if (is.null(matchedCall[["combineChains"]])) FALSE else list(...)[["combineChains"]]
+  combineChains <- getDotsArgument(matchedCall, "combineChains", callingEnv, FALSE)
   
   if (bartMethod %in% "stan4bart") {
     samples <- extract(bartFit, combine_chains = combineChains)

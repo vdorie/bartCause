@@ -83,7 +83,7 @@ getStan4BartResponseFit <- function(response, treatment, confounders, parametric
   trt <- bartFit$frame[[treatmentName]]
   treatmentRows <- trt > 0
   
-  combineChains <- if (is.null(matchedCall[["combineChains"]])) FALSE else list(...)[["combineChains"]]
+  combineChains <- getDotsArgument(matchedCall, "combineChains", callingEnv, FALSE)
   
   mu.hat.train <- extract(bartFit, sample = "train", combine_chains = combineChains)
   mu.hat.test  <- extract(bartFit, sample = "test",  combine_chains = combineChains)
@@ -260,7 +260,7 @@ getBartResponseFit <- function(response, treatment, confounders, parametric, dat
   }
   treatmentRows <- trt > 0
   
-  combineChains <- if (is.null(matchedCall[["combineChains"]])) FALSE else list(...)[["combineChains"]]
+  combineChains <- getDotsArgument(matchedCall, "combineChains", callingEnv, FALSE)
   mu.hat.train <- extract(bartFit, sample = "train", combineChains = combineChains)
   mu.hat.test  <- extract(bartFit, sample = "test",  combineChains = combineChains)
 
@@ -919,7 +919,7 @@ getTMLEResponseFit <-
     }
     
     if (posteriorOfTMLE) {
-      n.threads <- if ("n.threads" %in% names(list(...))) list(...)[["n.threads"]] else dbarts::guessNumCores()
+      n.threads <- getDotsArgument(matchedCall, "n.threads", callingEnv, dbarts::guessNumCores())
       est <- getTMLEEstimates(y.all[commonSup.sub], trt[commonSup.sub], weights, estimand,
                               mu.hat.0, mu.hat.1, p.score, yBounds, p.scoreBounds, depsilon, maxIter,
                               n.threads = n.threads)
@@ -944,7 +944,7 @@ getTMLEResponseFit <-
       if (!is.null(weights)) weights <- weights[levelRows]
       
       if (posteriorOfTMLE) {
-        n.threads <- if ("n.threads" %in% names(list(...))) list(...)[["n.threads"]] else dbarts::guessNumCores()
+        n.threads <- getDotsArgument(matchedCall, "n.threads", callingEnv, dbarts::guessNumCores())
         getTMLEEstimates(y.all[levelRows], trt[levelRows], weights, estimand,
                          mu.hat.0, mu.hat.1, p.score, yBounds, p.scoreBounds, depsilon, maxIter,
                          n.threads = n.threads)

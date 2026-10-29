@@ -82,3 +82,33 @@ test_that("k is told from other arguments that happen to hold the same value", {
   expect_equal(fitted$fit.rsp$leaf.prior$leaf.prior@k, 5)
   expect_equal(fitted$fit.rsp$call$n.trees, 5)
 })
+
+## the fitters read some arguments of their '...' themselves, which must not
+## evaluate the rest of them
+
+test_that("one argument of the dots is read without evaluating the others", {
+  call <- quote(f(a = 1, k = chi(1.25, Inf), b = stop("not to be evaluated")))
+  expect_equal(bartCause:::getDotsArgument(call, "a", environment(), 0), 1)
+  expect_equal(bartCause:::getDotsArgument(call, "missing", environment(), 0), 0)
+  held <- 3
+  expect_equal(bartCause:::getDotsArgument(quote(f(a = held)), "a", environment(), 0), 3)
+})
+
+test_that("a prior written as k reaches the fits beside combineChains and with the tmle response method", {
+  skip_on_cran()
+  skip_if_not_installed("stan4bart")
+  
+  prior <- quote(chi(1.25, Inf))
+  for (group.by in list(NULL, quote(country))) {
+    args <- if (is.null(group.by)) list() else list(group.by = group.by)
+    label <- if (is.null(group.by)) "dbarts" else "stan4bart"
+    
+    combined <- do.call(fit, c(args, list(k = prior, combineChains = TRUE)), quote = TRUE)
+    expect_false(is.null(combined$fit.rsp$k), label = label)
+    expect_true(all(is.finite(fitted(combined))), label = label)
+    
+    tmle <- suppressWarnings(do.call(fit, c(args, list(k = prior, method.rsp = "tmle", maxIter = 2L)), quote = TRUE))
+    expect_false(is.null(tmle$fit.rsp$k), label = label)
+    expect_true(all(is.finite(tmle$est)), label = label)
+  }
+})

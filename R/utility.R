@@ -361,3 +361,9 @@ issueWarningForUnknownArguments <- function() {
     )
   }
 }
+
+## One argument of a fitter's '...', evaluated where the caller wrote it and
+## without the others, which can be prior expressions such as k = chi(1.25, Inf)
+## that only the BART fits know how to evaluate; list(...) would force them all.
+getDotsArgument <- function(matchedCall, name, env, default)
+  if (is.null(matchedCall[[name]])) default else eval(matchedCall[[name]], env)
