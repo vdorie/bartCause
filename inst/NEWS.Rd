@@ -170,6 +170,18 @@
             expression that evaluates to a list, where only a list written out
             in the call was accepted and a variable failed with an error that
             it was not subsettable.
+      \item A prior written in the call as \code{k}, such as
+            \code{bartc(..., k = chi(1.25, Inf))}, failed with an error that
+            \code{chi} could not be found, as R matched \code{k} to
+            \code{keepCall} and \code{bartc} evaluated it; it now reaches the
+            \pkg{dbarts} or \pkg{stan4bart} fit as written. \code{k} given
+            with another argument of an equal value, such as
+            \code{n.trees}, also failed.
+      \item \code{subset} written as an expression of the columns of
+            \code{data}, such as \code{subset = x1 > 0}, is read within
+            \code{data}, as a model frame reads it. It failed with an error
+            that the column was not found with \code{group.by} and, when the
+            response was fit by \pkg{dbarts}, without it.
     }
   }
 }
