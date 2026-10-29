@@ -721,3 +721,26 @@ responseMethodArguments <- function()
   unique(unlist(lapply(list(getBartResponseFit, getStan4BartResponseFit, getPWeightResponseFit,
                             getTMLEResponseFit, getBCFResponseFit, bcf),
                        function(fn) names(formals(fn)))))
+
+## bartc(y, z, x1 + x2, d) binds d to 'parametric', the fourth argument, and
+## fails on x1 with nothing to say that d was taken for something else. A data
+## frame is a legitimate 'parametric' only for the vector form of the call,
+## where the confounders are values too, so the call is refused when data is
+## missing, the fourth argument evaluates to a data frame and the confounders
+## are not values the caller can see. Each is evaluated in the caller's frame
+## where an error or a warning means "not a value there", and nothing else is
+## forced.
+refuseDataGivenByPosition <- function(matchedCall, env)
+{
+  if (is.null(matchedCall[["parametric"]]) || !is.null(matchedCall[["data"]])) return(invisible(NULL))
+  
+  valueOf <- function(expr) tryCatch(eval(expr, env), error = function(e) NULL, warning = function(w) NULL)
+  
+  fourth <- valueOf(matchedCall[["parametric"]])
+  if (!is.data.frame(fourth)) return(invisible(NULL))
+  confounders <- valueOf(matchedCall[["confounders"]])
+  if (is.numeric(confounders) || is.data.frame(confounders)) return(invisible(NULL))
+  
+  stop("the fourth argument of bartc is 'parametric', which was given a data frame; ",
+       "'data' must be passed by name, data = ", paste0(deparse(matchedCall[["parametric"]]), collapse = " "), call. = FALSE)
+}
