@@ -501,7 +501,7 @@ source(system.file("common", "friedmanData.R", package = "bartCause"))
 test_that("sate summary is correct quantity", {
   data <- generateFriedmanData(n = 100, causal = TRUE)
 
-  fit <- bartc(y, z, x, data = data, verbose = FALSE, samples = 50L,
+  fit <- bartc(y, z, x, data = data, verbose = FALSE,
                n.burn = 25L, n.chains = 4L, n.threads = 1L, seed = 0)
 
   fit_sum <- summary(fit, "sate")

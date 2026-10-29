@@ -18,7 +18,7 @@ test_that("bart on p.score matches old", {
   set.seed(22)
   fit <- bartc(y, z, x, data = testData,
                method.rsp = "bart", method.trt = "bart", estimand = "att", verbose = FALSE,
-               n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L, n.trees = 5L, n.reps = 5L)
+               n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L, n.trees = 5L)
   # snapshot refreshed for dbarts d1de9ad1 (a probit forest is rescaled once a
   # sweep, which moves the propensity score's draws); at this seed the
   # 5-tree/5-sample fit leaves the estimate at zero to rounding - the pin is a
@@ -30,7 +30,7 @@ test_that("bart w/p.weighting matches old", {
   set.seed(22)
   fit <- bartc(y, z, x, data = testData,
                method.rsp = "p.weight", method.trt = "bart", estimand = "att", verbose = FALSE,
-               n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L, n.trees = 5L, n.reps = 5L)
+               n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L, n.trees = 5L)
   # snapshot refreshed for dbarts d1de9ad1 (a probit forest is rescaled once a
   # sweep, which moves the propensity score's draws); at this seed the
   # 5-tree/5-sample fit leaves the estimate at zero to rounding - the pin is a
@@ -50,7 +50,7 @@ test_that("bart w/TMLE matches old", {
   
   fit <- bartc(y, z, x, data = testData,
                method.rsp = "tmle", method.trt = "bart", estimand = "att", verbose = FALSE,
-               n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L, n.trees = 5L, n.reps = 5L)
+               n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L, n.trees = 5L)
 
   tmle_version <- packageVersion("tmle")
   if (tmle_version >= "2.1") {

@@ -100,7 +100,7 @@ test_that("p.weight estimates do not depend on combineChains", {
     set.seed(99)
     bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "p.weight",
           verbose = FALSE, n.burn = 3L, n.samples = 13L, n.trees = 7L,
-          n.chains = 4L, n.threads = 1L, n.reps = 3L, combineChains = cc)
+          n.chains = 4L, n.threads = 1L, combineChains = cc)
   })
   expect_equal(fits[[1L]]$n.chains, 4L)
   expect_equal(fits[[2L]]$n.chains, 4L)
@@ -118,7 +118,7 @@ test_that("tmle estimates do not depend on combineChains", {
     set.seed(99)
     bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "tmle",
           verbose = FALSE, n.burn = 3L, n.samples = 7L, n.trees = 5L,
-          n.chains = 3L, n.threads = 1L, n.reps = 3L, combineChains = cc)
+          n.chains = 3L, n.threads = 1L, combineChains = cc)
   })
   expect_equal(fitted(fits[[1L]], "pate"), fitted(fits[[2L]], "pate"))
   # and draw for draw, under the map between the two layouts
