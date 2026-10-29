@@ -461,9 +461,30 @@ getResponseLiteralCall <- function(fn, response, treatment, confounders, paramet
 ## defaults, about five times the work that was asked for. 'args' is the
 ## fitter's matched call, read for the dbarts spellings; anything already
 ## written in stan4bart's own vocabulary came from the caller and wins.
-addStan4BartSamplingArguments <- function(call, args, env, defaultChains = 10L)
+addStan4BartSamplingArguments <- function(call, args, env, defaultChains = 10L, ownFormals = NULL,
+                                             residualScale = TRUE)
 {
   argNames <- names(args)
+  
+  ## the arguments that go on to be translated below or read by the caller are
+  ## accounted for; any other name stan4bart has no formal for is dropped by the
+  ## call builders, which 'ownFormals' (the caller's own arguments) lets this say.
+  ## sigdf and sigquant are dbarts' prior on the residual scale, which the
+  ## parametric component draws here, so they have nowhere to go.
+  if (!is.null(ownFormals)) {
+    accountedFor <- c("n.samples", "n.burn", "n.chains", "n.thin", "n.threads", "n.trees",
+                      "k", "power", "base", "keepTrees", "combineChains",
+                      names(formals(stan4bart::stan4bart)), ownFormals)
+    givenNames <- argNames[argNames != ""]
+    notUsed <- character()
+    resid <- intersect(c("sigdf", "sigquant"), givenNames)
+    ## a propensity model is binary, so only the response fit reports them
+    if (residualScale)
+      notUsed[resid] <- "the parametric component draws the residual standard deviation, so it has no prior to set"
+    dropped <- setdiff(givenNames, c(accountedFor, resid))
+    notUsed[dropped] <- "not an argument of stan4bart"
+    warnArgumentsNotUsed(notUsed)
+  }
   getArg <- function(name)
     if (name %in% argNames) eval(args[[name]], env) else NULL
   
@@ -536,4 +557,78 @@ addStan4BartSamplingArguments <- function(call, args, env, defaultChains = 10L)
   }
   
   call
+}
+
+## bartCause 1.0-10 passed these names to dbarts, whose 0.9-x bart2 took them as
+## arguments; dbarts 1.0-0 retired them, so a call that still names one is
+## rewritten into the form that carries it: power, base and split.probs ride
+## tree.prior = cgm(), sigdf and sigquant ride family = gaussian(sigma =
+## chisq(df, quant)), rngSeed is seed. A name that has no 1.0-0 form, or that
+## cannot apply, is returned in 'notUsed' (name -> reason) rather than dropped
+## unseen. 'call' is a call or anything as.list() takes apart whose first
+## element is the function. 'binary' is a response with no residual scale to
+## give a prior to. Writing the successor as well as the retired name is
+## refused, since the two would have to agree and nothing says which wins.
+translateRetiredBartArguments <- function(call, binary)
+{
+  elements <- as.list(call)
+  argNames <- names(elements)
+  if (is.null(argNames)) argNames <- rep.int("", length(elements))
+  notUsed <- character()
+  
+  refuseBoth <- function(retired, successor)
+    stop(paste0("'", retired, "'", collapse = ", "), " and '", successor, "' cannot both be given; ",
+         "dbarts 1.0-0 takes the one in '", successor, "'", call. = FALSE)
+  
+  treeNames <- intersect(c("power", "base", "split.probs"), argNames)
+  if (length(treeNames) > 0L) {
+    if ("tree.prior" %in% argNames) refuseBoth(treeNames, "tree.prior")
+    treeCall <- as.call(c(list(quote(cgm)), elements[match(treeNames, argNames)]))
+    elements[match(treeNames, argNames)] <- NULL
+    elements[["tree.prior"]] <- treeCall
+    argNames <- names(elements)
+  }
+  
+  residNames <- intersect(c("sigdf", "sigquant"), argNames)
+  if (length(residNames) > 0L) {
+    if (binary) {
+      notUsed[residNames] <- "a binary response has no residual scale to give a prior"
+    } else {
+      if ("family" %in% argNames) refuseBoth(residNames, "family")
+      ## the defaults of 0.9-x's bart2
+      sigdf    <- if ("sigdf" %in% residNames) elements[[match("sigdf", argNames)]] else 3
+      sigquant <- if ("sigquant" %in% residNames) elements[[match("sigquant", argNames)]] else 0.9
+      elements[match(residNames, argNames)] <- NULL
+      elements[["family"]] <- call("gaussian", sigma = call("chisq", sigdf, sigquant))
+    }
+    if (binary) elements[match(residNames, argNames)] <- NULL
+    argNames <- names(elements)
+  }
+  
+  if ("rngSeed" %in% argNames) {
+    if ("seed" %in% argNames) refuseBoth("rngSeed", "seed")
+    names(elements)[match("rngSeed", argNames)] <- "seed"
+    argNames <- names(elements)
+  }
+  
+  noForm <- intersect(c("rngKind", "rngNormalKind"), argNames)
+  if (length(noForm) > 0L) {
+    notUsed[noForm] <- "dbarts 1.0-0 has no choice of random number generator"
+    elements[match(noForm, argNames)] <- NULL
+  }
+  
+  list(call = as.call(elements), notUsed = notUsed)
+}
+
+## One warning for a call, naming each argument that did not reach the sampler
+## and why, in the order given. 'notUsed' is a character vector of reasons
+## named by argument.
+warnArgumentsNotUsed <- function(notUsed)
+{
+  if (length(notUsed) == 0L) return(invisible(NULL))
+  
+  reasons <- unique(notUsed)
+  parts <- vapply(reasons, function(reason)
+    paste0(paste0("'", names(notUsed)[notUsed == reason], "'", collapse = ", "), " (", reason, ")"), "")
+  warning("arguments not used: ", paste0(parts, collapse = "; "), call. = FALSE)
 }

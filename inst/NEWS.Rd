@@ -53,6 +53,17 @@
             when \code{weights} are supplied they are ignored in the propensity
             fit, with a message, and enter only the treatment effect
             estimators.
+      \item \code{bartc} warns, once for each model it fits, naming any
+            argument that did not reach the sampler and why, where it used to
+            drop the argument unseen: one that \pkg{dbarts} or
+            \pkg{stan4bart} has no argument for, \code{sigdf} and
+            \code{sigquant} for a binary response or a model fit by
+            \pkg{stan4bart}, which draws the residual standard deviation
+            itself, and \code{rngKind} and \code{rngNormalKind}, which
+            \pkg{dbarts} 1.0-0 no longer has. Giving \code{power},
+            \code{base}, \code{split.probs}, \code{sigdf} or
+            \code{sigquant} together with the \code{tree.prior} or
+            \code{family} that replaces it in \pkg{dbarts} is an error.
       \item A fit saved by 1.0-10 or earlier cannot be used by \code{predict}
             in this version, whose \pkg{dbarts} cannot replay its saved trees;
             \code{predict} says so and asks for a refit, where it used to stop

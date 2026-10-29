@@ -290,6 +290,11 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
     samplerCall[[argName]] <- as.symbol(paste0("bcf.arg.", argName))
   }
 
+  extraNames <- names(extraArgs)[names(extraArgs) != ""]
+  droppedArgs <- setdiff(extraNames, c(controlFormals, samplerFormals))
+  warnArgumentsNotUsed(structure(rep.int("not an argument of dbarts::dbarts or dbartsControl", length(droppedArgs)),
+                                 names = droppedArgs))
+
   ## the family is named rather than left to dbarts's "auto", which announces
   ## its choice; the rule is auto's own: a 0/1 response is probit
   if ("family" %not_in% names(samplerCall))

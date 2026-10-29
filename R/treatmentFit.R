@@ -157,10 +157,30 @@ getBartTreatmentFit <- function(response, treatment, confounders, parametric, da
   extraArgs <- matchedCall[names(matchedCall) %not_in% names(bartCall) | names(matchedCall) == ""]
   
   bartCall$verbose <- if (bartMethod %in% "stan4bart") -1L else FALSE
+  
+  ## the dbarts fit takes the spellings of 1.0-0; a retired one is rewritten,
+  ## and an argument it has no place for is said so rather than dropped. A
+  ## propensity model is binary, so sigdf and sigquant have nothing to prior.
+  notUsed <- character()
+  if (bartMethod %in% "bart") {
+    translated <- translateRetiredBartArguments(extraArgs, binary = TRUE)
+    extraArgs <- translated$call
+    ## bartc's '...' reaches the response and the propensity fits alike, and the
+    ## response's sigdf and sigquant are not the propensity model's to report
+    notUsed   <- translated$notUsed[names(translated$notUsed) %not_in% c("sigdf", "sigquant")]
+    
+    extraNames <- names(extraArgs)
+    dropped <- extraNames[-1L][extraNames[-1L] != "" &
+                               extraNames[-1L] %not_in% names(formals(dbarts::bart)) &
+                               extraNames[-1L] %not_in% names(formals(getBartTreatmentFit))]
+    notUsed[dropped] <- "not an argument of dbarts::bart"
+    warnArgumentsNotUsed(notUsed)
+  }
   bartCall <- addCallArguments(bartCall, extraArgs)
   
   if (bartMethod %in% "stan4bart") {
-    bartCall <- addStan4BartSamplingArguments(bartCall, matchedCall, callingEnv)
+    bartCall <- addStan4BartSamplingArguments(bartCall, matchedCall, callingEnv, ownFormals = names(formals(getBartTreatmentFit)),
+                                                residualScale = FALSE)
   } else if (is.null(bartCall[["n.chains"]])) {
     bartCall[["n.chains"]] <- 10L
   }

@@ -74,7 +74,7 @@ getStan4BartResponseFit <- function(response, treatment, confounders, parametric
   stan4bartCall$verbose <- -1L
   stan4bartCall <- addCallArguments(stan4bartCall, extraArgs)
 
-  stan4bartCall <- addStan4BartSamplingArguments(stan4bartCall, matchedCall, callingEnv)
+  stan4bartCall <- addStan4BartSamplingArguments(stan4bartCall, matchedCall, callingEnv, ownFormals = names(formals(getStan4BartResponseFit)))
 
   bartFit <- eval(stan4bartCall, envir = evalEnv)
   
@@ -211,8 +211,19 @@ getBartResponseFit <- function(response, treatment, confounders, parametric, dat
   ## redirect to pull in any args passed
   bartCall <- redirectCall(matchedCall, dbarts::bart)
   
+  ## names 1.0-10's dbarts took that 1.0-0 spells another way go into that
+  ## spelling; whatever is left that dbarts has no argument for is said so
+  translated <- translateRetiredBartArguments(bartCall, binary = all(responseData@y %in% c(0, 1)))
+  bartCall <- translated$call
+  notUsed  <- translated$notUsed
+  
   invalidArgs <- names(bartCall)[-1L] %not_in% names(eval(formals(eval(bartCall[[1L]])))) &
                  names(bartCall)[-1L] %not_in% names(eval(formals(dbarts::dbartsControl)))
+  ## bartc's own arguments ride the same call and are not for dbarts
+  dropped <- names(bartCall)[-1L][invalidArgs]
+  dropped <- dropped[dropped != "" & dropped %not_in% names(formals(getBartResponseFit))]
+  notUsed[dropped] <- "not an argument of dbarts::bart or dbartsControl"
+  warnArgumentsNotUsed(notUsed)
 
   bartCall <- bartCall[c(1L, 1L + which(!invalidArgs))]
     
