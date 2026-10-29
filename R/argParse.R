@@ -15,6 +15,12 @@ addGroupTerm <- function(formula, group.by, use.ranef)
   formula
 }
 
+## What group.by names, by the rule bartCause 1.0-10 used: its value where the
+## caller can see it, else its value within data, which is how a bare column
+## name or a function of columns is read. Whatever the expression needs that is
+## not a column is found from the caller's frame. A grouping factor is one value
+## per row of data, so the value is checked against it before any subset is
+## applied.
 getGroupBy <- function(data, subset, group.by)
 {
   dataAreMissing <- missing(data)
@@ -27,11 +33,70 @@ getGroupBy <- function(data, subset, group.by)
   tryResult <- tryCatch(group.by.literal <- group.by, error = function(e) e)
   
   if (!dataAreMissing && inherits(tryResult, "error"))
-    group.by <- eval(matchedCall$group.by, envir = data)
+    group.by <- eval(matchedCall$group.by, envir = data, enclos = parent.frame())
+  
+  if (!dataAreMissing && is.data.frame(data))
+    checkGroupByLength(group.by, nrow(data), data)
   
   if (!subsetIsMissing) group.by <- group.by[subset]
   
   as.factor(group.by)
+}
+
+## A grouping factor has a value for each of the 'n' rows. A single string is
+## almost always the name of a column of 'data' given where the column itself
+## was wanted, which would otherwise be recycled to one group.
+checkGroupByLength <- function(group.by, n, data = NULL)
+{
+  if (length(group.by) == n) return(invisible(NULL))
+  
+  if (is.character(group.by) && length(group.by) == 1L && is.data.frame(data) && group.by %in% names(data))
+    stop("'group.by' is the string \"", group.by, "\", which names a column of data; pass the column itself, ",
+         "group.by = ", deparse(as.name(group.by), backtick = TRUE), ", not its name", call. = FALSE)
+  
+  stop("'group.by' must have one value for each row of data (", n, "), but its length is ", length(group.by), call. = FALSE)
+}
+
+## A modeled grouping factor (use.ranef = TRUE) rides the formula as
+## (1 | <group.by as written>), and the mixed-model fitters look that grouping
+## factor up in the model frame, where a function of columns, an element of the
+## caller's list or a variable of the caller's is not to be found. As 1.0-10
+## did, group.by is resolved to a vector first (getGroupBy); it is handed to
+## the fit as a column of a copy of 'data' under a name nothing in the call
+## uses, the copy bound under another such name in a child of 'env', and
+## 'dataCall', the call to a data-call builder, is pointed at both. A group.by
+## that is a bare column of data already carrying that value is left alone, so
+## that the fit names its grouping factor as the user did. Returns the call and
+## the environment to evaluate it in.
+resolveGroupColumn <- function(matchedCall, dataCall, data, env, use.ranef)
+{
+  unchanged <- list(call = dataCall, env = env)
+  groupExpr <- matchedCall[["group.by"]]
+  if (is.null(groupExpr) || !isTRUE(use.ranef)) return(unchanged)
+  
+  ## the rows are those of data: a subset is the model frame's to apply
+  groupCall <- redirectCall(matchedCall, quoteInNamespace(getGroupBy))
+  if (!is.null(groupCall[["subset"]])) groupCall[["subset"]] <- NULL
+  value <- eval(groupCall, envir = env)
+  checkGroupByLength(value, nrow(data), data)
+  
+  if (is.symbol(groupExpr) && as.character(groupExpr) %in% names(data) &&
+      identical(as.factor(data[[as.character(groupExpr)]]), value))
+    return(unchanged)
+  
+  taken <- c(names(data), all.vars(matchedCall))
+  columnName <- "g"
+  while (columnName %in% taken) columnName <- paste0(columnName, "g")
+  dataName <- "data"
+  while (dataName %in% c(taken, columnName)) dataName <- paste0(dataName, "data")
+  
+  data[[columnName]] <- value
+  dataEnv <- new.env(parent = env)
+  dataEnv[[dataName]] <- data
+  
+  dataCall[["data"]] <- as.symbol(dataName)
+  dataCall[["group.by"]] <- as.symbol(columnName)
+  list(call = dataCall, env = dataEnv)
 }
 
 # set up call to look inside 'data'
@@ -265,6 +330,7 @@ getTreatmentLiteralCall <- function(fn, treatment, confounders, parametric, subs
     colnames(df) <- c(treatmentName, confounderNames)
     
     if (!is.null(group.by)) {
+      checkGroupByLength(group.by, nrow(df))
       group.byName <- "g"
       while (group.byName %in% colnames(df))
         group.byName <- paste0(group.byName, "g")
@@ -299,6 +365,7 @@ getTreatmentLiteralCall <- function(fn, treatment, confounders, parametric, subs
     colnames(df) <- c(treatmentName, confounderNames, parametricNames)
     
     if (!is.null(group.by)) {
+      checkGroupByLength(group.by, nrow(df))
       group.byName <- "g"
       while (group.byName %in% colnames(df))
         group.byName <- paste0(group.byName, "g")
@@ -367,6 +434,7 @@ getResponseLiteralCall <- function(fn, response, treatment, confounders, paramet
     }
     
     if (!is.null(group.by)) {
+      checkGroupByLength(group.by, nrow(df))
       group.byName <- "g"
       while (group.byName %in% colnames(df))
         group.byName <- paste0(group.byName, "g")
@@ -405,6 +473,7 @@ getResponseLiteralCall <- function(fn, response, treatment, confounders, paramet
     colnames(df) <- c(responseName, treatmentName, confounderNames, parametricNames)
     
     if (!is.null(group.by)) {
+      checkGroupByLength(group.by, nrow(df))
       group.byName <- "g"
       while (group.byName %in% colnames(df))
         group.byName <- paste0(group.byName, "g")

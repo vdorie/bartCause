@@ -43,9 +43,13 @@ getGLMTreatmentFit <- function(response, treatment, confounders, parametric, dat
     dataCall <- addCallDefaults(dataCall, eval(quoteInNamespace(getGLMTreatmentFit)))
     dataCall[["use.lmer"]] <- useLmer
     
-    massign[glmCall, evalEnv] <- eval(dataCall, envir = callingEnv)
+    grouped <- resolveGroupColumn(matchedCall, dataCall, data, callingEnv, use.ranef)
+    dataCall <- grouped$call
     
-    if (!is.null(dataEnv)) evalEnv <- dataEnv
+    massign[glmCall, evalEnv] <- eval(dataCall, envir = grouped$env)
+    
+    if (!identical(grouped$env, callingEnv)) evalEnv <- grouped$env
+    else if (!is.null(dataEnv)) evalEnv <- dataEnv
 
     df <- evalEnv[[as.character(dataCall$data)]]
     treatment <- df[[matchedCall$treatment]]
@@ -129,9 +133,13 @@ getBartTreatmentFit <- function(response, treatment, confounders, parametric, da
     dataCall <- addCallDefaults(dataCall, eval(quoteInNamespace(getBartTreatmentFit)))
     dataCall[["use.lmer"]] <- FALSE
     
-    massign[bartCall, evalEnv] <- eval(dataCall, envir = callingEnv)
+    grouped <- resolveGroupColumn(matchedCall, dataCall, data, callingEnv, use.ranef)
+    dataCall <- grouped$call
     
-    if (!is.null(dataEnv)) evalEnv <- dataEnv
+    massign[bartCall, evalEnv] <- eval(dataCall, envir = grouped$env)
+    
+    if (!identical(grouped$env, callingEnv)) evalEnv <- grouped$env
+    else if (!is.null(dataEnv)) evalEnv <- dataEnv
 
     df <- evalEnv[[as.character(dataCall$data)]]
     treatment <- df[[matchedCall$treatment]]

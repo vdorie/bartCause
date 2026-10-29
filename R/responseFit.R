@@ -39,7 +39,9 @@ getStan4BartResponseFit <- function(response, treatment, confounders, parametric
     dataCall <- addCallArgument(redirectCall(matchedCall, quoteInNamespace(getResponseDataCall)), "fn", quote(stan4bart::stan4bart))
     dataCall <- addCallDefaults(dataCall, eval(quoteInNamespace(getStan4BartResponseFit)))
     
-    massign[stan4bartCall, evalEnv, treatmentName, missingRows, p.scoreName] <- eval(dataCall, envir = callingEnv)
+    grouped <- resolveGroupColumn(matchedCall, dataCall, data, callingEnv, use.ranef)
+    
+    massign[stan4bartCall, evalEnv, treatmentName, missingRows, p.scoreName] <- eval(grouped$call, envir = grouped$env)
   } else {
     df <- NULL
     literalCall <- addCallArgument(redirectCall(matchedCall, quoteInNamespace(getResponseLiteralCall)), "fn", quote(stan4bart::stan4bart))
