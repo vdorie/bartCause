@@ -748,8 +748,10 @@ responseMethodArguments <- function()
 addArgsList <- function(call, argsExpr, args, argName)
 {
   if (is.call(argsExpr) && identical(argsExpr[[1L]], quote(list))) {
-    call <- dropOverriddenSpellings(call, names(argsExpr)[-1L])
+    call <- dropOverriddenSpellings(call, names(argsExpr)[-1L], argName)
+    overridden <- attr(call, "overridden")
     call[names(argsExpr)[-1L]] <- argsExpr[-1L]
+    attr(call, "overridden") <- overridden
     return(call)
   }
   
@@ -759,34 +761,47 @@ addArgsList <- function(call, argsExpr, args, argName)
   if (is.null(argNames) || anyNA(argNames) || any(argNames == ""))
     stop("every element of '", argName, "' must be named for the argument it gives", call. = FALSE)
   
-  call <- dropOverriddenSpellings(call, argNames)
+  call <- dropOverriddenSpellings(call, argNames, argName)
+  overridden <- attr(call, "overridden")
   for (i in seq_along(args)) {
     value <- args[i]
     if (is.language(value[[1L]])) value[[1L]] <- call("quote", value[[1L]])
     call[argNames[i]] <- value
   }
+  attr(call, "overridden") <- overridden
   call
 }
 
 ## The list overrides what the fit was given among bartc's other arguments, and
 ## a retired name and its successor, which translateRetiredBartArguments
 ## refuses together, are one argument spelled two ways: where the list gives
-## one, the other is taken out of the call so that the list entry governs.
+## one, the other is taken out of the call so that the list entry governs. What
+## is taken out is named, with the reason, in the "overridden" attribute of the
+## call returned, for bartc to warn of: a dropped argument is never silent.
 retiredSpellings <- list(tree.prior = c("power", "base", "split.probs"),
                          family     = c("sigdf", "sigquant"),
                          seed       = "rngSeed")
-dropOverriddenSpellings <- function(call, listNames)
+dropOverriddenSpellings <- function(call, listNames, argName = "the list")
 {
   overridden <- character()
   for (successor in names(retiredSpellings)) {
     retired <- retiredSpellings[[successor]]
-    if (successor %in% listNames)
-      overridden <- c(overridden, retired)
-    else if (any(retired %in% listNames))
-      overridden <- c(overridden, successor)
+    if (successor %in% listNames) {
+      governing <- successor
+      dropped <- retired
+    } else if (any(retired %in% listNames)) {
+      governing <- intersect(retired, listNames)
+      dropped <- successor
+    } else {
+      next
+    }
+    for (name in intersect(setdiff(dropped, listNames), names(call))) {
+      call[[name]] <- NULL
+      overridden[name] <- paste0(argName, " gives ", paste0("'", governing, "'", collapse = ", "),
+                                 if (length(governing) > 1L) ", which govern" else ", which governs")
+    }
   }
-  for (name in intersect(setdiff(overridden, listNames), names(call)))
-    call[[name]] <- NULL
+  attr(call, "overridden") <- overridden
   call
 }
 

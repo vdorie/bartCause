@@ -69,12 +69,19 @@ bartc <- function(
     set.seed(seed)
   }
   
+  ## an argument taken out of a fit's call because another governs is named
+  ## once, with the reason, in a warning before the response model is fit
+  overridden <- character()
+  takeOverridden <- function(call) {
+    overridden <<- c(overridden, attr(call, "overridden"))
+    attr(call, "overridden") <- NULL
+    call
+  }
   ## each fit is given a seed drawn from this one, which governs where an
   ## rngSeed is also given, as in 1.0-10; the fits would refuse the pair
-  rngSeedIgnored <- FALSE
   dropRngSeed <- function(call) {
     if (is.na(seed) || is.null(call[["rngSeed"]])) return(call)
-    rngSeedIgnored <<- TRUE
+    overridden <<- c(overridden, c(rngSeed = "seed gives each fit its own seed, which governs"))
     call[["rngSeed"]] <- NULL
     call
   }
@@ -108,7 +115,7 @@ bartc <- function(
     
     if (!is.null(treatmentCall)) {
       if (!is.null(args.trt) && length(args.trt) > 0L)
-        treatmentCall <- addArgsList(treatmentCall, matchedCall[["args.trt"]], args.trt, "args.trt")
+        treatmentCall <- takeOverridden(addArgsList(treatmentCall, matchedCall[["args.trt"]], args.trt, "args.trt"))
       treatmentCall <- dropRngSeed(treatmentCall)
     
       if (!is.null(treatmentCall[["crossvalidate"]]))
@@ -180,10 +187,10 @@ bartc <- function(
   }
   
   if (!is.null(args.rsp) && length(args.rsp) > 0L)
-    responseCall <- addArgsList(responseCall, matchedCall[["args.rsp"]], args.rsp, "args.rsp")
+    responseCall <- takeOverridden(addArgsList(responseCall, matchedCall[["args.rsp"]], args.rsp, "args.rsp"))
   responseCall <- dropRngSeed(responseCall)
-  if (rngSeedIgnored)
-    warnArgumentsNotUsed(c(rngSeed = "seed gives each fit its own seed, which governs"))
+  ## each argument is named once for each reason, though both fits dropped it
+  warnArgumentsNotUsed(overridden[!duplicated(paste(names(overridden), overridden))])
   
   ## crossvalidation tunes the tree prior with xbart, which has no multi-forest
   ## form; refuse it here rather than let the argument reach the fitter as a
