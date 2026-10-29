@@ -136,6 +136,22 @@ test_that("group.by as an expression with a glm treatment model and with a subse
   expect_equal(as.character(groupingOf(fit, "fit.rsp")), as.character(groupData$country[keep]))
 })
 
+test_that("predict reads the grouping column a resolved group.by was fit under", {
+  skip_on_cran()
+  skip_if_not_installed("stan4bart")
+  
+  plain <- fitWith(quote(country), keepTrees = TRUE)
+  resolved <- fitWith(quote(as.factor(country)), keepTrees = TRUE)
+  expect_equal(names(plain$fit.rsp$reTrms$flist), "country")
+  expect_equal(names(resolved$fit.rsp$reTrms$flist), "g")
+  
+  rows <- 1:12
+  for (type in c("p.score", "mu.1", "mu.0", "icate"))
+    expect_equal(predict(resolved, groupData[rows, c("x1", "x2")], group.by = groupData$country[rows], type = type),
+                 predict(plain, groupData[rows, c("x1", "x2")], group.by = groupData$country[rows], type = type),
+                 label = type)
+})
+
 test_that("use.ranef = FALSE reads group.by as a fixed effect, in whatever form it was written", {
   skip_on_cran()
 
