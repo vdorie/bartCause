@@ -722,6 +722,34 @@ responseMethodArguments <- function()
                             getTMLEResponseFit, getBCFResponseFit, bcf),
                        function(fn) names(formals(fn)))))
 
+## args.rsp and args.trt hand arguments to a fit. Written as a list() call, each
+## element is an expression that the fit evaluates as though it were written in
+## its own call, as 1.0-10 took it. Any other expression - a variable, a
+## function's result - is evaluated here to a list of values, which go into the
+## call as they are, a symbol or call among them quoted so that the fit
+## receives it rather than evaluating it. 'args' is that value, 'argsExpr' the
+## expression it came from.
+addArgsList <- function(call, argsExpr, args, argName)
+{
+  if (is.call(argsExpr) && identical(argsExpr[[1L]], quote(list))) {
+    call[names(argsExpr)[-1L]] <- argsExpr[-1L]
+    return(call)
+  }
+  
+  if (!is.list(args))
+    stop("'", argName, "' must be a list of arguments, each element named for the argument it gives", call. = FALSE)
+  argNames <- names(args)
+  if (is.null(argNames) || anyNA(argNames) || any(argNames == ""))
+    stop("every element of '", argName, "' must be named for the argument it gives", call. = FALSE)
+  
+  for (i in seq_along(args)) {
+    value <- args[i]
+    if (is.language(value[[1L]])) value[[1L]] <- call("quote", value[[1L]])
+    call[argNames[i]] <- value
+  }
+  call
+}
+
 ## bartc(y, z, x1 + x2, d) binds d to 'parametric', the fourth argument, and
 ## fails on x1 with nothing to say that d was taken for something else. A data
 ## frame is a legitimate 'parametric' only for the vector form of the call,

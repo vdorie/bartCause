@@ -94,7 +94,7 @@ bartc <- function(
     
     if (!is.null(treatmentCall)) {
       if (!is.null(args.trt) && length(args.trt) > 0L)
-        treatmentCall[names(matchedCall[["args.trt"]])[-1L]] <- matchedCall[["args.trt"]][-1L]
+        treatmentCall <- addArgsList(treatmentCall, matchedCall[["args.trt"]], args.trt, "args.trt")
     
       if (!is.null(treatmentCall[["crossvalidate"]]))
         treatmentCall[["crossvalidate"]] <- if (is.logical(crossvalidate)) crossvalidate else crossvalidate == "trt"
@@ -165,7 +165,7 @@ bartc <- function(
   }
   
   if (!is.null(args.rsp) && length(args.rsp) > 0L)
-    responseCall[names(matchedCall[["args.rsp"]])[-1L]] <- matchedCall[["args.rsp"]][-1L]
+    responseCall <- addArgsList(responseCall, matchedCall[["args.rsp"]], args.rsp, "args.rsp")
   
   ## crossvalidation tunes the tree prior with xbart, which has no multi-forest
   ## form; refuse it here rather than let the argument reach the fitter as a
