@@ -131,4 +131,14 @@ test_that("a prior written as k reaches the fits beside combineChains and with t
     expect_false(is.null(tmle$fit.rsp$k), label = label)
     expect_true(all(is.finite(tmle$est)), label = label)
   }
+  
+  ## the tmle estimates of each group read n.threads from the call as well
+  for (use.ranef in c(TRUE, FALSE)) {
+    label <- paste("group.effects, use.ranef =", use.ranef)
+    grouped <- suppressWarnings(fit(k = prior, method.rsp = "tmle", maxIter = 2L, group.by = quote(country),
+                                    group.effects = TRUE, use.ranef = use.ranef))
+    expect_false(is.null(grouped$fit.rsp$k), label = label)
+    expect_equal(names(grouped$est), levels(formData$country), label = label)
+    expect_true(all(vapply(grouped$est, function(e) all(is.finite(e)), NA)), label = label)
+  }
 })
