@@ -621,6 +621,13 @@ addStan4BartSamplingArguments <- function(call, args, env, defaultChains = 10L, 
     if (is.call(bartArgs) && bartArgs[[1L]] == quote(list)) {
       for (name in bartArgNames) {
         if (name %in% names(bartArgs)) next
+        ## a prior written out in the call, k = chi(1.25, Inf), is stan4bart's to
+        ## read with its own vocabulary, as it reads one written in bart_args;
+        ## evaluated here it would find no chi() to call
+        if (name == "k" && isPriorCall(args[[name]])) {
+          bartArgs[[name]] <- args[[name]]
+          next
+        }
         value <- getArg(name)
         ## a language object put in the call would be evaluated by stan4bart,
         ## which finds no chi() to call or, with a prior of its own, takes it
@@ -637,6 +644,11 @@ addStan4BartSamplingArguments <- function(call, args, env, defaultChains = 10L, 
   
   call
 }
+
+## A call to a function of dbarts' prior vocabulary, chi(1.25, Inf) or fixed(2)
+## as written in the call, which only the fits know how to evaluate
+isPriorCall <- function(expr)
+  is.call(expr) && is.symbol(expr[[1L]]) && as.character(expr[[1L]]) %in% names(dbarts::dbartsPriors)
 
 ## bartCause 1.0-10 passed these names to dbarts, whose 0.9-x bart2 took them as
 ## arguments; dbarts 1.0-0 retired them, so a call that still names one is

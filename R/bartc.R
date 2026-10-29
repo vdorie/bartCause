@@ -21,16 +21,20 @@ bartc <- function(
   mismatchedArgs.sys <- names(sysCall) %not_in% names(matchedCall) & names(sysCall) != "" &
                         names(sysCall) %in% names(formals(dbarts::bart))
   if (any(mismatchedArgs.sys)) {
-    mismatchedArgs.mc  <- sapply(matchedCall, function(x)
-      any(sapply(which(mismatchedArgs.sys), function(j) x == sysCall[[j]])))
-    
-    oldNames <- names(matchedCall)[mismatchedArgs.mc]
+    ## the formal that took each name is the one before '...' it is a prefix of;
+    ## the arguments are not told apart by their values, which two can share
     newNames <- names(sysCall)[mismatchedArgs.sys]
-    names(matchedCall)[mismatchedArgs.mc] <- newNames
-    for (i in seq_along(oldNames)) {
-      oldValue <- get(oldNames[i])
-      assign(oldNames[i], eval(formals(bartc)[[oldNames[i]]]))
-    }
+    ownFormals <- names(formals(bartc))
+    ownFormals <- ownFormals[seq_len(match("...", ownFormals) - 1L)]
+    ownFormals <- ownFormals[ownFormals %in% names(matchedCall)]
+    oldNames <- vapply(newNames, function(name) ownFormals[startsWith(ownFormals, name)][1L], "")
+    
+    names(matchedCall)[match(oldNames[!is.na(oldNames)], names(matchedCall))] <- newNames[!is.na(oldNames)]
+    ## the value stays an unevaluated expression in matchedCall for the fits to
+    ## read, which is where the prior vocabulary (chi, normal, ...) is defined;
+    ## reading the formal here would force it in the caller's frame
+    for (oldName in oldNames[!is.na(oldNames)])
+      assign(oldName, eval(formals(bartc)[[oldName]]))
   }
   
   ## the fourth argument is 'parametric', so data given by position lands
