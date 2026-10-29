@@ -183,6 +183,27 @@ test_that("subset written as an expression of the columns of data fits without g
   }
 })
 
+test_that("a group.by that is not one value for each row is refused in each builder of bare vectors", {
+  ## the treatment and the response model each build their data from bare
+  ## vectors, with and without a parametric part, and each checks the length
+  y <- groupData$y; z <- groupData$z
+  x <- as.matrix(groupData["x1"]); parametric <- as.matrix(groupData["x2"])
+  ## a length that does not divide the rows, which would otherwise be refused by the assignment alone
+  short <- groupData$country[1:7]
+  pattern <- "one value for each row of data (60), but its length is 7"
+  
+  fitBare <- function(...)
+    bartc(y, z, x, group.by = short, n.samples = 10L, n.burn = 10L, n.chains = 1L, n.threads = 1L, n.trees = 10L,
+          verbose = FALSE, ...)
+  ## the propensity model first, the response model alone with method.trt = "none"
+  expect_error(fitBare(), pattern, fixed = TRUE)
+  expect_error(fitBare(method.trt = "none"), pattern, fixed = TRUE)
+  expect_error(fitBare(parametric = parametric), pattern, fixed = TRUE)
+  expect_error(fitBare(parametric = parametric, method.trt = "none"), pattern, fixed = TRUE)
+  ## and the grouping entered as a fixed effect
+  expect_error(fitBare(parametric = parametric, method.trt = "none", use.ranef = FALSE), pattern, fixed = TRUE)
+})
+
 test_that("predict reads the grouping column a resolved group.by was fit under", {
   skip_on_cran()
   skip_if_not_installed("stan4bart")
