@@ -487,7 +487,7 @@ test_that("the p.weight summary combines the posterior variance with a standard 
 ## evaluate them, 1 when not told, 2 when told to.
 evalATTStub <- function(Y, A, W, Q, g1W, obsWeights = NULL, ...) {
   told <- list(...)$evalATT
-  psi <- if (is.null(told)) 1 else if (isFALSE(told)) 0 else 2
+  psi <- if (is.null(told)) 1 else if (identical(told, FALSE)) 0 else 2
   est <- list(psi = psi, var.psi = 1)
   list(estimates = list(ATE = est, ATT = est, ATC = est))
 }

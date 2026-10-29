@@ -273,7 +273,8 @@ test_that("predict refuses a fit made by an earlier version and says to refit", 
   old[["name.p.score"]] <- NULL
   expect_false("name.p.score" %in% names(old))
   for (type in c("mu.0", "icate", "p.score"))
-    expect_error(predict(old, x.new, type = type), "made by an earlier version of bartCause.*refit it")
+    expect_error(predict(old, x.new, type = type),
+                 "made by an earlier version of bartCause.*refit it.*print, summary, extract, fitted and refit still read it")
   
   ## a fit with no score column still records that fact, as NULL
   none <- bartc(y, z, x, method.trt = "none", method.rsp = "bart", estimand = "att",
@@ -282,8 +283,12 @@ test_that("predict refuses a fit made by an earlier version and says to refit", 
   expect_true("name.p.score" %in% names(none))
   expect_equal(dim(predict(none, x.new, type = "mu.0")), c(7L, nrow(x.new)))
   
-  ## what the old fit holds still reads
+  ## what the old fit holds still reads, by each method the message names
   expect_equal(fitted(old), fitted(fit))
+  expect_equal(extract(old, "cate"), extract(fit, "cate"))
+  expect_equal(summary(old)$estimates, summary(fit)$estimates)
+  expect_output(print(old))
+  expect_true(inherits(refit(old, commonSup.rule = "sd"), "bartcFit"))
 })
 
 rm(testData, n.train, x, y, z, g, n.samples, n.chains, x.new, n.test)

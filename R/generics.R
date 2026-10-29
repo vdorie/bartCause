@@ -99,7 +99,7 @@ stopIfFitIsFromEarlierVersion <- function(object)
   if ("name.p.score" %not_in% names(object))
     stop("this fit was made by an earlier version of bartCause, with an earlier version of dbarts, ",
          "and predict cannot use it; refit it with the current versions. ",
-         "Estimates, extract and fitted still read it")
+         "print, summary, extract, fitted and refit still read it")
 }
 
 ## Saved trees are what predict replays, whichever sampler fit the model, and
