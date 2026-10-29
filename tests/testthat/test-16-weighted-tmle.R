@@ -481,3 +481,74 @@ test_that("the p.weight summary combines the posterior variance with a standard 
   ## the standard error is not on the unit interval: it is that of an estimate of the response's scale
   expect_gt(mean(se), 0.01 * diff(range(wdata$y)))
 })
+
+## tmle also evaluates the ATT and ATC unless told not to, which refits the treatment
+## mechanism for every draw. This stub's estimate says what it was told: 0 when told not to
+## evaluate them, 1 when not told, 2 when told to.
+evalATTStub <- function(Y, A, W, Q, g1W, obsWeights = NULL, ...) {
+  told <- list(...)$evalATT
+  psi <- if (is.null(told)) 1 else if (isFALSE(told)) 0 else 2
+  est <- list(psi = psi, var.psi = 1)
+  list(estimates = list(ATE = est, ATT = est, ATC = est))
+}
+environment(evalATTStub) <- baseenv()
+
+estimateOf <- function(est)
+  if (length(dim(est)) == 3L) as.vector(est[,,"est"]) else if (is.null(dim(est))) est[["est"]] else est[, "est"]
+
+test_that("tmle is told not to evaluate the ATT and ATC when the estimand is the ATE", {
+  for (weighted in c(TRUE, FALSE)) for (post in c(TRUE, FALSE)) {
+    for (estimand in c("att", "atc")) {
+      fit <- fitStub(evalATTStub, estimand = estimand, weighted = weighted, post = post)
+      expect_true(all(estimateOf(fit$est) == 1), label = paste(estimand, weighted, post))
+    }
+    fit <- fitStub(evalATTStub, estimand = "ate", weighted = weighted, post = post)
+    expect_true(all(estimateOf(fit$est) == 0), label = paste("ate", weighted, post))
+  }
+  
+  ## grouped estimates, and a refit, read the same draws
+  fit <- fitStub(evalATTStub, estimand = "ate", grouped = TRUE)
+  for (g in levels(wdata$grp)) expect_true(all(estimateOf(fit$est[[g]]) == 0), label = paste("group", g))
+  refit <- suppressWarnings(refit(fit, commonSup.rule = "none"))
+  expect_true(all(estimateOf(refit$est[[1L]]) == 0))
+  
+  ## in the workers, which are handed the same function
+  skip_on_cran()
+  fit <- fitStub(evalATTStub, estimand = "ate", n.threads = 2L)
+  expect_true(all(estimateOf(fit$est) == 0))
+  fit <- fitStub(evalATTStub, estimand = "att", n.threads = 2L)
+  expect_true(all(estimateOf(fit$est) == 1))
+})
+
+test_that("a tmle that has no such argument is called without it", {
+  ## stubTMLE1 takes exactly Y, A, W, Q and g1W, as tmle before 1.5
+  fit <- fitStub(stubTMLE1, weighted = FALSE, estimand = "ate")
+  expectRows(fit$est, seq_len(n), weighted = FALSE, label = "ate without evalATT")
+})
+
+test_that("the ATE that tmle gives is the same whether or not it also evaluates the ATT and ATC", {
+  skip_on_cran()
+  skip_if_not_installed("tmle")
+  
+  set.seed(16)
+  n.draws <- 2L
+  mu.hat.0 <- matrix(rnorm(n * n.draws, 0, 0.3), n, n.draws)
+  mu.hat.1 <- mu.hat.0 + 0.5 + matrix(rnorm(n * n.draws, 0, 0.1), n, n.draws)
+  ## skewed scores, which is where the ATT and ATC refit the treatment mechanism
+  p.score <- matrix(plogis(rnorm(n * n.draws, -1, 1.5)), n, n.draws)
+  y <- wdata$y
+  
+  for (weights in list(NULL, wdata$w)) {
+    got <- bartCause:::getTMLEEstimates(y, wdata$z, weights, "ate", mu.hat.0, mu.hat.1, p.score,
+                                        c(.005, .995), c(0.025, 0.975), 0.001, 20L, n.threads = 1L)
+    bounded <- bartCause:::boundValues(p.score, c(0.025, 0.975))
+    want <- t(sapply(seq_len(n.draws), function(i) {
+      args <- list(Y = y, A = wdata$z, W = matrix(0, n, 1L), Q = cbind(Q0W = mu.hat.0[,i], Q1W = mu.hat.1[,i]), g1W = bounded[,i])
+      if (!is.null(weights)) args <- c(args, list(obsWeights = weights, g.SL.library = c("SL.glm", "SL.gam")))
+      res <- suppressWarnings(do.call(tmle::tmle, args))
+      unlist(res$estimates$ATE[c("psi", "var.psi")])
+    }))
+    want[,2L] <- sqrt(want[,2L])
+    expect_equal(unname(got), unname(want), tolerance = 0, label = if (is.null(weights)) "unweighted" else "weighted")
+  }
+})

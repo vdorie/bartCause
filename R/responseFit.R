@@ -660,6 +660,16 @@ getTMLEEstimates <- function(
     tmle <- function(...) tmlePackage(..., obsWeights = weights, g.SL.library = c("SL.glm", "SL.gam"))
   }
   
+  ## Unless told otherwise tmle also estimates the ATT and ATC, which refits the
+  ## treatment mechanism with SuperLearner and, once a draw's scores are skewed,
+  ## is most of the time a draw takes - and a draw is taken for every posterior
+  ## sample. Only an estimand of "att" or "atc" reads them; the ATE does not
+  ## depend on them. A tmle without the argument is left alone.
+  if (!is.null(tmle) && estimand == "ate" && any(c("evalATT", "...") %in% names(formals(tmle)))) {
+    tmleWithATT <- tmle
+    tmle <- function(...) tmleWithATT(..., evalATT = FALSE)
+  }
+  
   if (!is.null(tmle)) {
     if (is.null(dim(mu.hat.0))) { 
       result <- tmle(Y = y, A = z, W = matrix(0, length(y), 1L), Q = cbind(Q0W = mu.hat.0, Q1W = mu.hat.1), g1W = p.score)

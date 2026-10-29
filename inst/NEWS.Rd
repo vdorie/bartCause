@@ -160,6 +160,12 @@
       \item \code{extract} on a fit dropped into R's debugger when the
             result's dimensions could not be read, rather than signalling an
             error.
+      \item \code{method.rsp = "tmle"} with \code{estimand = "ate"} no longer
+            has \pkg{tmle} also estimate the effects on the treated and on the
+            controls for each posterior draw. That refit the treatment
+            mechanism with \pkg{SuperLearner} whenever the propensity scores
+            were skewed, about 3 seconds a draw, hours at the default number of
+            draws; the estimates and standard errors are unchanged.
       \item \code{args.rsp} and \code{args.trt} can be a variable, or any
             expression that evaluates to a list, where only a list written out
             in the call was accepted and a variable failed with an error that
