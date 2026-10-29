@@ -50,6 +50,48 @@ test_that("p.score = <vector> gives a message naming p.scoreAsCovariate, not a l
   )
 })
 
+test_that("a logical subset and an expression subset fit with missing responses, as the rows do given as the data", {
+  set.seed(15)
+  n <- 80L
+  frame <- data.frame(x1 = rnorm(n), x2 = rnorm(n))
+  frame$z <- rbinom(n, 1, pnorm(0.5 * frame$x1))
+  frame$y <- frame$x1 + frame$z + rnorm(n)
+  frame$y[c(2L, 5L, 9L)] <- NA
+  keep <- frame$x1 > 0
+  ## rows kept hold a missing response, and so does one dropped
+  missingKept <- which(keep & is.na(frame$y))
+  stopifnot(length(missingKept) > 0L, any(!keep & is.na(frame$y)))
+  
+  fitWith <- function(method.trt, data = frame, subset) {
+    call <- bquote(bartc(y, z, x1 + x2, data = data, method.trt = .(method.trt), method.rsp = "bart",
+                         n.samples = 8L, n.burn = 5L, n.trees = 5L, n.chains = 1L, n.threads = 1L, verbose = FALSE,
+                         seed = 15L))
+    if (!missing(subset)) call$subset <- subset
+    eval(call)
+  }
+  
+  for (method.trt in c("bart", "none")) {
+    rows <- fitWith(method.trt, frame[keep,])
+    for (subset in list(quote(keep), quote(x1 > 0), quote(which(keep)), quote(-which(!keep)))) {
+      label <- paste(method.trt, deparse(subset))
+      fit <- fitWith(method.trt, subset = subset)
+      ## the complete rows are fit, and the missing ones are among those modeled
+      expect_equal(nrow(fit$data.rsp@x), sum(keep) - length(missingKept), label = label)
+      expect_equal(length(fit$trt), sum(keep), label = label)
+      expect_equal(length(fit$missingRows), sum(keep), label = label)
+      expect_equal(sum(fit$missingRows), length(missingKept), label = label)
+      expect_equal(fit$mu.hat.obs, rows$mu.hat.obs, label = label)
+      expect_equal(fit$mu.hat.cf, rows$mu.hat.cf, label = label)
+    }
+  }
+  
+  ## nothing is missing among the rows kept
+  clean <- which(keep & !is.na(frame$y))
+  fit <- fitWith("none", subset = quote(x1 > 0 & !is.na(y)))
+  expect_equal(sum(fit$missingRows), 0L)
+  expect_equal(length(fit$missingRows), length(clean))
+})
+
 test_that("a response with missing values leaves the caller's data as they were", {
   ## the rows with a missing response are found by writing into a copy of the data
   set.seed(15)

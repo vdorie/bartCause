@@ -180,8 +180,16 @@ getBartResponseFit <- function(response, treatment, confounders, parametric, dat
   dataValue <- eval(dbartsDataCall$data, envir = evalEnv)
   callSubset <- if (is.null(dbartsDataCall$subset)) seq_len(n) else
     eval(dbartsDataCall$subset, dataValue, evalEnv)
-  if (any(missingRows))
-    dbartsDataCall$subset <- intersect(callSubset, which(!missingRows))
+  missingRowsOfData <- missingRows
+  if (any(missingRows)) {
+    ## the rows modeled are those of the subset, as positions (a logical subset
+    ## is not), and the missing ones are counted among them alone
+    callSubset <- normalizeBCFSubset(callSubset, n, rownames(dataValue))
+    missingRows <- missingRows[callSubset]
+    n <- length(callSubset)
+    if (any(missingRows))
+      dbartsDataCall$subset <- callSubset[!missingRows]
+  }
   responseData <- eval(dbartsDataCall, envir = evalEnv)
   n.obs <- nrow(responseData@x)
 
@@ -191,9 +199,9 @@ getBartResponseFit <- function(response, treatment, confounders, parametric, dat
     ## for use later, in a copy of the data: evalEnv can be the caller's frame
     missingEnv <- new.env(parent = evalEnv)
     missingFrame <- dataValue
-    missingFrame[[deparse(dbartsDataCall[[2L]][[2L]])]] <- ifelse(missingRows, 0, NA)
+    missingFrame[[deparse(dbartsDataCall[[2L]][[2L]])]] <- ifelse(missingRowsOfData, 0, NA)
     missingEnv[[deparse(dbartsDataCall$data)]] <- missingFrame
-    dbartsDataCall$subset <- intersect(callSubset, which(missingRows))
+    dbartsDataCall$subset <- callSubset[missingRows]
     missingData <- eval(dbartsDataCall, envir = missingEnv)
     n.mis <- nrow(missingData@x)
   }
