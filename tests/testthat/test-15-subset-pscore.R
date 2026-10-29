@@ -49,3 +49,23 @@ test_that("p.score = <vector> gives a message naming p.scoreAsCovariate, not a l
     fixed = TRUE
   )
 })
+
+test_that("a response with missing values leaves the caller's data as they were", {
+  ## the rows with a missing response are found by writing into a copy of the data
+  set.seed(15)
+  n <- 40L
+  frame <- data.frame(x1 = rnorm(n), x2 = rnorm(n))
+  frame$z <- rbinom(n, 1, pnorm(0.5 * frame$x1))
+  frame$y <- frame$x1 + frame$z + rnorm(n)
+  frame$y[c(2L, 5L, 9L)] <- NA
+  yBefore <- frame$y
+  
+  bartc(y, z, x1 + x2, data = frame, method.trt = "none", n.samples = 8L, n.burn = 5L,
+        n.trees = 5L, n.chains = 1L, n.threads = 1L, verbose = FALSE)
+  expect_identical(frame$y, yBefore)
+  
+  expect_warning(bartc(y, z, x1 + x2, data = frame, p.scoreAsCovariate = FALSE, n.samples = 8L, n.burn = 5L,
+                       n.trees = 5L, n.chains = 1L, n.threads = 1L, verbose = FALSE),
+                 "propensity score not used unless included as covariate")
+  expect_identical(frame$y, yBefore)
+})

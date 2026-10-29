@@ -177,8 +177,9 @@ getBartResponseFit <- function(response, treatment, confounders, parametric, dat
   ## are carried through the test set below to recover their counterfactuals
   n <- length(missingRows)
   ## subset is read as the model frame reads it, within data first
+  dataValue <- eval(dbartsDataCall$data, envir = evalEnv)
   callSubset <- if (is.null(dbartsDataCall$subset)) seq_len(n) else
-    eval(dbartsDataCall$subset, eval(dbartsDataCall$data, envir = evalEnv), evalEnv)
+    eval(dbartsDataCall$subset, dataValue, evalEnv)
   if (any(missingRows))
     dbartsDataCall$subset <- intersect(callSubset, which(!missingRows))
   responseData <- eval(dbartsDataCall, envir = evalEnv)
@@ -186,11 +187,14 @@ getBartResponseFit <- function(response, treatment, confounders, parametric, dat
 
   missingData <- NULL
   if (any(missingRows)) {
-    ## replace response with inverted missing-ness so we can get a data object for use later
-    evalEnv[[deparse(dbartsDataCall$data)]][[deparse(dbartsDataCall[[2L]][[2L]])]] <-
-      ifelse(missingRows, 0, NA)
+    ## replace response with inverted missing-ness so we can get a data object
+    ## for use later, in a copy of the data: evalEnv can be the caller's frame
+    missingEnv <- new.env(parent = evalEnv)
+    missingFrame <- dataValue
+    missingFrame[[deparse(dbartsDataCall[[2L]][[2L]])]] <- ifelse(missingRows, 0, NA)
+    missingEnv[[deparse(dbartsDataCall$data)]] <- missingFrame
     dbartsDataCall$subset <- intersect(callSubset, which(missingRows))
-    missingData <- eval(dbartsDataCall, envir = evalEnv)
+    missingData <- eval(dbartsDataCall, envir = missingEnv)
     n.mis <- nrow(missingData@x)
   }
   
