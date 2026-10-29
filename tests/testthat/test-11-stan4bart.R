@@ -203,8 +203,26 @@ test_that("stan4bart runs chains in parallel only when the cluster is repaid", {
   expect_null(mapArgs(n.samples = 500L, n.burn = 500L, n.chains = 1L,
                       n.threads = 4L)[["cores"]])
   
-  # n.thin is stan4bart's skip: transitions per kept draw, draws unchanged
-  expect_equal(mapArgs(n.samples = 10L, n.burn = 5L, n.thin = 3L)[["skip"]], 3L)
+  # n.thin is stan4bart's skip: transitions per kept draw; dbarts keeps
+  # n.samples %/% n.thin of the draws asked for, so stan4bart is asked for that many
+  thinned <- mapArgs(n.samples = 13L, n.burn = 5L, n.thin = 3L)
+  expect_equal(thinned[["skip"]], 3L)
+  expect_equal(thinned[["iter"]], 9L)
+  expect_equal(thinned[["warmup"]], 5L)
+  expect_equal(mapArgs(n.samples = 13L, n.burn = 5L, n.thin = 1L)[["iter"]], 18L)
+  # a count or a skip written in stan4bart's own vocabulary is not divided
+  ownArgs <- function(call, ...)
+    bartCause:::addStan4BartSamplingArguments(
+      call, as.call(c(list(quote(f)), list(...))), environment())
+  
+  own <- ownArgs(quote(stan4bart::stan4bart(y ~ bart(x), iter = 7L)), n.samples = 13L, n.thin = 3L)
+  expect_equal(own[["iter"]], 7L)
+  expect_equal(own[["skip"]], 3L)
+  
+  own <- ownArgs(quote(stan4bart::stan4bart(y ~ bart(x), skip = 2L)),
+                 n.samples = 12L, n.burn = 5L, n.thin = 3L)
+  expect_equal(own[["iter"]], 17L)
+  expect_equal(own[["skip"]], 2L)
 })
 
 test_that("one-chain stan4bart readers keep a chain margin, as the bart path does", {
@@ -221,4 +239,92 @@ test_that("one-chain stan4bart readers keep a chain margin, as the bart path doe
   expect_equal(dim(extract(fit, "icate", "all", combineChains = FALSE)), c(1L, 10L, n.obs))
   expect_equal(dim(extract(fit, "mu.obs", "all", combineChains = FALSE)), c(1L, 10L, n.obs))
   expect_equal(dim(extract(fit, "icate", "all")), c(10L, n.obs))
+})
+
+test_that("n.thin keeps n.samples %/% n.thin draws on the stan4bart path, as on the dbarts path", {
+  skip_if_not_installed("stan4bart")
+  
+  withGroup <- bartc(y, z, X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10,
+                     data = test.df, group.by = g.1, verbose = FALSE, seed = 0, n.chains = 1L,
+                     n.threads = 1L, n.samples = 20L, n.burn = 10L, n.thin = 2L, n.trees = 5L)
+  without <- bartc(y, z, X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10,
+                   data = test.df, verbose = FALSE, seed = 0, n.chains = 1L,
+                   n.threads = 1L, n.samples = 20L, n.burn = 10L, n.thin = 2L, n.trees = 5L)
+  # the stan4bart fit keeps a chain margin that the dbarts fit drops for one chain
+  expect_equal(tail(dim(withGroup$mu.hat.obs), 2L), tail(dim(without$mu.hat.obs), 2L))
+  expect_equal(dim(extract(withGroup, "icate")), dim(extract(without, "icate")))
+  expect_equal(dim(extract(withGroup, "icate"))[1L], 10L)
+  
+  fit <- bartc(y, z, X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10,
+               data = test.df, group.by = g.1, verbose = FALSE, seed = 0, n.chains = 2L,
+               n.threads = 1L, n.samples = 20L, n.burn = 10L, n.thin = 2L, n.trees = 5L)
+  for (component in list(fit$fit.rsp, fit$fit.trt))
+    expect_equal(dim(component$stan)[2L:3L], c(10L, 2L))
+  expect_equal(fit$fit.rsp$call$skip, 2L)
+})
+
+test_that("keepTrees reaches both stan4bart fits, so predict works with group.by", {
+  skip_if_not_installed("stan4bart")
+  
+  checkPredict <- function(fit) {
+    expect_equal(fit$fit.rsp$call$bart_args$keepTrees, TRUE)
+    expect_equal(fit$fit.trt$call$bart_args$keepTrees, TRUE)
+    
+    icate.train <- extract(fit, type = "icate")
+    icate.test  <- predict(fit, test.df, type = "icate", group.by = test.df$g.1)
+    expect_true(sqrt(mean((icate.train - icate.test)^2)) <= 1e-10)
+    
+    p.score.train <- extract(fit, type = "p.score")
+    p.score.test  <- predict(fit, test.df, type = "p.score", group.by = test.df$g.1)
+    expect_true(sqrt(mean((p.score.train - p.score.test)^2)) <= 1e-10)
+  }
+  
+  # through the dots, and through the response's and treatment's own lists
+  checkPredict(bartc(y, z, X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10,
+                     data = test.df, group.by = g.1, verbose = FALSE, seed = 0, n.chains = 2L,
+                     n.threads = 1L, n.samples = 10L, n.burn = 5L, n.trees = 5L, keepTrees = TRUE))
+  checkPredict(bartc(y, z, X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10,
+                     data = test.df, group.by = g.1, verbose = FALSE, seed = 0, n.chains = 2L,
+                     n.threads = 1L, n.samples = 10L, n.burn = 5L, n.trees = 5L,
+                     args.rsp = list(keepTrees = TRUE), args.trt = list(keepTrees = TRUE)))
+  
+  # next to a bart_args the caller wrote, keepTrees is added to it
+  fit <- bartc(y, z, X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10,
+               data = test.df, group.by = g.1, verbose = FALSE, seed = 0, n.chains = 2L,
+               n.threads = 1L, n.samples = 10L, n.burn = 5L, keepTrees = TRUE,
+               bart_args = list(n.trees = 6L))
+  expect_equal(fit$fit.rsp$call$bart_args, quote(list(n.trees = 6L, keepTrees = TRUE)))
+  
+  # without it, the message names the argument bartc takes
+  fit <- bartc(y, z, X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10,
+               data = test.df, group.by = g.1, verbose = FALSE, seed = 0, n.chains = 2L,
+               n.threads = 1L, n.samples = 10L, n.burn = 5L, n.trees = 5L)
+  expect_error(predict(fit, test.df, type = "icate", group.by = test.df$g.1),
+               "response model to be fit with keepTrees = TRUE; pass keepTrees = TRUE to bartc")
+  fit <- bartc(y, z, X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10,
+               data = test.df, group.by = g.1, verbose = FALSE, seed = 0, n.chains = 2L,
+               n.threads = 1L, n.samples = 10L, n.burn = 5L, n.trees = 5L,
+               args.rsp = list(keepTrees = TRUE))
+  expect_error(predict(fit, test.df, type = "icate", group.by = test.df$g.1),
+               "treatment model to be fit with keepTrees = TRUE; pass keepTrees = TRUE to bartc")
+})
+
+test_that("weights with group.by raise no warning about the counterfactual rows", {
+  skip_if_not_installed("stan4bart")
+  
+  weighted <- cbind(test.df, wt = seq(0.5, 2, length.out = nrow(test.df)))
+  
+  expect_warning(
+    fit <- bartc(y, z, X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10,
+                 data = weighted, group.by = g.1, weights = wt, verbose = FALSE, seed = 0,
+                 n.chains = 1L, n.threads = 1L, n.samples = 10L, n.burn = 5L, n.trees = 5L),
+    NA)
+  expect_equal(fit$fit.rsp$test$frame[["(weights)"]], weighted$wt)
+  
+  # the same with the weights as a vector outside of any data
+  expect_warning(
+    bartc(weighted$y, weighted$z, weighted[paste0("X", 1:10)], group.by = weighted$g.1,
+          weights = weighted$wt, verbose = FALSE, seed = 0, n.chains = 1L,
+          n.threads = 1L, n.samples = 10L, n.burn = 5L, n.trees = 5L),
+    NA)
 })

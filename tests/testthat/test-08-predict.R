@@ -206,7 +206,8 @@ test_that("predict enforces method/keepTrees preconditions", {
   fit.nokeep <- bartc(y, z, x, method.trt = "glm", method.rsp = "bart",
                       n.chains = 1L, n.threads = 1L, n.burn = 0L, n.samples = 7L, n.trees = 13L,
                       verbose = FALSE)
-  expect_error(predict(fit.nokeep, x.new, type = "mu.0"), "keepTrees == TRUE")
+  expect_error(predict(fit.nokeep, x.new, type = "mu.0"),
+               "response model to be fit with keepTrees = TRUE; pass keepTrees = TRUE to bartc")
 
   fit.none <- bartc(y, z, x, method.trt = "none", method.rsp = "bart", estimand = "att",
                     n.chains = 1L, n.threads = 1L, n.burn = 0L, n.samples = 7L, n.trees = 13L,
@@ -259,6 +260,30 @@ test_that("predict resolves the propensity score column from the fit, not by nam
   destroyed[["psps"]] <- scores
   expect_false(isTRUE(all.equal(predict(fit$fit.rsp, correct, combineChains = FALSE),
                                 predict(fit$fit.rsp, destroyed, combineChains = FALSE))))
+})
+
+test_that("predict refuses a fit made by an earlier version and says to refit", {
+  fit <- bartc(y, z, x, method.trt = "bart", method.rsp = "bart",
+               n.chains = 1L, n.threads = 1L, n.burn = 0L, n.samples = 7L, n.trees = 13L,
+               keepTrees = TRUE, verbose = FALSE)
+  expect_equal(dim(predict(fit, x.new, type = "mu.0")), c(7L, nrow(x.new)))
+  
+  ## the fits of 1.0-10 and before carry no name for the score column
+  old <- fit
+  old[["name.p.score"]] <- NULL
+  expect_false("name.p.score" %in% names(old))
+  for (type in c("mu.0", "icate", "p.score"))
+    expect_error(predict(old, x.new, type = type), "made by an earlier version of bartCause.*refit it")
+  
+  ## a fit with no score column still records that fact, as NULL
+  none <- bartc(y, z, x, method.trt = "none", method.rsp = "bart", estimand = "att",
+                n.chains = 1L, n.threads = 1L, n.burn = 0L, n.samples = 7L, n.trees = 13L,
+                keepTrees = TRUE, verbose = FALSE)
+  expect_true("name.p.score" %in% names(none))
+  expect_equal(dim(predict(none, x.new, type = "mu.0")), c(7L, nrow(x.new)))
+  
+  ## what the old fit holds still reads
+  expect_equal(fitted(old), fitted(fit))
 })
 
 rm(testData, n.train, x, y, z, g, n.samples, n.chains, x.new, n.test)

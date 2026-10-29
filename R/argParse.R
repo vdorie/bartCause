@@ -479,14 +479,23 @@ addStan4BartSamplingArguments <- function(call, args, env, defaultChains = 10L)
     if (is.null(n.samples)) n.samples <- eval(formals(dbarts::bart)$n.samples)
     if (is.null(n.burn))    n.burn    <- eval(formals(dbarts::bart)$n.burn)
     
-    call[["iter"]] <- as.integer(n.samples) + as.integer(n.burn)
+    ## dbarts' n.samples is a sweep budget of which n.samples %/% n.thin draws
+    ## are kept, whereas every one of stan4bart's post-warmup iterations is
+    ## kept, so the budget is divided here
+    n.thin <- getArg("n.thin")
+    n.kept <- as.integer(n.samples)
+    ## an unusable n.thin is left for stan4bart's check of 'skip' to refuse
+    if (is.null(call[["skip"]]) && is.numeric(n.thin) && length(n.thin) == 1L && !is.na(n.thin) && n.thin >= 1)
+      n.kept <- n.kept %/% as.integer(n.thin)
+    
+    call[["iter"]] <- n.kept + as.integer(n.burn)
     if (is.null(call[["warmup"]])) call[["warmup"]] <- as.integer(n.burn)
   } else if (is.null(call[["warmup"]]) && !is.null(n.burn)) {
     call[["warmup"]] <- as.integer(n.burn)
   }
   
   ## 'skip' is dbarts' 'n.thin' for both blocks - that many transitions per kept
-  ## draw, leaving the number of draws returned alone
+  ## draw
   n.thin <- getArg("n.thin")
   if (is.null(call[["skip"]]) && !is.null(n.thin))
     call[["skip"]] <- as.integer(n.thin)
@@ -514,7 +523,7 @@ addStan4BartSamplingArguments <- function(call, args, env, defaultChains = 10L)
   
   ## the tree prior reaches stan4bart's forest through 'bart_args'; a bart_args
   ## that is not a literal list is the caller's own object and is left as given
-  bartArgNames <- c("n.trees", "k", "power", "base")
+  bartArgNames <- c("n.trees", "k", "power", "base", "keepTrees")
   bartArgNames <- bartArgNames[bartArgNames %in% argNames]
   if (length(bartArgNames) > 0L) {
     bartArgs <- call[["bart_args"]]

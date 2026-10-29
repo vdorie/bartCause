@@ -88,6 +88,27 @@ getEstimateSamples <- function(samples.indiv.diff, treatmentRows, weights, estim
   samples.est
 }
 
+## A fit saved by bartCause 1.0-10 or earlier holds samplers from an earlier
+## dbarts that this one cannot replay, and it predates the recorded name of the
+## propensity score column; every fit made since records that name, even when
+## it is NULL, so its absence marks the old ones, and the failure that follows
+## without this check (a missing 'ps' column, a missing slot in a dbarts
+## object) does not say what to do.
+stopIfFitIsFromEarlierVersion <- function(object)
+{
+  if ("name.p.score" %not_in% names(object))
+    stop("this fit was made by an earlier version of bartCause, with an earlier version of dbarts, ",
+         "and predict cannot use it; refit it with the current versions. ",
+         "Estimates, extract and fitted still read it")
+}
+
+## Saved trees are what predict replays, whichever sampler fit the model, and
+## bartc's 'keepTrees' reaches both the dbarts and the stan4bart fits, so it is
+## the one argument to name.
+noTreesMessage <- function(model, method)
+  paste0("predict with ", method, " requires the ", model, " model to be fit with keepTrees = TRUE; ",
+         "pass keepTrees = TRUE to bartc")
+
 predict.bartcFit <-
   function(object, newdata,
            group.by,
@@ -95,6 +116,8 @@ predict.bartcFit <-
            combineChains = TRUE, ...)
 {
   matchedCall <- match.call()
+  
+  stopIfFitIsFromEarlierVersion(object)
   
   if (!is.character(type) || type[1L] %not_in% eval(formals(predict.bartcFit)$type))
     stop("type must be in '", paste0(eval(formals(predict.bartcFit)$type), collapse = "', '"), "'")
@@ -108,10 +131,8 @@ predict.bartcFit <-
     if (object$method.rsp != "bart")
       stop("predict(type = '", type, "', ...) requires method.rsp == 'bart'; other methods not designed to make individual predictions")
     
-    if (inherits(object$fit.rsp, "stan4bartFit") && is.null(object$fit.rsp$sampler.bart))
-      stop("predict with method.rsp = 'bart' and parametric argument requires response model to be fit with bart_args = list(keepTrees == TRUE)")
-    if (!inherits(object$fit.rsp, "stan4bartFit") && is.null(object$fit.rsp$fit))
-      stop("predict with method.rsp = 'bart' requires response model to be fit with keepTrees == TRUE")
+    if (is.null(if (inherits(object$fit.rsp, "stan4bartFit")) object$fit.rsp$sampler.bart else object$fit.rsp$fit))
+      stop(noTreesMessage("response", "method.rsp = 'bart'"))
     
     ## the column the response fitter put the score in, taken from the fit
     ## rather than re-derived: a name ladder over the design columns cannot
@@ -155,10 +176,8 @@ predict.bartcFit <-
         p.score <- predict(object$fit.trt, x.new, type = "response", ...)
       }
     } else {
-      if (inherits(object$fit.trt, "stan4bartFit") && is.null(object$fit.trt$sampler.bart))
-        stop("predict with method.trt = '", object$method.trt, "' and a parametric argument requires treatment model to be fit with bart_args = list(keepTrees == TRUE)")
-      if (!inherits(object$fit.trt, "stan4bartFit") && is.null(object$fit.trt$fit))
-        stop("predict with method.trt = '", object$method.trt, "' requires treatment model to be fit with keepTrees == TRUE")
+      if (is.null(if (inherits(object$fit.trt, "stan4bartFit")) object$fit.trt$sampler.bart else object$fit.trt$fit))
+        stop(noTreesMessage("treatment", paste0("method.trt = '", object$method.trt, "'")))
       
       x.new.trt <- x.new
       if (!is.null(object[["group.by"]])) {

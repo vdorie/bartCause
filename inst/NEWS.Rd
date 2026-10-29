@@ -53,6 +53,11 @@
             when \code{weights} are supplied they are ignored in the propensity
             fit, with a message, and enter only the treatment effect
             estimators.
+      \item A fit saved by 1.0-10 or earlier cannot be used by \code{predict}
+            in this version, whose \pkg{dbarts} cannot replay its saved trees;
+            \code{predict} says so and asks for a refit, where it used to stop
+            on a missing column. \code{print}, \code{summary}, \code{extract},
+            \code{fitted} and \code{refit} still read such a fit.
       \item \code{extract} and \code{predict} with \code{combineChains = FALSE}
             now keep a leading chain dimension of length one for a
             single-chain fit, as \pkg{dbarts} does: scalar quantities are a 1
