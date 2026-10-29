@@ -41,7 +41,8 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
   }
   \item{data}{
     An optional data frame or named list containing the \code{response},
-    \code{treatment}, and \code{confounders}.
+    \code{treatment}, and \code{confounders}. It is passed by name, as in
+    \code{data = d}: the fourth argument of \code{bartc} is \code{parametric}.
   }
   \item{subset}{
     An optional vector using to subset the data. Can refer to \code{data} if
@@ -85,7 +86,11 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
   }
   \item{group.by}{
     An optional factor that, when present, causes the treatment effect estimate
-    to be calculated within each group.
+    to be calculated within each group. It is a column of \code{data} given by
+    its bare name, as in \code{group.by = country}, or an expression of the
+    columns and of variables in the calling frame, such as
+    \code{as.factor(country)} or \code{dat[[name]]}, that has one value for each
+    row; a string naming a column is refused.
   }
   \item{commonSup.rule}{
     Rule for exclusion of observations lacking in common support. Options are
@@ -152,7 +157,9 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
     Further arguments to the treatment and response model fitting algorithms.
     Arguments passed to the main function as \dots will be used in both models.
     \code{args.rsp} and \code{args.trt} can be used to set parameters in a
-    single fit, and will override other values. See \code{\link{glm}} and
+    single fit, and will override other values. Each is a named list, written
+    out in the call or held in a variable or an expression that evaluates to
+    one. See \code{\link{glm}} and
     \code{\link[dbarts]{bart}} for reference. Semiparametric models are fit by
     \code{\link[stan4bart]{stan4bart}}, which names its sampling arguments
     differently; the \code{\link[dbarts]{bart}} spellings are translated for
