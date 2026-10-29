@@ -68,8 +68,54 @@ test_that("a retired name and its successor together are refused, naming both", 
                "'power', 'base' and 'tree.prior' cannot both be given")
   expect_error(smallFit(method.trt = "none", family = quote(gaussian(sigma = fixed(1))), sigdf = 4),
                "'sigdf' and 'family' cannot both be given")
-  expect_error(smallFit(method.trt = "none", seed = 3L, rngSeed = 4L),
+  ## both in one list reach the fit together
+  expect_error(smallFit(method.trt = "none", args.rsp = quote(list(seed = 3L, rngSeed = 4L))),
                "'rngSeed' and 'seed' cannot both be given")
+})
+
+test_that("a retired name beside its successor in args.rsp or args.trt is overridden by the list entry", {
+  ## the list governs, as it does for any other argument
+  prior <- "dbarts::dbartsPriors$cgm(2, 0.9)"
+  listOnly <- smallFit(method.trt = "none", seed = 7L, args.rsp = str2lang(sprintf("list(tree.prior = %s)", prior)))
+  fit <- smallFit(method.trt = "none", seed = 7L, power = 1.5, base = 0.7,
+                  args.rsp = str2lang(sprintf("list(tree.prior = %s)", prior)))
+  expect_equal(treePrior(fit$fit.rsp), c(power = 2, base = 0.9))
+  expect_equal(fit$mu.hat.obs, listOnly$mu.hat.obs)
+  
+  ## and the other way about: the retired name in the list, the successor beside it
+  fit <- smallFit(method.trt = "none", tree.prior = quote(cgm(2, 0.9)), args.rsp = quote(list(power = 1.5)))
+  expect_equal(treePrior(fit$fit.rsp)[["power"]], 1.5)
+  
+  fit <- smallFit(args.trt = str2lang(sprintf("list(tree.prior = %s)", prior)), power = 1.5)
+  expect_equal(treePrior(fit$fit.trt), c(power = 2, base = 0.9))
+  expect_equal(treePrior(fit$fit.rsp)[["power"]], 1.5)
+  
+  ## each set of retired names has its successor, in either direction
+  drop <- bartCause:::dropOverriddenSpellings
+  call <- quote(f(a = 1, power = 1, base = 2, split.probs = 3, sigdf = 4, sigquant = 5, rngSeed = 6, tree.prior = 7))
+  expect_equal(names(drop(call, "tree.prior")), c("", "a", "sigdf", "sigquant", "rngSeed", "tree.prior"))
+  expect_equal(names(drop(call, "family")), c("", "a", "power", "base", "split.probs", "rngSeed", "tree.prior"))
+  expect_equal(names(drop(call, "seed")), c("", "a", "power", "base", "split.probs", "sigdf", "sigquant", "tree.prior"))
+  expect_equal(names(drop(call, "base")), c("", "a", "power", "base", "split.probs", "sigdf", "sigquant", "rngSeed"))
+  expect_equal(names(drop(quote(f(sigdf = 1, family = 2)), "sigquant")), c("", "sigdf"))
+  expect_equal(names(drop(quote(f(sigdf = 1, family = 2)), "n.trees")), c("", "sigdf", "family"))
+  
+  ## each of the pair given beside the other in the call is still refused
+  expect_error(smallFit(method.trt = "none", power = 1.5, tree.prior = quote(cgm(2, 0.9))),
+               "'power' and 'tree.prior' cannot both be given")
+})
+
+test_that("bartc's own seed governs where rngSeed is also given, as in 1.0-10", {
+  draws <- function(...) smallFit(method.trt = "none", ...)$mu.hat.obs
+  expect_warning(both <- draws(seed = 3L, rngSeed = 4L),
+                 "arguments not used: 'rngSeed' \\(seed gives each fit its own seed, which governs\\)")
+  expect_equal(both, draws(seed = 3L))
+  expect_false(isTRUE(all.equal(both, suppressWarnings(draws(seed = 5L, rngSeed = 4L)))))
+  
+  ## also when the rngSeed is in args.rsp or args.trt
+  expect_warning(inList <- draws(seed = 3L, args.rsp = quote(list(rngSeed = 4L))), "'rngSeed'")
+  expect_equal(inList, draws(seed = 3L))
+  expect_warning(smallFit(seed = 3L, args.trt = quote(list(rngSeed = 4L))), "'rngSeed'")
 })
 
 test_that("rngSeed is the seed of the fit", {
@@ -98,6 +144,22 @@ test_that("an argument that does not reach the sampler is named in one warning",
   expect_warning(smallFit(power = 1.5, base = 0.7, sigdf = 7, sigquant = 0.5, rngSeed = 3L,
                           args.trt = quote(list(power = 1.2))), NA)
   expect_warning(smallFit(), NA)
+})
+
+test_that("an argument of dbartsControl is not reported as unused by the propensity fit", {
+  ## proposal.probs, which dbarts takes through bart's '...', was named as unused
+  ## for the propensity model alone
+  warned <- character()
+  withCallingHandlers(
+    smallFit(proposal.probs = c(birth_death = 0.6, swap = 0, change = 0.4, birth = 0.5)),
+    warning = function(w) {
+      warned <<- c(warned, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    })
+  expect_false(any(grepl("arguments not used", warned, fixed = TRUE)))
+  
+  ## one that neither takes is still named
+  expect_warning(smallFit(method.rsp = "p.weight", foo = 1), "arguments not used: 'foo'")
 })
 
 test_that("sigdf and sigquant are named as unused where stan4bart fits the response", {
@@ -134,19 +196,3 @@ test_that("arguments for the response method are not reported by the propensity 
                        bart_args = list(n.trees = 7L), verbose = FALSE),
                  NA)
 })
-test_that("an argument of dbartsControl is not reported as unused by the propensity fit", {
-  ## proposal.probs, which dbarts takes through bart's '...', was named as unused
-  ## for the propensity model alone
-  warned <- character()
-  withCallingHandlers(
-    smallFit(proposal.probs = c(birth_death = 0.6, swap = 0, change = 0.4, birth = 0.5)),
-    warning = function(w) {
-      warned <<- c(warned, conditionMessage(w))
-      invokeRestart("muffleWarning")
-    })
-  expect_false(any(grepl("arguments not used", warned, fixed = TRUE)))
-  
-  ## one that neither takes is still named
-  expect_warning(smallFit(method.rsp = "p.weight", foo = 1), "arguments not used: 'foo'")
-})
-

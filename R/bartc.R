@@ -69,6 +69,16 @@ bartc <- function(
     set.seed(seed)
   }
   
+  ## each fit is given a seed drawn from this one, which governs where an
+  ## rngSeed is also given, as in 1.0-10; the fits would refuse the pair
+  rngSeedIgnored <- FALSE
+  dropRngSeed <- function(call) {
+    if (is.na(seed) || is.null(call[["rngSeed"]])) return(call)
+    rngSeedIgnored <<- TRUE
+    call[["rngSeed"]] <- NULL
+    call
+  }
+  
   ## the grouping factor is resolved once, so the treatment fit, the response
   ## fit and the group-level estimands all see the same levels; the call keeps
   ## the user's expression, which is what the model formulas name
@@ -99,6 +109,7 @@ bartc <- function(
     if (!is.null(treatmentCall)) {
       if (!is.null(args.trt) && length(args.trt) > 0L)
         treatmentCall <- addArgsList(treatmentCall, matchedCall[["args.trt"]], args.trt, "args.trt")
+      treatmentCall <- dropRngSeed(treatmentCall)
     
       if (!is.null(treatmentCall[["crossvalidate"]]))
         treatmentCall[["crossvalidate"]] <- if (is.logical(crossvalidate)) crossvalidate else crossvalidate == "trt"
@@ -170,6 +181,9 @@ bartc <- function(
   
   if (!is.null(args.rsp) && length(args.rsp) > 0L)
     responseCall <- addArgsList(responseCall, matchedCall[["args.rsp"]], args.rsp, "args.rsp")
+  responseCall <- dropRngSeed(responseCall)
+  if (rngSeedIgnored)
+    warnArgumentsNotUsed(c(rngSeed = "seed gives each fit its own seed, which governs"))
   
   ## crossvalidation tunes the tree prior with xbart, which has no multi-forest
   ## form; refuse it here rather than let the argument reach the fitter as a

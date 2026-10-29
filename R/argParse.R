@@ -748,6 +748,7 @@ responseMethodArguments <- function()
 addArgsList <- function(call, argsExpr, args, argName)
 {
   if (is.call(argsExpr) && identical(argsExpr[[1L]], quote(list))) {
+    call <- dropOverriddenSpellings(call, names(argsExpr)[-1L])
     call[names(argsExpr)[-1L]] <- argsExpr[-1L]
     return(call)
   }
@@ -758,11 +759,34 @@ addArgsList <- function(call, argsExpr, args, argName)
   if (is.null(argNames) || anyNA(argNames) || any(argNames == ""))
     stop("every element of '", argName, "' must be named for the argument it gives", call. = FALSE)
   
+  call <- dropOverriddenSpellings(call, argNames)
   for (i in seq_along(args)) {
     value <- args[i]
     if (is.language(value[[1L]])) value[[1L]] <- call("quote", value[[1L]])
     call[argNames[i]] <- value
   }
+  call
+}
+
+## The list overrides what the fit was given among bartc's other arguments, and
+## a retired name and its successor, which translateRetiredBartArguments
+## refuses together, are one argument spelled two ways: where the list gives
+## one, the other is taken out of the call so that the list entry governs.
+retiredSpellings <- list(tree.prior = c("power", "base", "split.probs"),
+                         family     = c("sigdf", "sigquant"),
+                         seed       = "rngSeed")
+dropOverriddenSpellings <- function(call, listNames)
+{
+  overridden <- character()
+  for (successor in names(retiredSpellings)) {
+    retired <- retiredSpellings[[successor]]
+    if (successor %in% listNames)
+      overridden <- c(overridden, retired)
+    else if (any(retired %in% listNames))
+      overridden <- c(overridden, successor)
+  }
+  for (name in intersect(setdiff(overridden, listNames), names(call)))
+    call[[name]] <- NULL
   call
 }
 
