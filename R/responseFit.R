@@ -176,7 +176,9 @@ getBartResponseFit <- function(response, treatment, confounders, parametric, dat
   ## restrict the training data to the complete cases ourselves; the missing rows
   ## are carried through the test set below to recover their counterfactuals
   n <- length(missingRows)
-  callSubset <- if (is.null(dbartsDataCall$subset)) seq_len(n) else eval(dbartsDataCall$subset, envir = evalEnv)
+  ## subset is read as the model frame reads it, within data first
+  callSubset <- if (is.null(dbartsDataCall$subset)) seq_len(n) else
+    eval(dbartsDataCall$subset, eval(dbartsDataCall$data, envir = evalEnv), evalEnv)
   if (any(missingRows))
     dbartsDataCall$subset <- intersect(callSubset, which(!missingRows))
   responseData <- eval(dbartsDataCall, envir = evalEnv)

@@ -38,7 +38,12 @@ getGroupBy <- function(data, subset, group.by)
   if (!dataAreMissing && is.data.frame(data))
     checkGroupByLength(group.by, nrow(data), data)
   
-  if (!subsetIsMissing) group.by <- group.by[subset]
+  ## subset is read as the model frame reads it, within data first, so an
+  ## expression of columns does not have to be found in the caller's frame
+  if (!subsetIsMissing) {
+    subset <- if (dataAreMissing) subset else eval(matchedCall$subset, envir = data, enclos = parent.frame())
+    group.by <- group.by[subset]
+  }
   
   as.factor(group.by)
 }

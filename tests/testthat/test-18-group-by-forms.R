@@ -136,6 +136,53 @@ test_that("group.by as an expression with a glm treatment model and with a subse
   expect_equal(as.character(groupingOf(fit, "fit.rsp")), as.character(groupData$country[keep]))
 })
 
+test_that("subset written as an expression of the columns of data fits with group.by, modeled or not", {
+  skip_on_cran()
+  skip_if_not_installed("stan4bart")
+  
+  ## the expression is read within data, as the model frame reads it, and
+  ## no variable of the calling frame is called x1
+  keep <- groupData$x1 > -0.5
+  for (use.ranef in c(TRUE, FALSE)) {
+    label <- paste("use.ranef =", use.ranef)
+    given <- fitWith(quote(country), subset = keep, use.ranef = use.ranef)
+    fit <- fitWith(quote(country), subset = quote(x1 > -0.5), use.ranef = use.ranef)
+    
+    expect_equal(inherits(fit$fit.rsp, "stan4bartFit"), use.ranef, label = label)
+    expect_equal(length(fit$p.score), sum(keep), label = label)
+    expect_equal(fit$group.by, groupData$country[keep], label = label)
+    ## the rows are the same as when the logical vector is given
+    expect_equal(fit$group.by, given$group.by, label = label)
+    expect_equal(fit$mu.hat.obs, given$mu.hat.obs, label = label)
+    expect_equal(fit$p.score, given$p.score, label = label)
+  }
+  
+  ## it is also read in the calling frame where data has no such column
+  localCut <- function(dat) {
+    threshold <- -0.5
+    bartc(response = y, treatment = z, confounders = x1 + x2, data = dat, group.by = country, subset = x1 > threshold,
+          n.samples = 10L, n.burn = 10L, n.chains = 1L, n.threads = 1L, n.trees = 10L, verbose = FALSE, seed = 18L)
+  }
+  expect_equal(localCut(groupData)$group.by, groupData$country[keep])
+  
+  ## and group.by as an expression, with a glm treatment model
+  skip_if_not_installed("lme4")
+  fit <- fitWith(quote(as.factor(country)), subset = quote(x1 > -0.5), method.trt = "glm")
+  expect_equal(fit$group.by, groupData$country[keep])
+})
+
+test_that("subset written as an expression of the columns of data fits without group.by", {
+  skip_on_cran()
+  
+  keep <- groupData$x1 > -0.5
+  for (method.trt in c("bart", "glm", "none")) {
+    given <- fitWith(NULL, subset = keep, method.trt = method.trt)
+    fit <- fitWith(NULL, subset = quote(x1 > -0.5), method.trt = method.trt)
+    expect_equal(nrow(fit$data.rsp@x), sum(keep), label = method.trt)
+    expect_equal(fit$mu.hat.obs, given$mu.hat.obs, label = method.trt)
+  }
+})
+
 test_that("predict reads the grouping column a resolved group.by was fit under", {
   skip_on_cran()
   skip_if_not_installed("stan4bart")
