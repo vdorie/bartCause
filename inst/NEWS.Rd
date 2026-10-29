@@ -60,10 +60,14 @@
             \code{sigquant} for a binary response or a model fit by
             \pkg{stan4bart}, which draws the residual standard deviation
             itself, and \code{rngKind} and \code{rngNormalKind}, which
-            \pkg{dbarts} 1.0-0 no longer has. Giving \code{power},
-            \code{base}, \code{split.probs}, \code{sigdf} or
+            \pkg{dbarts} 1.0-0 no longer has, and \code{rngSeed} given with
+            \code{seed}, which governs as it did in 1.0-10. Giving
+            \code{power}, \code{base}, \code{split.probs}, \code{sigdf} or
             \code{sigquant} together with the \code{tree.prior} or
-            \code{family} that replaces it in \pkg{dbarts} is an error.
+            \code{family} that replaces it in \pkg{dbarts}, in the call or in
+            one of \code{args.rsp} and \code{args.trt}, is an error; where
+            \code{args.rsp} or \code{args.trt} gives one of the pair and the
+            call the other, the list's entry governs.
       \item A fit saved by 1.0-10 or earlier cannot be used by \code{predict}
             in this version, whose \pkg{dbarts} cannot replay its saved trees;
             \code{predict} says so and asks for a refit, where it used to stop
@@ -181,8 +185,16 @@
       \item \code{subset} written as an expression of the columns of
             \code{data}, such as \code{subset = x1 > 0}, is read within
             \code{data}, as a model frame reads it. It failed with an error
-            that the column was not found with \code{group.by} and, when the
-            response was fit by \pkg{dbarts}, without it.
+            that the column was not found with \code{group.by}.
+      \item \code{subset} with a response that has missing values, fit by
+            \pkg{dbarts}, failed with an error; the rows modeled are now those
+            of the subset, the missing ones among them being given
+            counterfactual estimates as without a subset.
+      \item A response with missing values, fit by \pkg{dbarts} without
+            the propensity score as a covariate (\code{method.trt = "none"}
+            or \code{p.scoreAsCovariate = FALSE}), replaced the response
+            column of \code{data} in the calling frame with zeros and
+            missing values.
     }
   }
 }
