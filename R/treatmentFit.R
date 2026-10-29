@@ -178,10 +178,12 @@ getBartTreatmentFit <- function(response, treatment, confounders, parametric, da
     notUsed   <- translated$notUsed[names(translated$notUsed) %not_in% c("sigdf", "sigquant")]
     
     extraNames <- names(extraArgs)
+    ## dbartsControl's arguments reach the sampler through bart's '...'
     dropped <- extraNames[-1L][extraNames[-1L] != "" &
                                extraNames[-1L] %not_in% names(formals(dbarts::bart)) &
+                               extraNames[-1L] %not_in% names(formals(dbarts::dbartsControl)) &
                                extraNames[-1L] %not_in% c(names(formals(getBartTreatmentFit)), responseMethodArguments())]
-    notUsed[dropped] <- "not an argument of dbarts::bart"
+    notUsed[dropped] <- "not an argument of dbarts::bart or dbartsControl"
     warnArgumentsNotUsed(notUsed)
   }
   bartCall <- addCallArguments(bartCall, extraArgs)

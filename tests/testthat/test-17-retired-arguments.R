@@ -88,7 +88,7 @@ test_that("an argument that does not reach the sampler is named in one warning",
   
   ## the propensity model says the same of the arguments it is given
   expect_warning(smallFit(args.trt = quote(list(foo = 1))),
-                 "'foo' \\(not an argument of dbarts::bart\\)")
+                 "'foo' \\(not an argument of dbarts::bart or dbartsControl\\)")
   
   ## a binary response has no residual scale to give a prior
   expect_warning(smallFit(y.binary, method.trt = "none", sigdf = 4),
@@ -134,3 +134,19 @@ test_that("arguments for the response method are not reported by the propensity 
                        bart_args = list(n.trees = 7L), verbose = FALSE),
                  NA)
 })
+test_that("an argument of dbartsControl is not reported as unused by the propensity fit", {
+  ## proposal.probs, which dbarts takes through bart's '...', was named as unused
+  ## for the propensity model alone
+  warned <- character()
+  withCallingHandlers(
+    smallFit(proposal.probs = c(birth_death = 0.6, swap = 0, change = 0.4, birth = 0.5)),
+    warning = function(w) {
+      warned <<- c(warned, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    })
+  expect_false(any(grepl("arguments not used", warned, fixed = TRUE)))
+  
+  ## one that neither takes is still named
+  expect_warning(smallFit(method.rsp = "p.weight", foo = 1), "arguments not used: 'foo'")
+})
+
