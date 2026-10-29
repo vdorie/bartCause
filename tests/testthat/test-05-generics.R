@@ -595,7 +595,7 @@ test_that("refit works for tmle estimates and common support subsetting", {
   skip_if_not_installed("stan4bart")
   set.seed(22)
   gtfit <- bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "tmle", verbose = FALSE,
-                 group.by = g, group.effects = TRUE, maxIter = 5L,
+                 group.by = g, group.effects = TRUE, maxIter = 5L, n.threads = 1L,
                  chains = 2L, iter = 26L, warmup = 13L, bart_args = list(n.trees = 7L))
   grefitted <- suppressWarnings(refit(gtfit, commonSup.rule = "sd"))
   expect_equal(length(grefitted$est), nlevels(gtfit$group.by))

@@ -19,7 +19,7 @@ test_that("semiparametric models are consistent with each other", {
                 group.by = g.1,
                 seed = seed,
                 data = test.df,
-                verbose = FALSE)
+                verbose = FALSE, n.threads = 2L)
 
   summary1 <- summary(fit1)
   
@@ -27,7 +27,7 @@ test_that("semiparametric models are consistent with each other", {
                 parametric = (1 | g.1),
                 seed = seed,
                 data = test.df,
-                verbose = FALSE)
+                verbose = FALSE, n.threads = 2L)
   
   summary2 <- summary(fit2)
 
@@ -47,7 +47,7 @@ test_that("semiparametric models are consistent with each other", {
                 parametric = X4 + (1 | g.1),
                 seed = seed,
                 data = test.df,
-                verbose = FALSE)
+                verbose = FALSE, n.threads = 2L)
   
   summary3 <- summary(fit3)
   expect_true(inherits(fit3$fit.trt, "stan4bartFit"))
@@ -127,12 +127,12 @@ test_that("refit works with common support", {
   
   fit_sd <- bartc(y, z, X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10,
                   parametric = (1 | g.1), data = test.df,
-                  verbose = FALSE, seed = 5,
+                  verbose = FALSE, n.threads = 2L, seed = 5,
                   commonSup.rule = "sd", commonSup.cut = sdcut)
   
   fit_chisq <- bartc(y, z, X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10,
                      parametric = (1 | g.1), data = test.df,
-                     verbose = FALSE, seed = 5,
+                     verbose = FALSE, n.threads = 2L, seed = 5,
                      commonSup.rule = "chisq", commonSup.cut = chisqcut)
   
   refit_chisq <- refit(fit_chisq, commonSup.rule = "chisq", commonSup.cut = chisqcut)

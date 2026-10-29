@@ -3,14 +3,17 @@ context("bartc main function")
 source(system.file("common", "linearData.R", package = "bartCause"))
 
 test_that("bartc fails with invalid inputs", {
-  expect_error(bartc(not.found, z, x, data = testData, verbose = FALSE))
+  ## the two that fail after the treatment model is fit keep that fit small, on one thread
+  expect_error(bartc(not.found, z, x, data = testData, verbose = FALSE,
+                     n.samples = 3L, n.burn = 2L, n.trees = 5L, n.chains = 1L, n.threads = 1L))
   expect_error(bartc(y, not.found, x, data = testData, verbose = FALSE))
   expect_error(bartc(y, z, not.found, data = testData, verbose = FALSE))
   expect_error(bartc(y, z, x, data = testData, verbose = FALSE, method.rsp = "not-a-method"))
   expect_error(bartc(y, z, x, data = testData, verbose = FALSE, method.trt = "not-a-method"))
   expect_error(bartc(y, z, x, data = testData, verbose = FALSE, estimand = "not-an-estimand"))
   expect_error(bartc(y, z, x, data = testData, verbose = FALSE, group.by = not.found))
-  expect_error(bartc(y, z, x, data = testData, verbose = FALSE, p.scoreAsCovariate = NA))
+  expect_error(bartc(y, z, x, data = testData, verbose = FALSE, p.scoreAsCovariate = NA,
+                     n.samples = 3L, n.burn = 2L, n.trees = 5L, n.chains = 1L, n.threads = 1L))
   expect_error(bartc(y, z, x, data = testData, verbose = FALSE, keepCall = NA))
   expect_error(bartc(y, z, x, data = testData, verbose = NA))
 })
@@ -238,7 +241,7 @@ test_that("bartc runs with all response settings and group.by set for method tml
   
   skip_if_not_installed("stan4bart")
   expect_is(bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "tmle", verbose = FALSE,
-                  group.by = g, group.effects = TRUE, maxIter = 5L,
+                  group.by = g, group.effects = TRUE, maxIter = 5L, n.threads = 1L,
                   chains = 2L, iter = 26L, warmup = 13L, bart_args = list(n.trees = 7L)),
             "bartcFit")
   
