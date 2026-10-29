@@ -172,14 +172,14 @@ getBartTreatmentFit <- function(response, treatment, confounders, parametric, da
     extraNames <- names(extraArgs)
     dropped <- extraNames[-1L][extraNames[-1L] != "" &
                                extraNames[-1L] %not_in% names(formals(dbarts::bart)) &
-                               extraNames[-1L] %not_in% names(formals(getBartTreatmentFit))]
+                               extraNames[-1L] %not_in% c(names(formals(getBartTreatmentFit)), responseMethodArguments())]
     notUsed[dropped] <- "not an argument of dbarts::bart"
     warnArgumentsNotUsed(notUsed)
   }
   bartCall <- addCallArguments(bartCall, extraArgs)
   
   if (bartMethod %in% "stan4bart") {
-    bartCall <- addStan4BartSamplingArguments(bartCall, matchedCall, callingEnv, ownFormals = names(formals(getBartTreatmentFit)),
+    bartCall <- addStan4BartSamplingArguments(bartCall, matchedCall, callingEnv, ownFormals = c(names(formals(getBartTreatmentFit)), responseMethodArguments()),
                                                 residualScale = FALSE)
   } else if (is.null(bartCall[["n.chains"]])) {
     bartCall[["n.chains"]] <- 10L

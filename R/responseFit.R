@@ -74,7 +74,7 @@ getStan4BartResponseFit <- function(response, treatment, confounders, parametric
   stan4bartCall$verbose <- -1L
   stan4bartCall <- addCallArguments(stan4bartCall, extraArgs)
 
-  stan4bartCall <- addStan4BartSamplingArguments(stan4bartCall, matchedCall, callingEnv, ownFormals = names(formals(getStan4BartResponseFit)))
+  stan4bartCall <- addStan4BartSamplingArguments(stan4bartCall, matchedCall, callingEnv, ownFormals = responseMethodArguments())
 
   bartFit <- eval(stan4bartCall, envir = evalEnv)
   
@@ -219,9 +219,10 @@ getBartResponseFit <- function(response, treatment, confounders, parametric, dat
   
   invalidArgs <- names(bartCall)[-1L] %not_in% names(eval(formals(eval(bartCall[[1L]])))) &
                  names(bartCall)[-1L] %not_in% names(eval(formals(dbarts::dbartsControl)))
-  ## bartc's own arguments ride the same call and are not for dbarts
+  ## bartc's own arguments, and those of the other response methods, ride the
+  ## same call and are not for dbarts
   dropped <- names(bartCall)[-1L][invalidArgs]
-  dropped <- dropped[dropped != "" & dropped %not_in% names(formals(getBartResponseFit))]
+  dropped <- dropped[dropped != "" & dropped %not_in% responseMethodArguments()]
   notUsed[dropped] <- "not an argument of dbarts::bart or dbartsControl"
   warnArgumentsNotUsed(notUsed)
 

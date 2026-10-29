@@ -632,3 +632,13 @@ warnArgumentsNotUsed <- function(notUsed)
     paste0(paste0("'", names(notUsed)[notUsed == reason], "'", collapse = ", "), " (", reason, ")"), "")
   warning("arguments not used: ", paste0(parts, collapse = "; "), call. = FALSE)
 }
+
+## What bartc's '...' carries for the response method it was asked for -
+## maxIter and posteriorOfTMLE for "tmle", a forest's moderators for "bcf" -
+## travels to the BART fits as well, which have no use for it and are not to
+## report it as dropped: "p.weight" and "tmle" fit their response through
+## getBartResponseFit, and the propensity fit sees whatever the response does.
+responseMethodArguments <- function()
+  unique(unlist(lapply(list(getBartResponseFit, getStan4BartResponseFit, getPWeightResponseFit,
+                            getTMLEResponseFit, getBCFResponseFit, bcf),
+                       function(fn) names(formals(fn)))))

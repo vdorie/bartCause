@@ -116,3 +116,21 @@ test_that("sigdf and sigquant are named as unused where stan4bart fits the respo
   expect_warning(fit(power = 1.5, base = 0.7, n.trees = 10L, k = 2), NA)
   expect_warning(fit(), NA)
 })
+
+test_that("arguments for the response method are not reported by the propensity fit", {
+  expect_warning(bartc(y, z, x, method.rsp = "tmle", method.trt = "bart", maxIter = 2L,
+                       n.chains = 1L, n.threads = 1L, n.burn = 3L, n.samples = 6L, n.trees = 10L,
+                       verbose = FALSE),
+                 NA)
+  expect_warning(bartc(y, z, x, method.rsp = "p.weight", method.trt = "bart", maxIter = 2L,
+                       n.chains = 1L, n.threads = 1L, n.burn = 3L, n.samples = 6L, n.trees = 10L,
+                       verbose = FALSE),
+                 NA)
+  
+  skip_if_not_installed("stan4bart")
+  test.df <- data.frame(y, z, x, g = factor(rep_len(letters[1:4], length(y))))
+  expect_warning(bartc(y, z, X1 + X2 + X3, data = test.df, group.by = g, method.rsp = "p.weight",
+                       method.trt = "bart", maxIter = 2L, chains = 1L, iter = 8L, warmup = 4L,
+                       bart_args = list(n.trees = 7L), verbose = FALSE),
+                 NA)
+})
