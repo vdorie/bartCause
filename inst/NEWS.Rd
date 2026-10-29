@@ -61,13 +61,12 @@
             \pkg{stan4bart}, which draws the residual standard deviation
             itself, and \code{rngKind} and \code{rngNormalKind}, which
             \pkg{dbarts} 1.0-0 no longer has, and \code{rngSeed} given with
-            \code{seed}, which governs as it did in 1.0-10. Giving
-            \code{power}, \code{base}, \code{split.probs}, \code{sigdf} or
-            \code{sigquant} together with the \code{tree.prior} or
-            \code{family} that replaces it in \pkg{dbarts}, in the call or in
-            one of \code{args.rsp} and \code{args.trt}, is an error; where
-            \code{args.rsp} or \code{args.trt} gives one of the pair and the
-            call the other, the list's entry governs.
+            \code{seed}, which governs as it did in 1.0-10.
+            \code{tree.prior}, \code{family} and \code{seed} are the
+            \pkg{dbarts} 1.0-0 arguments that replace \code{power},
+            \code{base}, \code{split.probs}, \code{sigdf}, \code{sigquant}
+            and \code{rngSeed}, which are still taken; see
+            \code{?bartc} for giving both.
       \item A fit saved by 1.0-10 or earlier cannot be used by \code{predict}
             in this version, whose \pkg{dbarts} cannot replay its saved trees;
             \code{predict} says so and asks for a refit, where it used to stop

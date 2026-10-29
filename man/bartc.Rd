@@ -329,6 +329,16 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
           enough to repay it. A clustered fit that was given no \code{seed}
           receives one drawn from R's generator, so that \code{\link{set.seed}}
           still reproduces it.
+    \item \code{power}, \code{base}, \code{split.probs}, \code{sigdf},
+          \code{sigquant} and \code{rngSeed}, the spellings of 1.0-10, are
+          still taken and are written for \pkg{dbarts} as the
+          \code{tree.prior}, \code{family} and \code{seed} that replace them.
+          Giving one with its replacement, in the call or in the same one of
+          \code{args.rsp} and \code{args.trt}, is an error. Where
+          \code{args.rsp} or \code{args.trt} gives one and the call the
+          other, the list's entry governs, and \code{seed} governs
+          \code{rngSeed}; the argument that does not govern is named in a
+          warning, as is any other that does not reach a sampler.
     \item For \code{method.rsp == "tmle"}, a special \code{arg.trt} of
           \code{posteriorOfTMLE} determines if the TMLE correction should be
           applied to each posterior sample (\code{TRUE}), or just the posterior
