@@ -749,9 +749,7 @@ addArgsList <- function(call, argsExpr, args, argName)
 {
   if (is.call(argsExpr) && identical(argsExpr[[1L]], quote(list))) {
     call <- dropOverriddenSpellings(call, names(argsExpr)[-1L], argName)
-    overridden <- attr(call, "overridden")
     call[names(argsExpr)[-1L]] <- argsExpr[-1L]
-    attr(call, "overridden") <- overridden
     return(call)
   }
   
@@ -762,13 +760,11 @@ addArgsList <- function(call, argsExpr, args, argName)
     stop("every element of '", argName, "' must be named for the argument it gives", call. = FALSE)
   
   call <- dropOverriddenSpellings(call, argNames, argName)
-  overridden <- attr(call, "overridden")
   for (i in seq_along(args)) {
     value <- args[i]
     if (is.language(value[[1L]])) value[[1L]] <- call("quote", value[[1L]])
     call[argNames[i]] <- value
   }
-  attr(call, "overridden") <- overridden
   call
 }
 
@@ -777,7 +773,9 @@ addArgsList <- function(call, argsExpr, args, argName)
 ## refuses together, are one argument spelled two ways: where the list gives
 ## one, the other is taken out of the call so that the list entry governs. What
 ## is taken out is named, with the reason, in the "overridden" attribute of the
-## call returned, for bartc to warn of: a dropped argument is never silent.
+## call returned, for bartc to warn of: a dropped argument is never silent. The
+## list is of one fit, the other of which may still use the argument, so the
+## reason says which fit it governs.
 retiredSpellings <- list(tree.prior = c("power", "base", "split.probs"),
                          family     = c("sigdf", "sigquant"),
                          seed       = "rngSeed")
@@ -798,7 +796,8 @@ dropOverriddenSpellings <- function(call, listNames, argName = "the list")
     for (name in intersect(setdiff(dropped, listNames), names(call))) {
       call[[name]] <- NULL
       overridden[name] <- paste0(argName, " gives ", paste0("'", governing, "'", collapse = ", "),
-                                 if (length(governing) > 1L) ", which govern" else ", which governs")
+                                 if (length(governing) > 1L) ", which govern" else ", which governs",
+                                 switch(argName, args.trt = " in the propensity fit", args.rsp = " in the response fit", ""))
     }
   }
   attr(call, "overridden") <- overridden
