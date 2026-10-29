@@ -634,13 +634,12 @@ addStan4BartSamplingArguments <- function(call, args, env, defaultChains = 10L, 
           next
         }
         value <- getArg(name)
-        ## a language object put in the call would be evaluated by stan4bart,
-        ## which finds no chi() to call or, with a prior of its own, takes it
-        ## where dbarts refuses it; the forms that reach it as a value are the
-        ## ones named here
-        if (name == "k" && is.language(value))
-          stop("'k' is a quoted expression, which is not taken as a prior; give dbartsPriors$chi(1.25, Inf) ",
-               "or the string \"chi(1.25, Inf)\" instead", call. = FALSE)
+        ## a call that is the value, as k = quote(chi(1.25, Inf)) gives, is put
+        ## in bart_args as written and read as a prior there; a bare name would
+        ## be looked up by stan4bart, which has no object of that name
+        if (name == "k" && is.symbol(value))
+          stop("'k' is a bare name, which is not taken as a prior; write k = chi(1.25, Inf) directly in the call, ",
+               "or give dbartsPriors$chi(1.25, Inf) or the string \"chi(1.25, Inf)\" instead", call. = FALSE)
         bartArgs[[name]] <- value
       }
       call[["bart_args"]] <- bartArgs
