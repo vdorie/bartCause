@@ -10,7 +10,7 @@ y.binary <- as.integer(y > median(y))
 ## the call is built with the arguments' values in place: an argument given
 ## through a wrapper's '...' would reach bartc as '..1', which bartc's own
 ## argument handling does not resolve; a list for args.rsp or args.trt, and an
-## expression for tree.prior or family, are passed quoted
+## expression for family, are passed quoted
 smallFit <- function(response = y, ...)
   eval(as.call(c(list(quote(bartCause::bartc), response, quote(z), quote(x),
                       n.chains = 1L, n.threads = 1L, n.burn = 3L, n.samples = 6L,
