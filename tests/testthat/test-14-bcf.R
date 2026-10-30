@@ -523,8 +523,10 @@ test_that("a held prognostic forest takes bcf's size and b.prior.variance is ref
   expect_equal(held$k.scale, held$sd, tolerance = 1e-12)
   ## stated, it is the stated number
   expect_identical(fitHeld(update.a = FALSE, sd.control = 1.5)$fit$getLeafPrior(1L)$sd, 1.5)
-  ## drawn, dbarts's default stands
-  expect_false(fitHeld()$fit$getLeafPrior(1L)$sd.stated)
+  ## drawn, the same size is stated
+  drawn <- fitHeld()$fit$getLeafPrior(1L)
+  expect_true(drawn$sd.stated)
+  expect_equal(drawn$sd, 2 * sd(linearFrame$y), tolerance = 1e-12)
   ## under case weights, the sd of the rows with a positive weight
   w <- rep(1, n.obs)
   w[seq(1L, n.obs, by = 4L)] <- 0
@@ -538,16 +540,24 @@ test_that("a held prognostic forest's size follows the family, not the response'
   fitHeld <- function(...)
     bcf(y ~ x1 + x2 + x3, data = binaryFrame, treatment = z, n.trees = 5L,
         n.samples = 3L, n.burn = 2L, n.chains = 1L, verbose = FALSE,
-        keepSampler = TRUE, update.a = FALSE, ...)
+        keepSampler = TRUE, ...)
 
   ## a 0/1 response fit as gaussian takes 2 sd(y)
   for (family in list("gaussian", stats::gaussian())) {
-    held <- fitHeld(family = family)
+    held <- fitHeld(family = family, update.a = FALSE)
     expect_equal(held$family, "gaussian")
     expect_equal(held$fit$getLeafPrior(1L)$sd, 2 * sd(binaryFrame$y), tolerance = 1e-12)
   }
-  ## fit as probit, stated or not, or as logistic, dbarts's default stands
-  expect_false(fitHeld()$fit$getLeafPrior(1L)$sd.stated)
-  for (family in list("probit", "logistic", stats::binomial()))
-    expect_false(fitHeld(family = family)$fit$getLeafPrior(1L)$sd.stated)
+  ## fit as probit, stated or not, or as logistic, the link's unit is stated,
+  ## held or drawn
+  unit <- list(probit = 1, logistic = pi / sqrt(3))
+  expect_equal(fitHeld()$fit$getLeafPrior(1L)$sd, 1, tolerance = 1e-12)
+  for (family in list("probit", "logistic", stats::binomial(), stats::binomial("probit"))) {
+    link <- if (is.character(family)) family else if (family$link == "probit") "probit" else "logistic"
+    for (held in c(FALSE, TRUE)) {
+      prior <- fitHeld(family = family, update.a = held)$fit$getLeafPrior(1L)
+      expect_true(prior$sd.stated)
+      expect_equal(prior$sd, unit[[link]], tolerance = 1e-12)
+    }
+  }
 })

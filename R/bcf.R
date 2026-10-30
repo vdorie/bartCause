@@ -246,31 +246,43 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
   }
   update.a <- asFlag(update.a, "update.a")
   update.b <- asFlag(update.b, "update.b")
-  ## whether the family the sampler takes is a binary one, read from the
-  ## family handed over where there is one and otherwise from the rule that
-  ## names it below: a 0/1 response is probit
-  binaryResponse <- local({
+  ## the unit of the link when the family the sampler takes is a binary one
+  ## (probit 1, logistic pi / sqrt(3), the latent's standard deviation), and NA
+  ## otherwise; read from the family handed over where there is one and
+  ## otherwise from the rule that names it below: a 0/1 response is probit
+  linkUnit <- local({
+    probit <- 1
+    logistic <- pi / sqrt(3)
     family <- extraArgs[["family"]]
-    if (is.null(family)) return(all(responseData@y %in% c(0, 1)))
     if (is.function(family)) family <- family()
-    if (inherits(family, "family"))
-      return(family$family %in% c("binomial", "quasibinomial"))
+    if (is.null(family) || (is.character(family) && identical(family[1L], "auto")))
+      return(if (all(responseData@y %in% c(0, 1))) probit else NA_real_)
+    if (inherits(family, "family")) {
+      if (!family$family %in% c("binomial", "quasibinomial")) return(NA_real_)
+      return(if (identical(as.character(family$link)[1L], "probit")) probit else logistic)
+    }
     if (inherits(family, "dbartsFamily")) family <- family@token
-    if (!is.character(family) || length(family) == 0L) return(FALSE)
-    if (identical(family[1L], "auto")) return(all(responseData@y %in% c(0, 1)))
-    !is.na(pmatch(family[1L], c("probit", "logistic", "binomial", "quasibinomial")))
+    if (!is.character(family) || length(family) == 0L) return(NA_real_)
+    match <- pmatch(family[1L], c("probit", "logistic", "binomial", "quasibinomial"))
+    if (is.na(match)) NA_real_ else if (match == 1L) probit else logistic
   })
-  ## a held prognostic forest is held at bcf's own size, 2 sd(y) over the rows
-  ## handed to dbarts with a positive weight, where dbarts's default for a held
-  ## forest with no basis is the size bart() gives its forest; under a binary
-  ## family dbarts's default, one unit of the link, stands
-  if (!update.a && is.null(sd.control) && !binaryResponse) {
-    rowsIn <- if (length(responseData@weights) > 0L) responseData@weights > 0 else TRUE
-    sd.control <- 2 * stats::sd(responseData@y[rowsIn])
+  binaryResponse <- !is.na(linkUnit)
+  ## bcf states the prior of its prognostic forest rather than leaving it to
+  ## dbarts's default for a forest with no basis: drawn (update.a), amplitude
+  ## student(1) at the size dbarts's default gives it; held, the same size.
+  ## That size is 2 sd(y) over the rows handed to dbarts with a positive
+  ## weight under gaussian and one unit of the link under a binary family
+  if (is.null(sd.control)) {
+    if (binaryResponse) {
+      sd.control <- linkUnit
+    } else {
+      rowsIn <- if (length(responseData@weights) > 0L) responseData@weights > 0 else TRUE
+      sd.control <- 2 * stats::sd(responseData@y[rowsIn])
+    }
   }
   muForestCall <- call("forest", vars = muVars,
                        n.trees = coerceOrError(n.trees, "integer")[1L], sd = sd.control,
-                       amplitude = if (update.a) NULL else quote(fixed()),
+                       amplitude = if (update.a) quote(student(1)) else quote(fixed()),
                        interactions = mu.interactions)
   tauForestCall <- call("forest", vars = tauVars,
                        n.trees = coerceOrError(n.trees.treatment, "integer")[1L],
