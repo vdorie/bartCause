@@ -329,12 +329,14 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
           enough to repay it. A clustered fit that was given no \code{seed}
           receives one drawn from R's generator, so that \code{\link{set.seed}}
           still reproduces it.
-    \item \code{power}, \code{base}, \code{split.probs}, \code{sigdf},
-          \code{sigquant} and \code{rngSeed}, the spellings of 1.0-10, are
-          still taken and are written for \pkg{dbarts} as the
-          \code{tree.prior}, \code{family} and \code{seed} that replace them.
+    \item \code{power}, \code{base} and \code{split.probs} are passed through
+          to \pkg{dbarts}, as are the same names given to the cross-validation.
+          \code{sigdf}, \code{sigquant} and \code{rngSeed}, the spellings of
+          1.0-10, are still taken and are written for \pkg{dbarts} as the
+          \code{family} and \code{seed} that replace them.
           Giving one with its replacement, in the call or in the same one of
-          \code{args.rsp} and \code{args.trt}, is an error. Where
+          \code{args.rsp} and \code{args.trt}, is an error. \code{tree.prior}
+          is not an argument of \code{bartc} and is refused. Where
           \code{args.rsp} or \code{args.trt} gives one and the call the
           other, the list's entry governs, and \code{seed} governs
           \code{rngSeed}; the argument that does not govern is named in a

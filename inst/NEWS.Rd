@@ -62,11 +62,18 @@
             itself, and \code{rngKind} and \code{rngNormalKind}, which
             \pkg{dbarts} 1.0-0 no longer has, and \code{rngSeed} given with
             \code{seed}, which governs as it did in 1.0-10.
-            \code{tree.prior}, \code{family} and \code{seed} are the
-            \pkg{dbarts} 1.0-0 arguments that replace \code{power},
-            \code{base}, \code{split.probs}, \code{sigdf}, \code{sigquant}
-            and \code{rngSeed}, which are still taken; see
-            \code{?bartc} for giving both.
+            \code{family} and \code{seed} are the \pkg{dbarts} 1.0-0
+            arguments that replace \code{sigdf}, \code{sigquant} and
+            \code{rngSeed}, which are still taken; see \code{?bartc} for
+            giving both. \code{power}, \code{base} and \code{split.probs}
+            are \pkg{dbarts}' own arguments and are passed through.
+            \code{tree.prior} is not an argument of \code{bartc}, and is
+            refused with the \code{power}, \code{base} and
+            \code{split.probs} it translates to.
+      \item \code{bartc(crossvalidate = TRUE)} given \code{power},
+            \code{base} or \code{split.probs} now cross-validates under
+            them, where the development builds dropped them from the
+            cross-validation; its chosen \code{k} and draws change.
       \item A fit saved by 1.0-10 or earlier cannot be used by \code{predict}
             in this version, whose \pkg{dbarts} cannot replay its saved trees;
             \code{predict} says so and asks for a refit, where it used to stop

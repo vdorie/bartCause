@@ -40,6 +40,7 @@ bartc <- function(
   ## the fourth argument is 'parametric', so data given by position lands
   ## there, and the formulas it was meant for then fail on their variables
   refuseDataGivenByPosition(matchedCall, callingEnv)
+  if ("tree.prior" %in% names(matchedCall)) refuseRetiredTreePrior(matchedCall[["tree.prior"]])
   
   givenCall <- if (keepCall) matchedCall else call("NULL")
   matchedCall$verbose <- NULL  

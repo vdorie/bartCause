@@ -61,6 +61,23 @@ test_that("power, base, sigdf and sigquant reach the response fit as 1.0-10 took
   expect_equal(residPrior(fit$fit.rsp)[["df"]], 7)
 })
 
+test_that("crossvalidation tunes k under the power, base and split.probs it was given", {
+  seen <- new.env()
+  seen$power <- seen$base <- numeric()
+  record <- function(power, base) {
+    seen$power <- c(seen$power, power)
+    seen$base <- c(seen$base, base)
+  }
+  trace(dbarts::xbart, print = FALSE, where = asNamespace("dbarts"),
+        tracer = bquote(.(record)(power, base)))
+  on.exit(untrace(dbarts::xbart, where = asNamespace("dbarts")))
+  fit <- smallFit(method.trt = "none", crossvalidate = TRUE, power = 1.5, base = 0.7)
+  expect_true(length(seen$power) > 0L)
+  expect_true(all(seen$power == 1.5))
+  expect_true(all(seen$base == 0.7))
+  expect_equal(treePrior(fit$fit.rsp), c(power = 1.5, base = 0.7))
+})
+
 test_that("power and base reach the propensity fit through args.trt", {
   fit <- smallFit(args.trt = quote(list(power = 1.2, base = 0.5)), power = 1.5, base = 0.7)
   expect_equal(treePrior(fit$fit.trt), c(power = 1.2, base = 0.5))
@@ -72,10 +89,6 @@ test_that("power and base reach the propensity fit through args.trt", {
 })
 
 test_that("a retired name and its successor together are refused, naming both", {
-  expect_error(smallFit(method.trt = "none", tree.prior = quote(cgm(2, 0.9)), power = 1.5),
-               "'power' and 'tree.prior' cannot both be given")
-  expect_error(smallFit(method.trt = "none", tree.prior = quote(cgm(2, 0.9)), power = 1.5, base = 0.7),
-               "'power', 'base' and 'tree.prior' cannot both be given")
   expect_error(smallFit(method.trt = "none", family = quote(gaussian(sigma = fixed(1))), sigdf = 4),
                "'sigdf' and 'family' cannot both be given")
   ## both in one list reach the fit together
@@ -83,64 +96,43 @@ test_that("a retired name and its successor together are refused, naming both", 
                "'rngSeed' and 'seed' cannot both be given")
 })
 
+test_that("tree.prior is refused with the plain arguments it translates to", {
+  expect_error(smallFit(method.trt = "none", tree.prior = quote(cgm(2, 0.9))),
+               "'tree.prior' is not an argument of 'bartc': write the tree prior as plain arguments, power = 2, base = 0.9",
+               fixed = TRUE)
+  expect_error(smallFit(method.trt = "none", tree.prior = quote(dbarts::dbartsPriors$dart(power = 3, a = 1))),
+               "write the tree prior as plain arguments, power = 3, split.probs = dart(a = 1)", fixed = TRUE)
+  expect_error(smallFit(method.trt = "none", tree.prior = quote(cgm(power = 3)), power = 1.5),
+               "'tree.prior' is not an argument of 'bartc'")
+  expect_error(smallFit(method.trt = "none", tree.prior = quote(other)),
+               "write the tree prior as plain arguments, power, base and split.probs", fixed = TRUE)
+})
+
 test_that("a retired name beside its successor in args.rsp or args.trt is overridden by the list entry, and named", {
   listOf <- function(...) str2lang(sprintf("list(%s)", paste0(c(...), collapse = ", ")))
-  prior <- "tree.prior = dbarts::dbartsPriors$cgm(2, 0.9)"
   
   ## the list governs, as it does for any other argument, and the argument it overrides is named
-  listOnly <- smallFit(method.trt = "none", seed = 7L, args.rsp = listOf(prior))
-  both <- fitAndWarn(method.trt = "none", seed = 7L, power = 1.5, base = 0.7, args.rsp = listOf(prior))
-  expect_equal(treePrior(both$fit$fit.rsp), c(power = 2, base = 0.9))
-  expect_equal(both$fit$mu.hat.obs, listOnly$mu.hat.obs)
-  expect_equal(both$warned, "arguments not used: 'power', 'base' (args.rsp gives 'tree.prior', which governs in the response fit)")
-  
-  ## and the other way about: the retired name in the list, the successor beside it
-  both <- fitAndWarn(method.trt = "none", tree.prior = quote(cgm(2, 0.9)), args.rsp = quote(list(power = 1.5)))
-  expect_equal(treePrior(both$fit$fit.rsp)[["power"]], 1.5)
-  expect_equal(both$warned, "arguments not used: 'tree.prior' (args.rsp gives 'power', which governs in the response fit)")
-  
-  ## a tree prior beside one of its parts in the list is not kept in part
-  both <- fitAndWarn(method.trt = "none", tree.prior = quote(cgm(3, 0.8)), args.rsp = quote(list(base = 0.7)))
-  expect_equal(treePrior(both$fit$fit.rsp), c(power = 2, base = 0.7))
-  expect_equal(both$warned, "arguments not used: 'tree.prior' (args.rsp gives 'base', which governs in the response fit)")
-  
   both <- fitAndWarn(method.trt = "none", sigdf = 4,
                      args.rsp = listOf("family = dbarts::dbartsFamilies$gaussian(sigma = dbarts::dbartsPriors$fixed(1))"))
   expect_equal(both$warned, "arguments not used: 'sigdf' (args.rsp gives 'family', which governs in the response fit)")
   
   ## the other fit still uses the argument, and the reason says which fit governs
-  both <- fitAndWarn(args.trt = listOf(prior), power = 1.5)
-  expect_equal(treePrior(both$fit$fit.trt), c(power = 2, base = 0.9))
-  expect_equal(treePrior(both$fit$fit.rsp)[["power"]], 1.5)
-  expect_equal(both$warned, "arguments not used: 'power' (args.trt gives 'tree.prior', which governs in the propensity fit)")
-  both <- fitAndWarn(args.rsp = listOf(prior), power = 1.5)
-  expect_equal(treePrior(both$fit$fit.rsp), c(power = 2, base = 0.9))
-  expect_equal(treePrior(both$fit$fit.trt)[["power"]], 1.5)
-  expect_equal(both$warned, "arguments not used: 'power' (args.rsp gives 'tree.prior', which governs in the response fit)")
-  
-  ## both lists in one call are named in the one warning, an argument for each
-  both <- fitAndWarn(args.trt = listOf(prior), args.rsp = listOf(prior), power = 1.5)
-  expect_equal(both$warned, paste0("arguments not used: 'power' (args.trt gives 'tree.prior', which governs in the propensity fit); ",
-                                   "'power' (args.rsp gives 'tree.prior', which governs in the response fit)"))
+  both <- fitAndWarn(args.trt = listOf("seed = 3L"), rngSeed = 4L)
+  expect_match(both$warned, "args.trt gives 'seed', which governs in the propensity fit", all = FALSE)
   
   ## nothing is said where nothing is overridden
   expect_equal(fitAndWarn(method.trt = "none", power = 1.5, args.rsp = quote(list(n.trees = 11L)))$warned, character())
   
   ## each set of retired names has its successor, in either direction
   drop <- bartCause:::dropOverriddenSpellings
-  call <- quote(f(a = 1, power = 1, base = 2, split.probs = 3, sigdf = 4, sigquant = 5, rngSeed = 6, tree.prior = 7))
-  expect_equal(names(drop(call, "tree.prior")), c("", "a", "sigdf", "sigquant", "rngSeed", "tree.prior"))
-  expect_equal(names(drop(call, "family")), c("", "a", "power", "base", "split.probs", "rngSeed", "tree.prior"))
-  expect_equal(names(drop(call, "seed")), c("", "a", "power", "base", "split.probs", "sigdf", "sigquant", "tree.prior"))
-  expect_equal(names(drop(call, "base")), c("", "a", "power", "base", "split.probs", "sigdf", "sigquant", "rngSeed"))
+  call <- quote(f(a = 1, power = 1, base = 2, split.probs = 3, sigdf = 4, sigquant = 5, rngSeed = 6))
+  expect_equal(names(drop(call, "family")), c("", "a", "power", "base", "split.probs", "rngSeed"))
+  expect_equal(names(drop(call, "seed")), c("", "a", "power", "base", "split.probs", "sigdf", "sigquant"))
+  expect_equal(names(drop(call, "base")), names(call))
   expect_equal(names(drop(quote(f(sigdf = 1, family = 2)), "sigquant")), c("", "sigdf"))
   expect_equal(names(drop(quote(f(sigdf = 1, family = 2)), "n.trees")), c("", "sigdf", "family"))
-  expect_equal(attr(drop(call, c("power", "base")), "overridden"),
-               c(tree.prior = "the list gives 'power', 'base', which govern"))
-  
-  ## each of the pair given beside the other in the call is still refused
-  expect_error(smallFit(method.trt = "none", power = 1.5, tree.prior = quote(cgm(2, 0.9))),
-               "'power' and 'tree.prior' cannot both be given")
+  expect_equal(attr(drop(quote(f(sigdf = 1, family = 2)), "family"), "overridden"),
+               c(sigdf = "the list gives 'family', which governs"))
 })
 
 test_that("bartc's own seed governs where rngSeed is also given, as in 1.0-10", {

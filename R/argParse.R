@@ -649,17 +649,49 @@ addStan4BartSamplingArguments <- function(call, args, env, defaultChains = 10L, 
   call
 }
 
+## 'tree.prior' never shipped on bartc (1.0-10 forwarded it to a bart2 that
+## refused it) and has left dbarts' fitting functions; the refusal names the
+## plain arguments the value translates to, where it is written as cgm() or
+## dart()
+refuseRetiredTreePrior <- function(expr)
+{
+  if (is.call(expr) && identical(expr[[1L]], quote(quote))) expr <- expr[[2L]]
+  shown <- NULL
+  head <- if (is.call(expr)) {
+    fn <- expr[[1L]]
+    if (is.call(fn)) fn <- fn[[length(fn)]]
+    if (is.symbol(fn)) as.character(fn)
+  }
+  if (!is.null(head) && head %in% c("cgm", "dart")) {
+    signature <- switch(head,
+      cgm = function(power, base, split.probs) NULL,
+      dart = function(power, base, a, b, rho, alpha, update.alpha, update.delay) NULL)
+    args <- as.list(match.call(signature, expr))[-1L]
+    shown <- vapply(intersect(c("power", "base"), names(args)),
+                    function(name) paste(name, "=", deparse1(args[[name]])), "")
+    rest <- args[setdiff(names(args), c("power", "base"))]
+    split <- if (head == "dart") {
+      as.call(c(list(quote(dart)), rest))
+    } else rest$split.probs
+    if (!is.null(split)) shown <- c(shown, paste("split.probs =", deparse1(split)))
+  }
+  stop("'tree.prior' is not an argument of 'bartc': ",
+       if (length(shown) > 0L) paste0("write the tree prior as plain arguments, ", paste(shown, collapse = ", "))
+       else "write the tree prior as plain arguments, power, base and split.probs",
+       call. = FALSE)
+}
+
 ## A call to a function of dbarts' prior vocabulary, chi(1.25, Inf) or fixed(2)
 ## as written in the call, which only the fits know how to evaluate
 isPriorCall <- function(expr)
   is.call(expr) && is.symbol(expr[[1L]]) && as.character(expr[[1L]]) %in% names(dbarts::dbartsPriors)
 
 ## bartCause 1.0-10 passed these names to dbarts, whose 0.9-x bart2 took them as
-## arguments; dbarts 1.0-0 retired them, so a call that still names one is
-## rewritten into the form that carries it: power, base and split.probs ride
-## tree.prior = cgm(), sigdf and sigquant ride family = gaussian(sigma =
-## chisq(df, quant)), rngSeed is seed. A name that has no 1.0-0 form, or that
-## cannot apply, is returned in 'notUsed' (name -> reason) rather than dropped
+## arguments; dbarts 1.0-0 retired sigdf, sigquant and rngSeed, so a call that
+## still names one is rewritten into the form that carries it: sigdf and
+## sigquant ride family = gaussian(sigma = chisq(df, quant)), rngSeed is seed.
+## power, base and split.probs are dbarts' own arguments and pass through. A
+## name that has no 1.0-0 form, or that cannot apply, is returned in 'notUsed' (name -> reason) rather than dropped
 ## unseen. 'call' is a call or anything as.list() takes apart whose first
 ## element is the function. 'binary' is a response with no residual scale to
 ## give a prior to. Writing the successor as well as the retired name is
@@ -674,15 +706,6 @@ translateRetiredBartArguments <- function(call, binary)
   refuseBoth <- function(retired, successor)
     stop(paste0("'", retired, "'", collapse = ", "), " and '", successor, "' cannot both be given; ",
          "dbarts 1.0-0 takes the one in '", successor, "'", call. = FALSE)
-  
-  treeNames <- intersect(c("power", "base", "split.probs"), argNames)
-  if (length(treeNames) > 0L) {
-    if ("tree.prior" %in% argNames) refuseBoth(treeNames, "tree.prior")
-    treeCall <- as.call(c(list(quote(cgm)), elements[match(treeNames, argNames)]))
-    elements[match(treeNames, argNames)] <- NULL
-    elements[["tree.prior"]] <- treeCall
-    argNames <- names(elements)
-  }
   
   residNames <- intersect(c("sigdf", "sigquant"), argNames)
   if (length(residNames) > 0L) {
@@ -776,9 +799,8 @@ addArgsList <- function(call, argsExpr, args, argName)
 ## call returned, for bartc to warn of: a dropped argument is never silent. The
 ## list is of one fit, the other of which may still use the argument, so the
 ## reason says which fit it governs.
-retiredSpellings <- list(tree.prior = c("power", "base", "split.probs"),
-                         family     = c("sigdf", "sigquant"),
-                         seed       = "rngSeed")
+retiredSpellings <- list(family = c("sigdf", "sigquant"),
+                         seed   = "rngSeed")
 dropOverriddenSpellings <- function(call, listNames, argName = "the list")
 {
   overridden <- character()

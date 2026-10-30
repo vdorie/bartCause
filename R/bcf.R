@@ -215,10 +215,6 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
                             names(extraArgs) %not_in% names(controlArgs)]
   control <- do.call(dbarts::dbartsControl, c(controlArgs, extraControl))
 
-  treePrior <- quote(cgm(power, base))
-  treePrior[[2L]] <- power
-  treePrior[[3L]] <- base
-
   samplerEnv <- new.env(parent = fitEnv)
   samplerEnv[["responseData"]] <- responseData
   samplerEnv[["control"]] <- control
@@ -294,7 +290,8 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
 
   samplerCall <- quote(dbarts::dbarts(responseData, control = control, forests = forests))
   samplerCall[["forests"]] <- call("list", muForestCall, tauForestCall)
-  samplerCall$tree.prior <- treePrior
+  samplerCall$power <- power
+  samplerCall$base <- base
   samplerFormals <- names(formals(dbarts::dbarts))
   for (argName in names(extraArgs)[names(extraArgs) %in% samplerFormals &
                                    names(extraArgs) %not_in% names(samplerCall)]) {
