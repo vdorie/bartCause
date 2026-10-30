@@ -93,11 +93,13 @@ bcf(formula, data, subset, weights, offset,
     The same, for the treatment forest, whose default prior is shallower.
   }
   \item{sd.control}{
-    Size of the prognostic forest, in the response's units; \code{NULL} takes
-    \pkg{dbarts}'s default, except where \code{update.a} is \code{FALSE} and the
-    family is not probit or logistic, where it is twice the standard deviation
-    of the response over the observations with a positive weight, \code{bcf}'s
-    own convention.
+    Size of the prognostic forest, in the response's units; \code{NULL} is
+    \code{bcf}'s own convention, stated whether the amplitude is drawn or held:
+    twice the standard deviation of the response over the observations with a
+    positive weight under a continuous response, and one unit of the link
+    under probit (1) and logistic (\eqn{\pi/\sqrt{3}}{pi / sqrt(3)}). A drawn
+    amplitude takes a half-Cauchy prior whose median is that size
+    (\code{amplitude = student(1)} on the forest).
   }
   \item{sd.moderate}{
     Size of the treatment forest, in the response's units; \code{NULL} takes
