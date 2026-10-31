@@ -22,7 +22,8 @@ handBCFSampler <- function(frame, n.trees = 20L, n.trees.treatment = 10L,
                                    n.burn = 5L, n.samples = 7L, verbose = FALSE,
                                    updateState = FALSE, seed = rngSeed)
   dbarts::dbarts(data, control = control, power = 2.0, base = 0.95,
-                 forests = list(forest(vars = muVars, n.trees = n.trees),
+                 forests = list(forest(vars = muVars, n.trees = n.trees, amplitude = student(1),
+                                       sd = 2 * sd(data@y)),
                                 forest(vars = tauVars, n.trees = n.trees.treatment,
                                        base = 0.25, power = 3)))
 }
