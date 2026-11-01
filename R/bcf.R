@@ -263,11 +263,12 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
     if (is.na(match)) NA_real_ else if (match == 1L) probit else logistic
   })
   binaryResponse <- !is.na(linkUnit)
-  ## bcf states the prior of its prognostic forest rather than leaving it to
-  ## dbarts's default for a forest with no basis: drawn (update.a), amplitude
-  ## student(1) at the size dbarts's default gives it; held, the same size.
-  ## That size is 2 sd(y) over the rows handed to dbarts with a positive
-  ## weight under gaussian and one unit of the link under a binary family
+  ## bcf states the prior of its prognostic forest, since dbarts's default for
+  ## a forest with no basis, held at the fitting function's leaf prior, is not
+  ## it: drawn (update.a), amplitude student(1) with sd its median; held, the
+  ## same size. That size is bcf's, 2 sd(y) over the rows handed to dbarts with
+  ## a positive weight under gaussian and one unit of the link under a binary
+  ## family
   if (is.null(sd.control)) {
     if (binaryResponse) {
       sd.control <- linkUnit
