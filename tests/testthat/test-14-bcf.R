@@ -60,6 +60,25 @@ test_that("bcf reproduces a hand-written dbarts driver bitwise (FB0)", {
                          toBartCause(perturbed$run(0L, 7L, updateState = FALSE)$forestFits[,1L,,])))
 })
 
+test_that("bcf gives the cut count and rule to the data and not to the control", {
+  fitWith <- function(...) {
+    set.seed(101)
+    bcf(y ~ x1 + x2 + x3, data = linearFrame, treatment = z,
+        n.trees = 20L, n.trees.treatment = 10L,
+        n.samples = 7L, n.burn = 5L, n.chains = 1L, n.threads = 1L,
+        verbose = FALSE, seed = 11L, ...)
+  }
+  warned <- character()
+  fit <- withCallingHandlers(
+    fitWith(n.cuts = 5L, useQuantiles = TRUE),
+    warning = function(w) {
+      warned <<- c(warned, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    })
+  expect_identical(warned, character())
+  expect_false(identical(fit$mu.hat.obs, fitWith()$mu.hat.obs))
+})
+
 test_that("the fitted surface reconstructs from mu, tau, glue and the offset (FB1)", {
   offsetFrame <- linearFrame
   set.seed(3)

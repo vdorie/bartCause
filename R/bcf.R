@@ -206,7 +206,10 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
   ## channel arrives batched from the second run, so there is no per-sweep loop
   extraArgs <- list(...)
   seed <- coerceOrError(seed, "integer")[1L]
-  controlFormals <- names(formals(dbarts::dbartsControl))
+  ## the cut count and rule are the data's: they ride the sampler call below,
+  ## not the control, where they are deprecated
+  controlFormals <- setdiff(names(formals(dbarts::dbartsControl)),
+                            c("n.cuts", "useQuantiles"))
   controlArgs <- list(n.chains = n.chains, n.threads = n.threads,
                       n.burn = n.burn, n.samples = n.samples,
                       verbose = as.logical(verbose)[1L],
