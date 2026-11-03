@@ -97,13 +97,16 @@ bcf(formula, data, subset, weights, offset,
     \code{bcf}'s own convention, stated whether the amplitude is drawn or held:
     twice the standard deviation of the response over the observations with a
     positive weight under a continuous response, and one unit of the link
-    under probit (1) and logistic (\eqn{\pi/\sqrt{3}}{pi / sqrt(3)}). A drawn
-    amplitude takes a half-Cauchy prior whose median is that size
-    (\code{amplitude = student(1)} on the forest).
+    under probit (1) and logistic (\eqn{\pi/\sqrt{3}}{pi / sqrt(3)}). The
+    size is the scale of the forest's trees; a drawn amplitude multiplies them
+    under a half-Cauchy prior with median 1 (\code{amplitude = student(1)} on
+    the forest), so the forest is that size at an amplitude of 1.
   }
   \item{sd.moderate}{
     Size of the treatment forest, in the response's units; \code{NULL} takes
-    \pkg{dbarts}'s default.
+    \pkg{dbarts}'s default. It too is the scale of the forest's trees; drawn
+    amplitudes \eqn{b_0, b_1}{b0, b1} are multipliers whose difference has
+    prior median size 1.
   }
   \item{update.a, update.b}{
     Whether the prognostic and treatment amplitudes are drawn; when
@@ -231,7 +234,8 @@ bcf(formula, data, subset, weights, offset,
           different quantity.)
     \item \code{"glue"} - the amplitudes \eqn{(a, b_0, b_1)}{(a, b0, b1)} each
           draw combines the forests through, named \code{"a"}, \code{"b.0"} and
-          \code{"b.1"}
+          \code{"b.1"}: multipliers on the forests, with prior median 1 for
+          \eqn{a}{a} and for \eqn{b_1 - b_0}{b1 - b0} where drawn
     \item \code{"sigma"} - the residual standard deviation; an error on a binary
           fit. \code{n.chains x n.samples} when chains are kept apart, a vector when combined
     \item \code{"varcount"} - per-forest, per-draw predictor split counts, a
@@ -270,7 +274,8 @@ bcf(formula, data, subset, weights, offset,
                         scale}
   \item{\code{glue}}{the per-draw amplitudes, \code{n.chains x n.samples x 3},
                      with \code{"a"}, \code{"b.0"} and \code{"b.1"} named on the
-                     last margin}
+                     last margin; a drawn amplitude is a multiplier with prior
+                     median 1, \eqn{b_1 - b_0}{b1 - b0}'s for the pair}
   \item{\code{mu.hat.obs}, \code{mu.hat.cf}}{the surfaces under the observed and
                      counterfactual treatment conditions}
   \item{\code{varcount}}{named list of length two, keyed as \code{forests} is,
