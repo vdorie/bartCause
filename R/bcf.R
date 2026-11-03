@@ -269,7 +269,7 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
   ## bcf states the prior of its prognostic forest, since dbarts's default for
   ## a forest with no basis, held at the fitting function's leaf prior, is not
   ## it: drawn (update.a), sd on the trees and amplitude student(1), a
-  ## multiplier with median 1; held, the same size. That size is bcf's, 2 sd(y) over the rows handed to dbarts with
+  ## multiplier with median size 1; held, the same size. That size is bcf's, 2 sd(y) over the rows handed to dbarts with
   ## a positive weight under gaussian and one unit of the link under a binary
   ## family
   if (is.null(sd.control)) {
