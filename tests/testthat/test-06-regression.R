@@ -19,11 +19,11 @@ test_that("bart on p.score matches old", {
   fit <- bartc(y, z, x, data = testData,
                method.rsp = "bart", method.trt = "bart", estimand = "att", verbose = FALSE,
                n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L, n.trees = 5L)
-  # snapshot refreshed for dbarts d1de9ad1 (a probit forest is rescaled once a
-  # sweep, which moves the propensity score's draws); at this seed the
-  # 5-tree/5-sample fit leaves the estimate at zero to rounding - the pin is a
+  # snapshot refreshed for dbarts latents-first (a sweep draws the probit
+  # latents before its trees, which moves the propensity score's draws);
+  # noise-dominated 5-tree/5-sample fit (true tau ~ 0.27) - the pin is a
   # draw-stream tripwire, not an estimate
-  expect_equal(fitted(fit, "cate"), -3.67234020970386e-16)
+  expect_equal(fitted(fit, "cate"), 0.489157970406779)
 })
 
 test_that("bart w/p.weighting matches old", {
@@ -31,11 +31,11 @@ test_that("bart w/p.weighting matches old", {
   fit <- bartc(y, z, x, data = testData,
                method.rsp = "p.weight", method.trt = "bart", estimand = "att", verbose = FALSE,
                n.samples = 5L, n.burn = 5L, n.chains = 1L, n.threads = 1L, n.trees = 5L)
-  # snapshot refreshed for dbarts d1de9ad1 (a probit forest is rescaled once a
-  # sweep, which moves the propensity score's draws); at this seed the
-  # 5-tree/5-sample fit leaves the estimate at zero to rounding - the pin is a
+  # snapshot refreshed for dbarts latents-first (a sweep draws the probit
+  # latents before its trees, which moves the propensity score's draws);
+  # noise-dominated 5-tree/5-sample fit (true tau ~ 0.27) - the pin is a
   # draw-stream tripwire, not an estimate
-  expect_equal(fitted(fit, "pate"), -8.33846449515389e-17)
+  expect_equal(fitted(fit, "pate"), 0.48101100454164)
 })
 
 test_that("bart w/TMLE matches old", {
@@ -57,12 +57,13 @@ test_that("bart w/TMLE matches old", {
     # tmle's default SuperLearner library fits its dbarts learner through
     # dbarts's BayesTree-style door (bartBT), so this value tracks that
     # door's tree-move mixture as well as bart's; moved since dbarts 093dd035
-    # by d1de9ad1 (a probit forest is rescaled once a sweep) and f946d728 (the
-    # default rule's one cut per gap is weighted by its width), and recorded
-    # after both. Skipped on CRAN. Noise-dominated fit (true tau ~ 0.27). Only
+    # by d1de9ad1 (a probit forest is rescaled once a sweep), f946d728 (the
+    # default rule's one cut per gap is weighted by its width) and
+    # latents-first (a sweep draws the probit latents before its trees), and
+    # recorded after all three. Skipped on CRAN. Noise-dominated fit (true tau ~ 0.27). Only
     # the installed tmle branch (2.1.x) was regenerated; older-tmle branches
     # below are historical.
-    expect_equal(fitted(fit, "pate"), 0.721932327807755)
+    expect_equal(fitted(fit, "pate"), 0.908890409673835)
   } else if (tmle_version >= "2.0.1") {
     expect_equal(fitted(fit, "pate"), 0.445429512755897)
   } else if (tmle_version >= "1.5.0") {
