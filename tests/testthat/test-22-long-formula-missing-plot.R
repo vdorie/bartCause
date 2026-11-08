@@ -17,6 +17,7 @@ test_that("a confounder formula too long for one line is fit by every route", {
   
   expect_error(fitForm(form[[2L]], d), NA)
   expect_error(fitForm(form[[2L]], d, method.trt = "bart"), NA)
+  expect_error(fitForm(form[[2L]], d, method.trt = "glm"), NA)
   
   ## the same data with a dot, which the grepl in the treatment fit looks for
   expect_error(fitForm(quote(.), d), NA)
@@ -45,4 +46,11 @@ test_that("plot_support on a fit with missing responses plots every row", {
   plot_support(fit, xvar = "x1", yvar = "x2", sample = "all", legend.x = NULL)
   expect_equal(plotted$x, d$x1)
   expect_equal(plotted$y, d$x2)
+  
+  ## the treatment is the data's, and the response has NA at the missing rows
+  plot_support(fit, xvar = "x1", yvar = "z", sample = "all", legend.x = NULL)
+  expect_equal(plotted$y, d$z)
+  plot_support(fit, xvar = "x1", yvar = "y", sample = "all", legend.x = NULL)
+  expect_equal(plotted$y, d$y)
+  expect_true(all(is.na(plotted$y[missing])))
 })
