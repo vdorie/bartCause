@@ -309,14 +309,14 @@ test_that("keepTrees reaches both stan4bart fits, so predict works with group.by
                "treatment model to be fit with keepTrees = TRUE; pass keepTrees = TRUE to bartc")
 })
 
-test_that("weights with group.by raise no warning about the counterfactual rows", {
+test_that("response weights with group.by raise no warning about the counterfactual rows", {
   skip_if_not_installed("stan4bart")
   
   weighted <- cbind(test.df, wt = seq(0.5, 2, length.out = nrow(test.df)))
   
   expect_warning(
     fit <- bartc(y, z, X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10,
-                 data = weighted, group.by = g.1, weights = wt, verbose = FALSE, seed = 0,
+                 data = weighted, group.by = g.1, weights.rsp = wt, verbose = FALSE, seed = 0,
                  n.chains = 1L, n.threads = 1L, n.samples = 10L, n.burn = 5L, n.trees = 5L),
     NA)
   expect_equal(fit$fit.rsp$test$frame[["(weights)"]], weighted$wt)
@@ -324,7 +324,32 @@ test_that("weights with group.by raise no warning about the counterfactual rows"
   # the same with the weights as a vector outside of any data
   expect_warning(
     bartc(weighted$y, weighted$z, weighted[paste0("X", 1:10)], group.by = weighted$g.1,
-          weights = weighted$wt, verbose = FALSE, seed = 0, n.chains = 1L,
+          weights.rsp = weighted$wt, verbose = FALSE, seed = 0, n.chains = 1L,
           n.threads = 1L, n.samples = 10L, n.burn = 5L, n.trees = 5L),
     NA)
+  
+  # population weights alone leave the response fit unweighted and set the average
+  fit <- bartc(y, z, X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10,
+               data = weighted, group.by = g.1, weights = wt, verbose = FALSE, seed = 0,
+               n.chains = 1L, n.threads = 1L, n.samples = 10L, n.burn = 5L, n.trees = 5L)
+  expect_null(fit$fit.rsp$frame[["(weights)"]])
+  icate <- extract(fit, "icate", sample = "all")
+  expect_equal(fitted(fit, "cate"), mean(icate %*% (weighted$wt / sum(weighted$wt))))
+})
+
+test_that("stan4bart reads its weights as precisions only, and refuses them as counts", {
+  skip_if_not_installed("stan4bart")
+  
+  weighted <- cbind(test.df, wt = rep(1:2, length.out = nrow(test.df)))
+  expect_error(
+    bartc(y, z, X1 + X2, data = weighted, group.by = g.1, weights.rsp = wt, weights.type = "frequency",
+          verbose = FALSE, n.chains = 1L, n.threads = 1L, n.samples = 10L, n.burn = 5L, n.trees = 5L),
+    "stan4bart reads weights as precisions only")
+  ## "precision" is what stan4bart does, and is taken without a word
+  expect_warning(
+    fit <- bartc(y, z, X1 + X2, data = weighted, group.by = g.1, weights.rsp = wt, weights.type = "precision",
+                 method.trt = "none", verbose = FALSE, n.chains = 1L, n.threads = 1L, n.samples = 10L,
+                 n.burn = 5L, n.trees = 5L),
+    NA)
+  expect_equal(fit$fit.rsp$frame[["(weights)"]], weighted$wt)
 })

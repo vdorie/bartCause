@@ -317,7 +317,7 @@ test_that("a seeded fit on two tmle workers is reproducible", {
   expect_equal(fitStub(drawTMLE, n.threads = 2L)$est, fitStub(drawTMLE, n.threads = 2L)$est)
 })
 
-test_that("refit with missing responses pairs the response with its rows, and stops for weights", {
+test_that("refit with missing responses pairs the response and the weights with their rows", {
   mdata <- wdata
   mdata$y[c(3L, 17L, 40L, 77L)] <- NA
   set.seed(65)
@@ -334,7 +334,15 @@ test_that("refit with missing responses pairs the response with its rows, and st
             else suppressWarnings(suppressMessages(
               bartc(y, z, x1 + x2 + x3, data = mdata, weights = w, method.trt = "glm", method.rsp = "p.weight", estimand = "att",
                     verbose = FALSE, n.burn = 3L, n.samples = 5L, n.trees = 7L, n.chains = 2L, n.threads = 1L)))
-    expect_error(refit(wfit), "call bartc again", label = method.rsp)
+    ## the population weights are kept over every row, so refit reads them
+    expect_length(wfit$weights, n)
+    expect_equal(suppressWarnings(refit(wfit))$est, wfit$est, label = method.rsp)
+    ## a fit made before they were kept, by bartCause 1.0-10, has the weights
+    ## of the complete rows alone, and is refused
+    oldFit <- wfit
+    oldFit[c("weights", "weights.rsp")] <- NULL
+    oldFit$data.rsp@weights <- mdata$w[!is.na(mdata$y)]
+    expect_error(refit(oldFit), "call bartc again", label = method.rsp)
   }
 })
 
