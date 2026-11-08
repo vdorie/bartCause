@@ -78,7 +78,12 @@ getGLMTreatmentFit <- function(response, treatment, confounders, parametric, dat
   glmCall <- addCallArguments(glmCall, extraArgs)
   if (is.null(glmCall[["family"]])) glmCall[["family"]] <- quote(stats::binomial)
   
-  glmFit <- eval(glmCall, envir = evalEnv)
+  ## weights that are not counts are a binomial glm's pseudo-likelihood, as a
+  ## survey's are, and glm's complaint of non-integer successes does not apply
+  glmFit <- withCallingHandlers(eval(glmCall, envir = evalEnv), warning = function(w) {
+    if (!is.null(glmCall[["weights"]]) && grepl("non-integer #successes", conditionMessage(w), fixed = TRUE))
+      invokeRestart("muffleWarning")
+  })
   
   list(fit = glmFit, p.score = fitted(glmFit), samples = NULL)
 }

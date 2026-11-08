@@ -398,6 +398,11 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
       else asBCFSigmaMatrix(burn$sigma, n.chains)
   }
 
+  ## as dbarts's bart records it: present only where gaussian weights count
+  ## identical rows, the predictive draws reading it
+  if (identical(sampler$model@weights.type, "frequency") && identical(family, "gaussian"))
+    result$weights.type <- "frequency"
+  
   if (keepSampler) result$fit <- sampler
 
   class(result) <- "bartBCF"

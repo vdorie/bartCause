@@ -31,6 +31,6 @@ importFrom(graphics, legend, mtext, par, points, polygon)
 
 importFrom(parallel, makeCluster, clusterExport, clusterEvalQ, clusterApply, clusterSetRNGStream, stopCluster)
 
-importFrom(utils, tail)
+importFrom(utils, head, tail)
 importFrom(grDevices, rgb)
 

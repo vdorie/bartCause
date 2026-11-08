@@ -29,47 +29,46 @@ subtractArrayFromVec <- function(v, x) {
   }
 }
 
+## The average of the unit differences over the estimand's rows within common
+## support, per draw. Population weights are shares of those rows alone, so a
+## weighted ATT is the weighted mean over the treated; rows of no weight are
+## left out, their draws being NA where the response fit has no noise scale.
 averageDifferences <- function(samples.indiv.diff, treatmentRows, weights, estimand, commonSup.sub)
 {
-  x <- NULL ## R CMD check
-  
   if (!is.character(estimand) || estimand[1L] %not_in% c("ate", "att", "atc"))
     stop("estimand must be one of 'ate', 'att', or 'atc'")
   estimand <- estimand[1L]
   
   origDims <- dim(samples.indiv.diff)
+  rows <- switch(estimand,
+                 att = treatmentRows & commonSup.sub,
+                 atc = !treatmentRows & commonSup.sub,
+                 ate = commonSup.sub)
   
-  if (!is.null(weights)) {
-    n.obs <- origDims[3L]
-    weights <- rep_len(weights, n.obs)
-    # sum to n for now because we will be taking means in just a sec
-    weights <- n.obs * weights / sum(weights)
-    samples.indiv.diff <- multiplyArrayByVec(samples.indiv.diff, weights)
+  if (is.null(weights)) {
+    return(
+      if (length(origDims) > 2L) {
+        ## drop = FALSE: a one-chain fit's leading chain margin has extent 1,
+        ## which R's default drop = TRUE would silently remove along with the
+        ## subsetted margin, leaving apply()'s MARGIN = c(1L, 2L) result
+        ## transposed relative to what matrix() below expects
+        matrix(apply(samples.indiv.diff[,,rows, drop = FALSE], c(1L, 2L), mean), origDims[1L], origDims[2L])
+      } else {
+        apply(samples.indiv.diff[,rows, drop = FALSE], 1L, mean)
+      })
   }
   
-  result <-
-    if (length(origDims) > 2L) {
-      ## drop = FALSE: a one-chain fit's leading chain margin has extent 1,
-      ## which R's default drop = TRUE would silently remove along with the
-      ## subsetted margin, leaving apply()'s MARGIN = c(1L, 2L) result
-      ## transposed relative to what matrix() below expects
-      apply(switch(estimand,
-                   att = samples.indiv.diff[,, treatmentRows & commonSup.sub, drop = FALSE],
-                   atc = samples.indiv.diff[,,!treatmentRows & commonSup.sub, drop = FALSE],
-                   ate = samples.indiv.diff[,,commonSup.sub, drop = FALSE]),
-            c(1L, 2L), mean)
-    } else {
-      apply(switch(estimand,
-                   att = samples.indiv.diff[, treatmentRows & commonSup.sub],
-                   atc = samples.indiv.diff[,!treatmentRows & commonSup.sub],
-                   ate = samples.indiv.diff[,commonSup.sub]),
-            1L, mean)
-    }
-  
-  if (!is.null(origDims) && length(origDims) > 2L)
-    matrix(result, origDims[1L], origDims[2L])
-  else 
+  shares <- weightShares(weights, rows)
+  rows <- which(rows)[shares > 0]
+  shares <- shares[shares > 0]
+  if (length(origDims) > 2L) {
+    result <- matrix(0, origDims[1L], origDims[2L])
+    for (i in seq_len(origDims[1L]))
+      result[i,] <- matrix(samples.indiv.diff[i,,rows], origDims[2L], length(rows)) %*% shares
     result
+  } else {
+    as.vector(samples.indiv.diff[,rows, drop = FALSE] %*% shares)
+  }
 }
 
 getEstimateSamples <- function(samples.indiv.diff, treatmentRows, weights, estimand, group.by, group.effects, commonSup.sub) {
@@ -429,27 +428,34 @@ extractBartcFit <-
     }
   }
   
-  weights <- if (inherits(object$fit.rsp, "stan4bartFit")) object$fit.rsp$weights else object$data.rsp@weights
-  if (!is.null(weights)) {
-    if (length(weights) == 0L) weights <- NULL
-    else weights <- weights / sum(weights)
-  }
+  ## not 'weights', which with(object, ...) below would shadow
+  pop <- populationWeights(object)
   
   oldSeed <- .GlobalEnv[[".Random.seed"]]
   .GlobalEnv$.Random.seed <- object$seed
   
-  n.obs     <- length(if (inherits(object$fit.rsp, "stan4bartFit")) object$fit.rsp$y else object$data.rsp@y)
-  n.samples <- tail(dim(object$mu.hat.cf), 1L)
   n.chains  <- object$n.chains
   trtSign <- ifelse(object$trt == 1, 1, -1)
   
+  ## a unit's noise is drawn as the response fit has it; inside an average a
+  ## row of counts is the average of its units
+  noise <- noiseScale(object, average = type %in% c("pate", "sate"))
   if (type %in% c("pate", "sate", "y.cf", "y.0", "y.1", "ite")) {
-    y.obs <- object$fit.rsp$y
-    y.cf <- sampleFromPPD(object, object$mu.hat.cf)
+    y.obs <- observedResponse(object)
+    y.cf <- sampleFromPPD(object, object$mu.hat.cf, noise)
   }
   
-  if (type == "pate")
-    y.obs.ppd <- sampleFromPPD(object, object$mu.hat.obs)
+  if (type == "pate" || (type %in% c("sate", "y.0", "y.1", "ite") && anyNA(y.obs)))
+    y.obs.ppd <- sampleFromPPD(object, object$mu.hat.obs, noise)
+  ## a missing response is drawn from its posterior predictive, as a
+  ## counterfactual is
+  if (type %in% c("sate", "y.0", "y.1", "ite") && anyNA(y.obs)) {
+    observed <- !is.na(y.obs)
+    draws <- y.obs.ppd
+    if (length(dim(draws)) > 2L) draws[,,observed] <- rep(y.obs[observed], each = prod(dim(draws)[1L:2L]))
+    else draws[,observed] <- rep(y.obs[observed], each = nrow(draws))
+    y.obs <- draws
+  }
   
   if (!is.null(oldSeed))
     .GlobalEnv$.Random.seed <- oldSeed
@@ -475,13 +481,13 @@ extractBartcFit <-
     samples.indiv.diff <- multiplyArrayByVec(with(object,
       switch(type,
              pate = y.obs.ppd - y.cf,
-             sate = subtractArrayFromVec(y.obs, y.cf),
+             sate = if (is.null(dim(y.obs))) subtractArrayFromVec(y.obs, y.cf) else y.obs - y.cf,
              cate = mu.hat.obs - mu.hat.cf)),
       trtSign)
     
     if (is.null(object$group.by)) group.by <- NULL
     result <- with(object,
-      getEstimateSamples(samples.indiv.diff, trt > 0, weights, estimand, group.by, group.effects, commonSup.sub))
+      getEstimateSamples(samples.indiv.diff, trt > 0, pop, estimand, group.by, group.effects, commonSup.sub))
     
     if (!is.null(object$group.by) && group.effects)
       return(if (combineChains) lapply(result, as.vector) else result)
@@ -498,10 +504,11 @@ extractBartcFit <-
            y.cf        = y.cf,
            y.1         = obsCfToTrtCtl(y.obs, y.cf, trt),
            y.0         = obsCfToTrtCtl(y.obs, y.cf, 1 - trt),
-           ite         = multiplyArrayByVec(subtractArrayFromVec(y.obs, y.cf), trtSign),
+           ite         = multiplyArrayByVec(if (is.null(dim(y.obs))) subtractArrayFromVec(y.obs, y.cf) else y.obs - y.cf, trtSign),
            icate       = multiplyArrayByVec(mu.hat.obs - mu.hat.cf, trtSign),
            p.score     = object$samples.p.score,
-           p.weights   = getPWeights(estimand, trt, weights, if (!is.null(samples.p.score)) samples.p.score else p.score, fitPars$p.scoreBounds)))
+           p.weights   = getPWeights(estimand, trt, if (!is.null(pop)) pop / sum(pop),
+                                     if (!is.null(samples.p.score)) samples.p.score else p.score, fitPars$p.scoreBounds)))
   
   if (is.null(result)) return(NULL)
   
@@ -522,7 +529,11 @@ extractBartcFit <-
     result[,subset]
 }
 
-sampleFromPPD <- function(object, ev)
+## Posterior predictive draws at the expected values 'ev', the observation
+## margin last. A continuous draw's noise is sigma times 'scale', one factor
+## per observation (see noiseScale), NA giving NA draws; NULL is sigma for
+## every observation, as at new rows.
+sampleFromPPD <- function(object, ev, scale = NULL)
 {
   if (responseIsBinary(object)) {
     if (length(dim(ev)) > 2L) {
@@ -533,8 +544,12 @@ sampleFromPPD <- function(object, ev)
   } else {
     n.obs <- dim(ev)[length(dim(ev))]
     sigma <- extractBartcFit(object, "sigma", combineChains = FALSE)
-    sigma <- rep_len(sigma, n.obs * length(sigma))
-    epsilon <- rnorm(length(sigma), 0, sigma)
+    n.draws <- length(sigma)
+    sigma <- rep_len(sigma, n.obs * n.draws)
+    ## rnorm(n, 0, s) is s times standard normal draws, so an unscaled draw is
+    ## the one drawn before the scale was read
+    epsilon <- rnorm(length(sigma)) * sigma
+    if (!is.null(scale)) epsilon <- epsilon * rep(scale, each = n.draws)
     dim(epsilon) <- dim(ev)
     result <- ev + epsilon 
   }
@@ -574,14 +589,15 @@ refit.bartcFit <- function(object, newresp = NULL,
   treatmentRows <- object$trt > 0
   responseIsStan4Bart <- inherits(object$fit.rsp, "stan4bartFit")
   y.rsp   <- if (responseIsStan4Bart) object$fit.rsp$y       else object$data.rsp@y
-  weights <- if (responseIsStan4Bart) object$fit.rsp$weights else object$data.rsp@weights
-  if (length(weights) == 0L) weights <- NULL
-  if (!is.null(weights)) weights <- weights / sum(weights)
+  ## not 'weights', which with(object, ...) below would shadow
+  pop <- populationWeights(object)
   
-  ## the fit keeps the response and the weights of the complete rows only, while
-  ## the estimators below run over every row, as in the response fits
+  ## the fit keeps the response of the complete rows only, while the
+  ## estimators below run over every row, as in the response fits; a fit made
+  ## before the population weights were stored kept theirs for the complete
+  ## rows only too
   if (object$method.rsp %in% c("p.weight", "tmle") && any(object$missingRows) && length(y.rsp) < length(object$trt)) {
-    if (!is.null(weights))
+    if (!is.null(pop) && !populationWeightsAreStored(object))
       stop("refit of a weighted '", object$method.rsp, "' fit with missing responses is not supported, ",
            "as the fit does not keep the weights of the rows with a missing response; ",
            "call bartc again with the new common support rule instead")
@@ -597,7 +613,7 @@ refit.bartcFit <- function(object, newresp = NULL,
     samples.indiv.diff <- extractBartcFit(object, "icate", sample = "all", combineChains = FALSE)
     
     object$est <- with(object,
-      getEstimateSamples(samples.indiv.diff, treatmentRows, weights, estimand, group.by, group.effects, commonSup.sub))
+      getEstimateSamples(samples.indiv.diff, treatmentRows, pop, estimand, group.by, group.effects, commonSup.sub))
    
   
   } else if (object$method.rsp == "p.weight") {
@@ -637,10 +653,10 @@ refit.bartcFit <- function(object, newresp = NULL,
 
         p.score.samples <- addDimsToSubset(p.score.samples[commonSup.sub, drop = FALSE])
 
-        if (!is.null(weights)) weights <- weights[commonSup.sub]
+        if (!is.null(pop)) pop <- pop[commonSup.sub]
       }
 
-      object$est <- with(object, getPWeightEstimates(y.rsp[commonSup.sub], trt[commonSup.sub], weights, estimand, mu.hat.0, mu.hat.1, p.score.samples, fitPars$yBounds, fitPars$p.scoreBounds))
+      object$est <- with(object, getPWeightEstimates(y.rsp[commonSup.sub], trt[commonSup.sub], pop, estimand, mu.hat.0, mu.hat.1, p.score.samples, fitPars$yBounds, fitPars$p.scoreBounds))
     } else {
       object$est <- lapply(levels(object$group.by), function(level) {
         levelRows <- object$group.by == level & object$commonSup.sub
@@ -649,9 +665,9 @@ refit.bartcFit <- function(object, newresp = NULL,
         addDimsToSubset(mu.hat.1 <- mu.hat.1[levelRows, drop = FALSE])
         addDimsToSubset(p.score.samples  <- p.score.samples[levelRows, drop = FALSE])
 
-        if (!is.null(weights)) weights <- weights[levelRows]
+        if (!is.null(pop)) pop <- pop[levelRows]
 
-        with(object, getPWeightEstimates(y.rsp[levelRows], trt[levelRows], weights, estimand, mu.hat.0, mu.hat.1, p.score.samples,
+        with(object, getPWeightEstimates(y.rsp[levelRows], trt[levelRows], pop, estimand, mu.hat.0, mu.hat.1, p.score.samples,
                                          fitPars$yBounds, fitPars$p.scoreBounds))
       })
       names(object$est) <- levels(object$group.by)
@@ -691,13 +707,13 @@ refit.bartcFit <- function(object, newresp = NULL,
 
         addDimsToSubset(p.score.samples <- p.score.samples[commonSup.sub, drop = FALSE])
 
-        if (!is.null(weights)) weights <- weights[commonSup.sub]
+        if (!is.null(pop)) pop <- pop[commonSup.sub]
       }
 
       ## fitPars doesn't carry the n.threads originally used to fit; re-derive
       ## single-threaded rather than spawn a fresh parallel cluster as a side
       ## effect of what should be a lightweight commonSup.rule recompute
-      object$est <- with(object, getTMLEEstimates(y.rsp[commonSup.sub], trt[commonSup.sub], weights, estimand, mu.hat.0, mu.hat.1, p.score.samples,
+      object$est <- with(object, getTMLEEstimates(y.rsp[commonSup.sub], trt[commonSup.sub], pop, estimand, mu.hat.0, mu.hat.1, p.score.samples,
                                                   fitPars$yBounds, fitPars$p.scoreBounds, fitPars$depsilon, fitPars$maxIter,
                                                   n.threads = 1L))
     } else {
@@ -708,9 +724,9 @@ refit.bartcFit <- function(object, newresp = NULL,
         addDimsToSubset(mu.hat.1 <- mu.hat.1[levelRows, drop = FALSE])
         addDimsToSubset(p.score.samples <- p.score.samples[levelRows, drop = FALSE])
 
-        if (!is.null(weights)) weights <- weights[levelRows]
+        if (!is.null(pop)) pop <- pop[levelRows]
 
-        with(object, getTMLEEstimates(y.rsp[levelRows], trt[levelRows], weights, estimand, mu.hat.0, mu.hat.1, p.score.samples,
+        with(object, getTMLEEstimates(y.rsp[levelRows], trt[levelRows], pop, estimand, mu.hat.0, mu.hat.1, p.score.samples,
                                       fitPars$yBounds, fitPars$p.scoreBounds, fitPars$depsilon, fitPars$maxIter,
                                       n.threads = 1L))
       })

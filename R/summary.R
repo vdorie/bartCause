@@ -85,10 +85,14 @@ getPATEEstimate.bart.var.exp = function(samples.icate, weights)
   c(estimate = est, sd = sqrt(var.between.samples + var.within.samples))
 },
 
-getPATEEstimate.bart.ppd = function(samples.icate, weights, sigma, samples.obs, samples.cf, n.obs)
+## 'weights' are the population weights' shares of the rows averaged over, NULL
+## for equal shares, and 'noise.var' the noise variance of that average in
+## units of sigma^2 (see averageNoiseVariance); the observed and the
+## counterfactual draw each add it.
+getPATEEstimate.bart.ppd = function(samples.icate, weights, sigma, samples.obs, samples.cf, noise.var)
 {
   if (!is.null(weights)) {
-    samples.cate <- apply(weights * t(samples.icate), 2L, sum)
+    samples.cate <- as.vector(samples.icate %*% weights)
   } else {
     samples.cate <- rowMeans(samples.icate)
   }
@@ -96,13 +100,13 @@ getPATEEstimate.bart.ppd = function(samples.icate, weights, sigma, samples.obs, 
   
   sd <- sqrt(var(samples.cate) +
     if (!is.null(sigma))
-      2 * mean(sigma^2) / n.obs
+      2 * mean(sigma^2) * noise.var
     else {
       samples.var <- samples.obs * (1 - samples.obs) + samples.cf * (1 - samples.cf)
       if (!is.null(weights))
-        mean(apply(weights * samples.var, 2L, sum) / n.obs)
+        mean(samples.var %*% weights^2)
       else
-        mean(apply(samples.var, 2L, mean) / n.obs)
+        mean(apply(samples.var, 2L, mean) / ncol(samples.var))
     })
   c(estimate = est, sd = sd)
 },
@@ -115,10 +119,12 @@ getPATEIntervalFunction.bart = function(ci.style)
          hpd   = function(ci.level, samples.pate) getHPDInterval(samples.pate, ci.level))
 },
 
-getSATEEstimate.bart = function(samples.iscate, weights, sigma, samples.cf, n.obs)
+## As getPATEEstimate.bart.ppd, a row with a missing response ('missing.obs')
+## adding the noise of its observed draw as well; 'noise.var' already counts it.
+getSATEEstimate.bart = function(samples.iscate, weights, sigma, samples.obs, samples.cf, noise.var, missing.obs)
 {
   if (!is.null(weights)) {
-    samples.scate <- apply(weights * t(samples.iscate), 2L, sum)
+    samples.scate <- as.vector(samples.iscate %*% weights)
   } else {
     samples.scate <- rowMeans(samples.iscate)
   }
@@ -126,13 +132,15 @@ getSATEEstimate.bart = function(samples.iscate, weights, sigma, samples.cf, n.ob
   
   sd <- sqrt(var(samples.scate) +
     if (!is.null(sigma)) {
-      mean(sigma^2) / n.obs
+      mean(sigma^2) * noise.var
     } else {
       samples.var <- samples.cf * (1 - samples.cf)
+      if (any(missing.obs))
+        samples.var[,missing.obs] <- samples.var[,missing.obs] + samples.obs[,missing.obs] * (1 - samples.obs[,missing.obs])
       if (!is.null(weights))
-        mean(apply(weights * samples.var, 2L, sum) / n.obs)
+        mean(samples.var %*% weights^2)
       else
-        mean(apply(samples.var, 2L, mean) / n.obs)
+        mean(apply(samples.var, 2L, mean) / ncol(samples.var))
     })
   c(estimate = est, sd = sd)
 },
@@ -148,11 +156,10 @@ getSATEIntervalFunction.bart = function(ci.style)
 getCATEEstimate.bart = function(samples.icate, weights)
 {
   if (!is.null(weights)) {
-    samples.cate <- apply(weights * t(samples.icate), 2L, sum)
+    samples.cate <- as.vector(samples.icate %*% weights)
   } else {
     samples.cate <- rowMeans(samples.icate)
   }
-  samples.cate <- rowMeans(samples.icate)
   c(estimate = mean(samples.cate), sd = sd(samples.cate))
 },
 
@@ -209,17 +216,17 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
   estimateCall <- quote(getATEEstimate())
   intervalCall <- quote(getATEInterval())
   
-  weights <- if (inherits(object$fit.rsp, "stan4bartFit")) object$fit.rsp$weights else object$data.rsp@weights
-  if (!is.null(weights) && length(weights) == 0L) weights <- NULL
-  y <- if (inherits(object$fit.rsp, "stan4bartFit")) object$fit.rsp$y else object$data.rsp@y
+  pop  <- populationWeights(object)
+  fitw <- responseFitWeights(object)
+  n <- length(object$trt)
+  y <- observedResponse(object)
+  missingObs <- is.na(y)
   
   inferentialSubset <- switch(object$estimand,
-                              ate = rep(TRUE, length(y)),
+                              ate = rep(TRUE, n),
                               att = object$trt >  0,
                               atc = object$trt <= 0)
-  inferentialSubset <- inferentialSubset
   keepSubset <- object$commonSup.sub
-  n.obs <- sum(inferentialSubset & keepSubset)
   
   if (responseIsBinary(object))
     estimateVariables <- setdiff(estimateVariables, "sigma")
@@ -232,13 +239,19 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
            samples.icate = extract(object, "icate", "all"),
            samples.cate  = extract(object, "cate"),
            samples.sate  = extract(object, "sate"),
-           samples.scate  = rowMeans(multiplyArrayByVec(subtractArrayFromVec(y, extract(object, "mu.cf", "all")), 2 * object$trt - 1)),
-           samples.iscate = multiplyArrayByVec(subtractArrayFromVec(y, extract(object, "mu.cf", "all")), 2 * object$trt - 1),
+           samples.iscate = {
+             ## a missing response is the posterior of its observed outcome,
+             ## its noise counted below
+             iscate <- multiplyArrayByVec(subtractArrayFromVec(y, extract(object, "mu.cf", "all")), 2 * object$trt - 1)
+             if (any(missingObs)) iscate[,missingObs] <- extract(object, "icate", "all")[,missingObs]
+             iscate
+           },
            sigma         = extract(object, "sigma"),
            samples.obs   = extract(object, "mu.obs", "all"),
            samples.cf    = extract(object, "mu.cf", "all"),
-           weights       = weights,
-           n.obs = n.obs
+           weights       = NULL,
+           noise.var     = NULL,
+           missing.obs   = NULL
     ))
     estimateCall[[i + 1L]] <- str2lang(varName)
   }
@@ -249,71 +262,85 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
   for (i in seq_along(intervalVariables)) {
     varName <- intervalVariables[i]
     switch(varName,
-           samples.pate = samples.pate <- extract(object, "pate"))
+           samples.pate = samples.pate <- extract(object, "pate"),
+           samples.sate = samples.sate <- extract(object, "sate"),
+           samples.cate = samples.cate <- extract(object, "cate"))
     intervalCall[[i + 1L]] <- str2lang(varName)
   }
-
-  if (!groupEstimates) {
-    if (!is.null(weights)) {
-      weights <- weights[inferentialSubset]
-      weights <- weights / sum(weights)
-    }
-    for (varName in intersect(estimateVariables, c("samples.icate", "samples.obs", "samples.cf", "samples.iscate")))
-      assign(varName, get(varName)[,keepSubset & inferentialSubset,drop = FALSE])
-    
+  
+  rowVariables <- intersect(estimateVariables, c("samples.icate", "samples.obs", "samples.cf", "samples.iscate"))
+  ## the estimate over a set of rows (a logical vector over every row): the
+  ## population weights' shares of those rows, and the noise of their average
+  ## in the response fit as fit
+  estimateOver <- function(rows) {
+    shares <- if (is.null(pop)) rep_len(1 / sum(rows), sum(rows)) else weightShares(pop, rows)
+    fitRows <- if (is.null(fitw)) NULL else fitw[rows]
+    noise.var <- if (is.null(pop) && is.null(fitw)) 1 / sum(rows) else averageNoiseVariance(shares, fitRows)
+    missing.obs <- missingObs[rows]
+    if (any(missing.obs))
+      noise.var <- noise.var + averageNoiseVariance(shares * missing.obs, fitRows)
+    weights <- if (is.null(pop)) NULL else shares
+    for (varName in rowVariables)
+      assign(varName, get(varName)[,rows,drop = FALSE])
     estimate <- eval(estimateCall)
     interval <- eval(intervalCall)
     names(interval) <- c("ci.lower", "ci.upper")
-    estimates <- as.data.frame(t(c(estimate, interval)))
+    c(estimate, interval)
+  }
+  environment(estimateOver) <- environment()
+  
+  if (!groupEstimates) {
+    estimates <- as.data.frame(t(estimateOver(inferentialSubset & keepSubset)))
     row.names(estimates) <- object$estimand
   } else {
     estimates <- as.data.frame(t(sapply(seq_along(levels(object$group.by)), function(i) {
       level <- levels(object$group.by)[i]
       levelObs <- object$group.by == level & inferentialSubset & keepSubset
       
-      if (!is.null(weights)) {
-        weights <- weights[levelObs]
-        weights <- weights / sum(weights)
-      }
-      
       # go through and subset variables that are grouped, sometimes in lists
       # sometimes in vectors
-      for (varName in c("samples.tmle", "samples.cate", "samples.pate", "samples.scate"))
+      for (varName in c("samples.tmle", "samples.cate", "samples.pate", "samples.sate", "samples.scate"))
         if (varName %in% estimateVariables || varName %in% intervalVariables)
           assign(varName, get(varName)[[i]])
-      for (varName in c("samples.icate", "samples.obs", "samples.cf", "samples.iscate")) {
-        if (varName %in% estimateVariables || varName %in% intervalVariables) {
-          var <- get(varName)
-          assign(varName, ifelse_3(is.null(dim(var)), length(dim(var)) == 2L,
-                                   var[levelObs], var[,levelObs,drop=FALSE], var[,,levelObs,drop=FALSE]))
-        }
-      }
-      n.obs <- sum(levelObs)
+      environment(estimateOver) <- environment()
       
-      estimate <- eval(estimateCall)
-      interval <- eval(intervalCall)
-      names(interval) <- c("ci.lower", "ci.upper")
-      c(estimate, interval, n = n.obs)
+      c(estimateOver(levelObs), n = sum(levelObs))
     })))
     row.names(estimates) <- levels(object$group.by)
     
     # combine back to get whole if possible
     if (object$method.rsp %in% c("bart", "bcf")) {
-      weights.g <- estimates$n / n.obs
-      for (varName in c("samples.cate", "samples.pate"))
+      ## a group's share of the whole is its share of the population weights,
+      ## over the rows each estimate averages
+      allObs <- inferentialSubset & keepSubset
+      levelObs <- lapply(levels(object$group.by), function(level) object$group.by == level & allObs)
+      weights.g <- if (is.null(pop)) estimates$n / sum(allObs)
+                   else vapply(levelObs, function(rows) sum(pop[rows]), 0) / sum(pop[allObs])
+      for (varName in c("samples.cate", "samples.pate", "samples.sate"))
         if (varName %in% estimateVariables || varName %in% intervalVariables)
           assign(varName, colSums(t(sapply(get(varName), function(x) x)) * weights.g))
-      estimate <- eval(estimateCall)
-      interval <- eval(intervalCall)
       
       totalName <- "total"
       while (totalName %in% rownames(estimates))
         totalName <- paste0(totalName, ".")
-      estimates[totalName,] <- c(estimate, interval, n.obs)
+      estimates[totalName,] <- c(estimateOver(allObs), sum(allObs))
     }
   }
   
   estimates
+}
+
+## Kish's effective sample size of the population weights over the rows the
+## estimate averages, NULL for an unweighted fit.
+getEffectiveSampleSize <- function(object)
+{
+  pop <- populationWeights(object)
+  if (is.null(pop)) return(NULL)
+  rows <- switch(object$estimand,
+                 ate = rep(TRUE, length(object$trt)),
+                 att = object$trt >  0,
+                 atc = object$trt <= 0) & object$commonSup.sub
+  sum(pop[rows])^2 / sum(pop[rows]^2)
 }
 
 summary.bartcFit <- function(object,
@@ -361,6 +388,8 @@ summary.bartcFit <- function(object,
               commonSup.rule = object$commonSup.rule,
               estimates)
   
+  result$n.eff <- getEffectiveSampleSize(object)
+  
   groupEstimates <- !is.null(object$group.by) && !is.null(object$group.effects) && object$group.effects
   if (object$commonSup.rule != "none") {
     result$commonSup.cut <- object$commonSup.cut
@@ -378,6 +407,20 @@ summary.bartcFit <- function(object,
       result$estimates$n <- result$estimates$n - rowSums(n.cut)
     }
     result$n.cut <- n.cut
+
+    ## the share of the population weight that the cut removes from the rows
+    ## the estimand averages over, since the cut changes the population
+    ## the estimate describes
+    pop <- populationWeights(object)
+    if (!is.null(pop)) {
+      estimandRows <- switch(object$estimand,
+                             ate = rep_len(TRUE, length(object$trt)),
+                             att = object$trt > 0,
+                             atc = object$trt <= 0)
+      total <- sum(pop[estimandRows])
+      if (total > 0)
+        result$weight.cut <- sum(pop[estimandRows & !object$commonSup.sub]) / total
+    }
   }
   class(result) <- "bartcFit.summary"
   
@@ -406,6 +449,9 @@ print.bartcFit.summary <- function(x, ...)
   if (!is.null(x$estimates[["n"]]) && any(x$estimates[["n"]] <= 10L) && x$n.obs > 10L)
     cat("  if (n < 10) group-size estimates may be unstable\n", ...)
   cat("Estimates fit from ", x$n.obs - if (x$commonSup.rule != "none") sum(x$n.cut) else 0, " total observations\n", sep = "")
+  if (!is.null(x$n.eff))
+    cat("Effective sample size of the population weights over the rows averaged (Kish): ",
+        format(x$n.eff, digits = digits), "\n", sep = "")
   
   cat(round(100 * x$ci.info$ci.level, digits), "% credible interval calculated by: ",
       switch(x$ci.info$ci.style,
@@ -420,6 +466,10 @@ print.bartcFit.summary <- function(x, ...)
     cat("\nCommon support enforced by cutting using '", x$commonSup.rule, "' rule, cutoff: ", x$commonSup.cut,
         "\nSuppressed observations:\n", sep = "")
     print(x$n.cut)
+    if (!is.null(x$weight.cut) && x$weight.cut > 0)
+      cat("The rows cut carry ", format(100 * x$weight.cut, digits = digits),
+          "% of the population weight; the estimate describes the weighted population that remains\n",
+          sep = "", ...)
     cat("\n")
   }
   

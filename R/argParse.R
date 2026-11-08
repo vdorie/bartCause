@@ -778,6 +778,10 @@ hasArgsList <- function(argsExpr, args)
   !is.null(args) && length(args) > 0L
 }
 
+## The names an args list gives, read as addArgsList reads them.
+argsListNames <- function(argsExpr, args)
+  if (is.call(argsExpr) && identical(argsExpr[[1L]], quote(list))) names(argsExpr)[-1L] else names(args)
+
 addArgsList <- function(call, argsExpr, args, argName)
 {
   written <- is.call(argsExpr) && identical(argsExpr[[1L]], quote(list))

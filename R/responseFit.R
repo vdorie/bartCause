@@ -31,7 +31,16 @@ getStan4BartResponseFit <- function(response, treatment, confounders, parametric
   if (weightsAreMissing)
     weights <- NULL
   else if (!dataAreMissing)
-    weights <- eval(matchedCall$weights, envir = data)
+    weights <- eval(matchedCall$weights, envir = data, enclos = callingEnv)
+  
+  ## stan4bart reads its weights as precisions, and has no reading of them as
+  ## counts
+  weightsType <- getDotsArgument(matchedCall, "weights.type", callingEnv, NULL)
+  if (identical(weightsType, "frequency"))
+    stop("stan4bart reads weights as precisions only, so a varying intercept or a parametric part ",
+         "(group.by with use.ranef = TRUE, parametric) cannot take frequency weights; expand the rows, ",
+         "or fit the grouping factor as a fixed effect with use.ranef = FALSE", call. = FALSE)
+  if (!is.null(matchedCall[["weights.type"]])) matchedCall[["weights.type"]] <- NULL
   
   stan4bartCall <- NULL; treatmentName <- NULL; missingRows <- NULL; p.scoreName <- NULL
   if (!dataAreMissing && is.data.frame(data)) {
@@ -524,25 +533,18 @@ getPWeightResponseFit <-
   function(response, treatment, confounders, data, subset, weights, estimand,
            group.by = NULL, use.ranef = TRUE, group.effects = FALSE,
            p.score, samples.p.score,
+           pop.weights = NULL,
            yBounds = c(.005, .995), p.scoreBounds = c(0.025, 0.975), ...)
 {
-  dataAreMissing    <- missing(data)
-  weightsAreMissing <- missing(weights)
-  
   matchedCall <- match.call()
   callingEnv <- parent.frame(1L)
   
   if (is.null(matchedCall$p.score) || is.null(p.score))
     stop("propensity score weighting only possible if propensity score provided")
   
-  if (weightsAreMissing) {
-    weights <- NULL
-  } else {
-    if (!dataAreMissing) weights <- eval(matchedCall$weights, envir = data)
-    ## the rows the response model is fit to, as dbartsData takes them
-    if (!is.null(weights) && !is.null(matchedCall[["subset"]]))
-      weights <- weights[if (dataAreMissing) subset else eval(matchedCall[["subset"]], data, callingEnv)]
-  }
+  ## the estimator averages with the population weights, which bartc hands
+  ## over on the rows modeled; 'weights' are the response fit's own
+  weights <- pop.weights
   
   bartCall <- redirectCall(matchedCall, quoteInNamespace(getBartResponseFit))
   bartCall$calculateEstimates <- FALSE
@@ -856,25 +858,18 @@ getTMLEResponseFit <-
            group.by = NULL, use.ranef = TRUE, group.effects = FALSE,
            p.score, samples.p.score,
            verbose, posteriorOfTMLE = TRUE,
+           pop.weights = NULL,
            yBounds = c(.005, .995), p.scoreBounds = c(0.025, 0.975), depsilon = 0.001, maxIter = max(1000, 2 / depsilon), ...)
 {
-  dataAreMissing    <- missing(data)
-  weightsAreMissing <- missing(weights)
-  
   matchedCall <- match.call()
   callingEnv <- parent.frame(1L)
   
   if (is.null(matchedCall$p.score) || is.null(p.score))
     stop("TMLE only possible if propensity score provided")
   
-  if (weightsAreMissing) {
-    weights <- NULL
-  } else {
-    if (!dataAreMissing) weights <- eval(matchedCall$weights, envir = data)
-    ## the rows the response model is fit to, as dbartsData takes them
-    if (!is.null(weights) && !is.null(matchedCall[["subset"]]))
-      weights <- weights[if (dataAreMissing) subset else eval(matchedCall[["subset"]], data, callingEnv)]
-  }
+  ## the estimator averages with the population weights, which bartc hands
+  ## over on the rows modeled; 'weights' are the response fit's own
+  weights <- pop.weights
   
   bartCall <- redirectCall(matchedCall, quoteInNamespace(getBartResponseFit))
   bartCall$calculateEstimates <- FALSE

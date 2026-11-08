@@ -1,5 +1,5 @@
 bartc <- function(
-  response, treatment, confounders, parametric, data, subset, weights,
+  response, treatment, confounders, parametric, data, subset, weights, weights.rsp,
   method.rsp = c("bart", "bcf", "tmle", "p.weight"),
   method.trt = c("bart", "glm", "none"),
   estimand   = c("ate", "att", "atc"),
@@ -87,6 +87,29 @@ bartc <- function(
     call
   }
   
+  ## the population weights and the response fit's own weights are resolved
+  ## once, over the rows modeled; the fits read the response fit's weights
+  ## from its expression as written, and the averages read the population's
+  popWeights <- resolveRowWeights(matchedCall, "weights", callingEnv)
+  rspWeights <- resolveRowWeights(matchedCall, "weights.rsp", callingEnv)
+  argsRspNames <- if (hasArgsList(matchedCall[["args.rsp"]], args.rsp)) argsListNames(matchedCall[["args.rsp"]], args.rsp) else character()
+  if (!is.null(rspWeights) && length(rspWeights$value) > 0L && !all(rspWeights$value %in% c(0, 1)) &&
+      is.null(matchedCall[["family"]]) &&
+      "family" %not_in% argsRspNames &&
+      responseIsZeroOne(matchedCall, callingEnv))
+    stop("a 0/1 response is fit by probit BART, which takes weights.rsp of 0 or 1 only, having no weighted ",
+         "form; population weights go in 'weights', which weight the average of the unit effects, with the ",
+         "variables they were built from among the confounders", call. = FALSE)
+  
+  ## the response fit's weights come by weights.rsp alone, and their reading
+  ## says how it reads them; both refused before anything is fit
+  if ("weights" %in% argsRspNames)
+    stop("args.rsp gives 'weights': the response fit's own weights are bartc's weights.rsp, and the ",
+         "population weights that every average reads are 'weights'", call. = FALSE)
+  if (is.null(rspWeights) && (!is.null(matchedCall[["weights.type"]]) || "weights.type" %in% argsRspNames))
+    stop("weights.type says how the response fit reads weights.rsp, and without weights.rsp the response ",
+         "fit is unweighted; drop weights.type, or give weights.rsp", call. = FALSE)
+  
   ## the grouping factor is resolved once, so the treatment fit, the response
   ## fit and the group-level estimands all see the same levels; the call keeps
   ## the user's expression, which is what the model formulas name
@@ -114,7 +137,26 @@ bartc <- function(
       bart      = redirectCall(matchedCall, quoteInNamespace(getBartTreatmentFit)),
       none      = NULL)
     
+    trtEnv <- callingEnv
     if (!is.null(treatmentCall)) {
+      ## weights.type says how the response fit reads its weights; the
+      ## propensity fit is not given them
+      if (!is.null(treatmentCall[["weights.type"]])) treatmentCall[["weights.type"]] <- NULL
+      if (method.trt == "glm" && !is.null(popWeights)) {
+        ## glm's prior weights, at mean 1 over the rows modeled: its starting
+        ## values are taken from the weights, and at a survey's scale it
+        ## diverges; the estimate does not depend on their scale
+        trtEnv <- new.env(parent = callingEnv)
+        weightsName <- uniqueName("w", matchedCall, callingEnv)
+        trtEnv[[weightsName]] <- popWeights$full / mean(popWeights$value)
+        treatmentCall[["weights"]] <- as.symbol(weightsName)
+      } else if (!is.null(treatmentCall[["weights"]])) {
+        ## a BART propensity model is a probit, which has no weighted form
+        treatmentCall[["weights"]] <- NULL
+        if (method.rsp %in% c("p.weight", "tmle"))
+          message("the propensity score model is fit unweighted by BART, so its scores are the sample's; ",
+                  "if sampling depended on treatment, method.trt = \"glm\" fits it with the weights")
+      }
       if (hasArgsList(matchedCall[["args.trt"]], args.trt))
         treatmentCall <- takeOverridden(addArgsList(treatmentCall, matchedCall[["args.trt"]], args.trt, "args.trt"))
       treatmentCall <- dropRngSeed(treatmentCall)
@@ -127,7 +169,7 @@ bartc <- function(
       
       if (verbose) cat("fitting treatment model via method '", method.trt, "'\n", sep = "")
       
-      massign[fit.trt, p.score, samples.p.score] <- eval(treatmentCall, envir = callingEnv)
+      massign[fit.trt, p.score, samples.p.score] <- eval(treatmentCall, envir = trtEnv)
     }
   } else {
     stop("method.trt must be in '", paste0(eval(formals(bartCause::bartc)$method.trt), collapse = "', '"), "' or a fixed vector")
@@ -171,9 +213,20 @@ bartc <- function(
   responseCall <- addCallDefaults(responseCall, bartCause::bartc)
   if ("verbose" %in% names(responseCall)) responseCall[[which(names(responseCall) == "verbose")]] <- verbose
   
-  evalEnv <- callingEnv
+  ## the response fit takes weights.rsp, and is unweighted without it
+  if (!is.null(matchedCall[["weights.rsp"]]))
+    responseCall[["weights"]] <- matchedCall[["weights.rsp"]]
+  else if (!is.null(responseCall[["weights"]]))
+    responseCall[["weights"]] <- NULL
+  
+  evalEnv <- new.env(parent = callingEnv)
+  ## the propensity-weighted estimators average with the population weights,
+  ## handed over on the rows modeled
+  if (method.rsp %in% c("tmle", "p.weight") && !is.null(popWeights)) {
+    evalEnv$pop.weights <- popWeights$value
+    responseCall$pop.weights <- quote(pop.weights)
+  }
   if ((p.scoreAsCovariate || method.rsp %in% c("tmle", "p.weight")) && !is.null(p.score)) {
-    evalEnv <- new.env(parent = callingEnv)
     pScoreArgName <- "ps"
     if (!is.null(matchedCall$data))
       while (pScoreArgName %in% names(data)) pScoreArgName <- paste0(pScoreArgName, "ps")
@@ -215,12 +268,30 @@ bartc <- function(
   ## propensity score in, carried out the same way name.trt is: predict must
   ## not re-derive it, since no rule over the column names can tell the score
   ## from a confounder whose own name starts with the score's stem
+  ## both weight vectors are kept over every row an effect is estimated for,
+  ## the missing-response rows included, NULL where not given
   result <- namedList(fit.rsp = fit, data.rsp = data, fit.trt, mu.hat.obs, mu.hat.cf, p.score, samples.p.score,
                       method.rsp, method.trt, estimand,
                       commonSup.rule, commonSup.cut,
                       name.trt, name.p.score, trt,
                       sd.obs, sd.cf, commonSup.sub, missingRows, est, fitPars,
+                      weights = if (!is.null(popWeights)) popWeights$value else NULL,
+                      weights.rsp = if (!is.null(rspWeights)) rspWeights$value else NULL,
                       call = givenCall)
+  
+  ## a row out of a continuous response fit has no noise scale for its
+  ## counterfactual, so it cannot be in an average
+  if (!is.null(rspWeights) && !responseIsBinary(result)) {
+    outOfFit <- rspWeights$value <= 0 & (if (is.null(popWeights)) TRUE else popWeights$value > 0)
+    if (any(outOfFit)) {
+      bad <- rspWeights$rows[outOfFit]
+      stop(if (length(bad) > 1L) "rows " else "row ", paste0(head(bad, 5L), collapse = ", "),
+           if (length(bad) > 5L) paste0(" and ", length(bad) - 5L, " more") else "",
+           " have weights.rsp 0 but a positive population weight: a row out of the response fit has no ",
+           "noise scale for its counterfactual; give it a positive weights.rsp, or a population weight of 0",
+           call. = FALSE)
+    }
+  }
   if (!is.null(matchedCall[["group.by"]])) {
     result[["group.by"]] <- group.by
     if (use.ranef) result[["use.ranef"]] <- use.ranef
