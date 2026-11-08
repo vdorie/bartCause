@@ -16,6 +16,12 @@
             available with it.
       \item \code{group.by} can be supplied together with \code{parametric};
             the varying intercept is added to the parametric equation.
+      \item \code{bartc} gains \code{weights.rsp}, the response model's own
+            weights, read by \pkg{dbarts} as \code{weights.type} says
+            (precisions or counts of identical rows).
+      \item With \code{weights}, \code{summary} prints the effective sample
+            size of the weights (Kish) over the rows averaged and, under a
+            common support rule, the share of the weight the rule cut.
     }
   }
   \subsection{USER-VISIBLE CHANGES}{
@@ -49,10 +55,29 @@
             and on the controls when it trims controls, uses a glm and a gam
             only, as \pkg{dbarts} does not fit a probit model under weights
             other than 0 and 1. Without \code{weights} nothing changes.
-      \item BART propensity models are always probit and cannot be weighted;
-            when \code{weights} are supplied they are ignored in the propensity
-            fit, with a message, and enter only the treatment effect
-            estimators.
+      \item \code{weights} are population weights: they weight every average
+            of the individual effects (ATE, ATT and ATC; \code{"pate"},
+            \code{"sate"} and \code{"cate"} in \code{fitted}, \code{extract}
+            and \code{summary}, within groups and in their total), and the
+            response model is now fit without them; \code{weights.rsp} gives it
+            weights. Estimates and intervals do not depend on the weights'
+            scale. Put the variables the weights were built from among the
+            confounders; see \sQuote{Weights} in \code{?bartc}.
+      \item The intervals of the PATE and SATE include the response noise of
+            the weighted average, \eqn{\sigma^2 \sum_i a_i^2 / w_i}, with
+            \eqn{a_i} a row's share of the population weights and \eqn{w_i} its
+            response-model weight, where they used \eqn{\sigma^2 / n}. Each
+            drawn counterfactual has the noise the response model gives its
+            row, \eqn{\sigma / \sqrt{w_i}} for precision weights.
+      \item A \code{"glm"} treatment model is fit with \code{weights} rescaled
+            to mean 1. BART propensity models are probit and cannot be
+            weighted; they are fit without \code{weights}, with a message only
+            for the \code{"p.weight"} and \code{"tmle"} response methods,
+            whose estimators read the scores.
+      \item \code{weights} must be numeric, finite and non-negative, with a
+            positive sum and one value for each row of \code{data}; they are
+            taken for the rows of \code{subset}, missing-response rows
+            included. Each refusal names the rows at fault.
       \item \code{bartc} warns, once for each model it fits, naming any
             argument that did not reach the sampler and why, where it used to
             drop the argument unseen: one that \pkg{dbarts} or
@@ -101,6 +126,25 @@
   }
   \subsection{BUG-FIXES}{
     \itemize{
+      \item \code{summary(target = "cate")} with \code{weights} reported the
+            unweighted average.
+      \item Weighted \code{"att"} and \code{"atc"} estimates from \code{extract}
+            and \code{fitted}, and any estimate under a common support rule,
+            normalized the weights over every row and so were scaled by the
+            ratio of the weights' mean over the rows averaged to their mean over
+            all rows.
+      \item \code{summary} under a common support rule cut the weights to the
+            estimand's rows rather than to the rows kept, recycling them.
+      \item With \code{weights} and missing responses, the weights were
+            recycled over the rows; they are now aligned with them.
+      \item \code{summary} paired the responses of a fit with missing responses
+            with the wrong rows in the SATE.
+      \item A weighted \code{extract} of a one-chain fit failed.
+      \item The total row of a grouped \code{summary} combined the groups by
+            their row counts rather than by their share of the weights, and
+            failed for \code{target = "cate"} with \code{ci.style = "quant"}.
+      \item A \code{"glm"} treatment model with weights of survey scale could
+            fail to converge.
       \item The standard errors of weighted \code{method.rsp = "tmle"} fits,
             which came from the built-in estimator, were not converted back to
             the scale of the response, and \code{weights} together with

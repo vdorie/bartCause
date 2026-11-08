@@ -83,7 +83,9 @@ refit(object, newresp, \dots)
   samples. The possible options are:
   
   \itemize{
-    \item \code{"pate", "sate", "cate"} - various target quantities; see \code{\link[=summary.bartcFit]{summary}}
+    \item \code{"pate", "sate", "cate"} - various target quantities, weighted by the population weights
+                                       when \code{\link{bartc}} was given them; see
+                                       \code{\link[=summary.bartcFit]{summary}}
     \item \code{"mu"} - predict only: expected value; requires user-supplied treatment variable in
                         \code{newdata}
     \item \code{"y"} - predict only: sample of the response; requires user-supplied treatment variable in
@@ -97,19 +99,23 @@ refit(object, newresp, \dots)
     \item \code{"mu.1"} - the expected value under the treated condition
     \item \code{"y.cf"} - samples of the response under the the counterfactual treatment condition, i.e.
                           \eqn{\hat{y}_i(1 - z_i))}; values are obtained by adding noise to \code{mu.cf}
-                          using the posterior predictive distribution
+                          using the posterior predictive distribution, at the noise each observation has
+                          in the response fit (\eqn{\sigma / \sqrt{w_i}} for precision weights
+                          \code{weights.rsp}; missing for an observation of weight 0)
     \item \code{"y.0"} - observed responses under the control together with predicted under the treated, i.e.
                          \eqn{\hat{y}_i(1) * z_i + y(0) * (1 - z_i)}
     \item \code{"y.1"} - observed responses under the treatment together with predicted under the control, i.e.
                          \eqn{y_i(1) * z_i + \hat{y}(0) * (1 - z_i)}
     \item \code{"ite"} - (sample) individual treatment effect estimates, i.e.
                          \eqn{(y_i(z_i) - y_i(1 - z_i)) * (2z_i - 1)}; uses observed responses and posterior
-                         predicted counterfactuals
+                         predicted counterfactuals; for \code{"y.0"}, \code{"y.1"} and \code{"ite"}, a
+                         missing response is drawn from the posterior predictive distribution
     \item \code{"icate"} - individual conditional average treatment effect estimates, i.e.
                          \eqn{\hat{mu}_i(1) - \hat{mu}_i(0)}
     \item \code{"p.score"} - probability that each observation is assigned to the treatment group
     \item \code{"p.weights"} - weights assigned to each individual difference if the response method
-                               is \code{"p.weight"}; they are normalized to sum to one over
+                               is \code{"p.weight"}, times the population weights when given;
+                               they are normalized to sum to one over
                                all observations in each draw, and with \code{sample = "all"}, no
                                group effects and no observations dropped by a common support rule,
                                the sum over observations of a weight and its individual effect is

@@ -48,12 +48,24 @@
   credible intervals. Thus the estimates for CATE, SATE, and PATE all should be reported as the same
   but with increasing degrees of uncertainty.
   
+  \strong{Weights}
+
+  With population weights (\code{weights} in \code{\link{bartc}}), every average is weighted: each
+  observation counts by its share of the weights over the observations averaged, so results do not
+  depend on the weights' scale. The SATE and PATE uncertainty includes the response noise of that
+  weighted average, \eqn{\sigma^2 \sum_i a_i^2 / w_i}, with \eqn{a_i} an observation's share and
+  \eqn{w_i} its weight in the response fit (1 for an unweighted fit or for counts given by
+  \code{weights.type = "frequency"}). Observations are treated as independent. The printed summary
+  gives the Kish effective sample size of the population weights,
+  \eqn{(\sum_i w_i)^2 / \sum_i w_i^2} over the observations averaged.
+
   \strong{Grouped Data}
   
   If a model is fit with a supplied grouping variable and \code{group.effects = TRUE}, the estimates
   will also be reported within groups. When possible, the last line corresponds to the population. Within
   group estimates for resposne methods such as \code{"tmle"} cannot easily be extrapolated to the
-  population at large - the means will combine based on the sample sizes but the uncertainty estimates
+  population at large - the means will combine based on the sample sizes, or on the shares of the
+  population weights, but the uncertainty estimates
   will lack correlations.
 }
 \value{
@@ -78,6 +90,11 @@
                           \code{"ci.upper"} - upper bound of credible region,
                           and optionally \code{"n.cut"} - how many observations were dropped using 
                           common support rule}
+  \item{\code{weight.cut}}{with population weights and a common support rule, the share of the
+                            population weight of the observations the estimand averages over that the
+                            rule removed}
+  \item{\code{n.eff}}{with population weights, the Kish effective sample size of the weights over the
+                       observations averaged; absent otherwise}
 }
 \author{
 Vincent Dorie: \email{vdorie@gmail.com}.

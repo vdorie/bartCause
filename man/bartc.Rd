@@ -6,7 +6,7 @@
   Regression Trees (BART) algorithm, producing estimates of treatment effects.
 }
 \usage{
-bartc(response, treatment, confounders, parametric, data, subset, weights,
+bartc(response, treatment, confounders, parametric, data, subset, weights, weights.rsp,
       method.rsp = c("bart", "bcf", "tmle", "p.weight"),
       method.trt = c("bart", "glm", "none"),
       estimand   = c("ate", "att", "atc"),
@@ -49,11 +49,37 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
     provided.
   }
   \item{weights}{
-    An optional vector of population weights used in model fitting and
-    estimating the treatment effect. Can refer to \code{data} if provided.
-    BART-based treatment models fit the propensity score unweighted (a weighted
-    probit has no tractable latent-variable form); the weights enter the
-    treatment-effect estimators.
+    An optional vector of population weights - sampling, nonresponse or
+    target-population weights - giving each row's share of the population the
+    effects are averaged over. Can refer to \code{data} if provided, and is cut
+    to \code{subset}; values must be finite and non-negative, with at least one
+    positive. They weight every average of the individual effects: the ATE, ATT
+    and ATC, as \code{"pate"}, \code{"sate"} and \code{"cate"} in
+    \code{fitted}, \code{extract} and \code{summary}, within groups and in
+    their total, and in the \code{"p.weight"} and \code{"tmle"} estimators.
+    Their scale does not matter. The response model is fit without them (see
+    \code{weights.rsp} and \sQuote{Weights} below). A \code{"glm"} treatment
+    model is fit with them, rescaled to mean 1; a BART treatment model is fit
+    without them, a probit having no weighted form. They are not
+    propensity-score weights: \code{bartc} adjusts for confounding itself, and
+    weights from a propensity model would change the population the estimate
+    describes.
+  }
+  \item{weights.rsp}{
+    An optional vector of the response model's own weights, its whole weight
+    vector, read by \pkg{dbarts} as \code{weights.type} says:
+    \code{"precision"}, the default for a continuous response, a row of weight
+    \eqn{w} having noise variance \eqn{\sigma^2 / w}, as a row that is the
+    mean of \eqn{w} units has; or \code{"frequency"}, a row standing for
+    \eqn{w} identical observations. Missing or \code{NULL}, the response model
+    is unweighted. No average reads them. \code{weights.type} is given through
+    \code{\dots} or \code{args.rsp} and is refused without
+    \code{weights.rsp}; \code{"frequency"} is refused for models fit by
+    \code{\link[stan4bart]{stan4bart}}, which reads weights as precisions only.
+    A 0/1 response takes weights of 0 or 1 only. A row of weight 0 is out of
+    the response fit, which gives a continuous response no noise scale for it,
+    so it must have a population weight of 0. Can refer to \code{data} if
+    provided.
   }
   \item{method.rsp}{
     A character string specifying which method to use when fitting the response
@@ -218,7 +244,7 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
           \eqn{p(z_i | x_i)}, normalized to sum to one within each posterior
           draw. For ATC, they are proportional to \eqn{1 - p(z_i | x_i)}. When
           \code{weights} are supplied, each is multiplied by its observation's
-          weight before normalizing. The standard error of each draw is in the
+          population weight before normalizing. The standard error of each draw is in the
           units of the response, and \code{summary} combines it with the
           posterior variance of the estimates. For ATE, \code{"p.weight"} is equal to
           \code{"bart"}.
@@ -229,7 +255,8 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
           the \pkg{tmle} package; without \code{weights}, a built-in
           implementation stands in, with a warning, when the package is not
           installed. With \code{weights}, \pkg{tmle} version 2.0.0 or later
-          is required, and the weights are passed to it as \code{obsWeights},
+          is required, and the population weights are passed to it as
+          \code{obsWeights},
           with the library for its own refit of the treatment mechanism
           limited to a glm and a gam, since \pkg{dbarts} refuses to weight
           the probit BART learner in its default library; weights that are all
@@ -347,6 +374,56 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
           mean (\code{FALSE}).
   }
   
+  \strong{Weights}
+  
+  \code{weights} are population weights, and the response model is fit
+  without them: the individual effects are the model's predictions given the
+  confounders, and the weights say how much of the population each row stands
+  for. This is sound when the variables the weights were built from are among
+  the confounders (Gelman, 2007), so put them there: the strata, and the
+  variables a nonresponse or target-population model used. Where only the
+  weights are at hand, \code{log(w)} can be added to the confounders when the
+  weights were built from information collected before treatment, never when
+  they were built from outcomes or from later waves, as attrition weights are:
+  the model would then predict the outcome from the weights. Clusters of a
+  sampling design go in \code{group.by}, with \code{use.ranef = TRUE}. A
+  response model fit with the weights as precisions remains a call away,
+  \code{weights = w, weights.rsp = w}. Solon, Haider and Wooldridge (2013)
+  discuss when weighting a regression for causal effects is called for.
+  
+  Intervals treat the rows as sampled independently; they do not reflect a
+  design's strata or clusters. Each counterfactual is drawn with its noise as
+  the response model has it, \eqn{\sigma / \sqrt{w_i}} for precision
+  \code{weights.rsp} and \eqn{\sigma} otherwise, and the noise of an average
+  is \eqn{\sigma^2 \sum_i a_i^2 / w_i}{sigma^2 sum_i a_i^2 / w_i}, with
+  \eqn{a_i} a row's share of the population weights and \eqn{w_i} its
+  response-model weight (1 when unweighted; a count under
+  \code{"frequency"}). No interval depends on the population weights' scale.
+  \code{summary} prints their effective sample size,
+  \eqn{(\sum_i w_i)^2 / \sum_i w_i^2}{(sum_i w_i)^2 / sum_i w_i^2}, over the
+  rows averaged.
+  
+  Rows that are counts of identical units are best written out,
+  \code{d[rep(seq_len(nrow(d)), d$count), ]}, which is exact; or give
+  \code{weights = count, weights.rsp = count} with
+  \code{weights.type = "frequency"}. Survey weights are not counts: rows of
+  count \code{c} with survey weight \code{w} take
+  \code{weights = c * w, weights.rsp = c, weights.type = "frequency"}, or are
+  written out with \code{weights = w}.
+  
+  To average over another sample - a target population with its own weights
+  \code{tw} - fit with \code{keepTrees = TRUE}, then
+  \code{icate <- predict(fit, newdata = target, type = "icate")} and
+  \code{tate <- icate \%*\% (tw / sum(tw))} give a draw of the target's
+  conditional average effect for each posterior draw, whose mean and quantiles
+  are its estimate and interval.
+  
+  A row with a missing response stays in the average with its weight, its
+  outcomes predicted by the model; where the weights already adjust for the
+  missing outcomes, give those rows a weight of 0 or leave them out with
+  \code{subset}. A common support rule that cuts rows changes the population
+  the estimate describes; \code{summary} reports the share of the weight cut.
+
   \strong{Missing Data}
   
   Missingness is allowed only in the response. If some response values are
@@ -425,6 +502,10 @@ bartc(response, treatment, confounders, parametric, data, subset, weights,
                               made; only added when true}
   \item{\code{seed}}{a random seed for use when drawing from the posterior
                      predictive distribution}
+  \item{\code{weights}}{the population weights over the rows modeled, those with
+                        a missing response included, or \code{NULL}}
+  \item{\code{weights.rsp}}{the response model's weights over the same rows, or
+                            \code{NULL}}
 }
 \references{
 Chipman, H., George, E. and McCulloch R. (2010)
@@ -450,6 +531,17 @@ Carnegie, N. B. (2019)
   \emph{Statistical Science} \bold{34(1)}, 90--93.
   The Institute of Mathematical Statistics.
   \doi{10.1214/18-STS682}
+
+Gelman, A. (2007)
+  Struggles with Survey Weighting and Regression Modeling.
+  \emph{Statistical Science} \bold{22(2)}, 153--164.
+  The Institute of Mathematical Statistics.
+  \doi{10.1214/088342306000000691}.
+
+Solon, G., Haider, S. J. and Wooldridge, J. (2013)
+  What Are We Weighting For?
+  \emph{NBER Working Paper} 18859.
+  National Bureau of Economic Research.
 
 Hahn, P. R., Murray, J. S., and Carvalho, C. M. (2020)
   Bayesian Regression Tree Models for Causal Inference: Regularization, Confounding, and Heterogeneous Effects (with Discussion).
