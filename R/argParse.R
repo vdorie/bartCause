@@ -59,7 +59,7 @@ checkGroupByLength <- function(group.by, n, data = NULL)
     stop("'group.by' is the string \"", group.by, "\", which names a column of data; pass the column itself, ",
          "group.by = ", deparse(as.name(group.by), backtick = TRUE), ", not its name", call. = FALSE)
   
-  stop("'group.by' must have one value for each row of data (", n, "), but its length is ", length(group.by), call. = FALSE)
+  stop("'group.by' must have one value for each observation (", n, "), but its length is ", length(group.by), call. = FALSE)
 }
 
 ## A modeled grouping factor (use.ranef = TRUE) rides the formula as
