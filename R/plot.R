@@ -145,6 +145,16 @@ plot_support <- function(x, main = "Common Support Scatterplot",
   } else {
     x.matrix <- as.matrix(x$data.rsp@x)
     y.rsp <- x$data.rsp@y
+    ## rows with a missing response are not in the training data; the first n
+    ## rows of x.test are the whole design with the treatment flipped back
+    if (length(x$missingRows) > nrow(x.matrix)) {
+      n.all <- length(x$missingRows)
+      x.matrix <- as.matrix(x$data.rsp@x.test)[seq_len(n.all),,drop = FALSE]
+      x.matrix[,x$name.trt] <- 1 - x.matrix[,x$name.trt]
+      y.all <- rep_len(NA_real_, n.all)
+      y.all[!x$missingRows] <- y.rsp
+      y.rsp <- y.all
+    }
   }
 
   subset <- rep_len(TRUE, nrow(x.matrix))

@@ -207,6 +207,11 @@
             or \code{p.scoreAsCovariate = FALSE}), replaced the response
             column of \code{data} in the calling frame with zeros and
             missing values.
+      \item \code{bartc} with a \code{confounders} formula too long to deparse
+            on one line, such as twenty-five covariates joined by \code{+},
+            failed with \dQuote{the condition has length > 1}.
+      \item \code{plot_support} on a fit with missing responses stopped with
+            \dQuote{'x' and 'y' lengths differ}; it now plots every row.
     }
   }
 }

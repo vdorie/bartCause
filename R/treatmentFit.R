@@ -28,7 +28,7 @@ getGLMTreatmentFit <- function(response, treatment, confounders, parametric, dat
   glmCall <- evalEnv <- NULL
   if (!dataAreMissing && is.data.frame(data)) {
     dataEnv <- NULL
-    if (grepl("(?<![\\w\\.])\\.(?![\\w\\.])", deparse(matchedCall$confounders), perl = TRUE)) {
+    if (grepl("(?<![\\w\\.])\\.(?![\\w\\.])", paste0(deparse(matchedCall$confounders), collapse = " "), perl = TRUE)) {
       mfCall <- quote(stats::model.frame(a ~ b, data = data))
       mfCall[[2L]][[2L]] <- matchedCall$response
       mfCall[[2L]][[3L]] <- matchedCall$confounders
@@ -120,7 +120,7 @@ getBartTreatmentFit <- function(response, treatment, confounders, parametric, da
     # name characters. It can miss some cases, e.g. '_.' doesn't parse, but it should work
     # most of the time.
     dataEnv <- NULL
-    if (grepl("(?<![\\w\\.])\\.(?![\\w\\.])", deparse(matchedCall$confounders), perl = TRUE)) {
+    if (grepl("(?<![\\w\\.])\\.(?![\\w\\.])", paste0(deparse(matchedCall$confounders), collapse = " "), perl = TRUE)) {
       mfCall <- quote(stats::model.frame(a ~ b, data = data))
       mfCall[[2L]][[2L]] <- matchedCall$response
       mfCall[[2L]][[3L]] <- matchedCall$confounders
