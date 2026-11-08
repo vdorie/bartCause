@@ -115,7 +115,7 @@ bartc <- function(
       none      = NULL)
     
     if (!is.null(treatmentCall)) {
-      if (!is.null(args.trt) && length(args.trt) > 0L)
+      if (hasArgsList(matchedCall[["args.trt"]], args.trt))
         treatmentCall <- takeOverridden(addArgsList(treatmentCall, matchedCall[["args.trt"]], args.trt, "args.trt"))
       treatmentCall <- dropRngSeed(treatmentCall)
     
@@ -187,7 +187,7 @@ bartc <- function(
     }
   }
   
-  if (!is.null(args.rsp) && length(args.rsp) > 0L)
+  if (hasArgsList(matchedCall[["args.rsp"]], args.rsp))
     responseCall <- takeOverridden(addArgsList(responseCall, matchedCall[["args.rsp"]], args.rsp, "args.rsp"))
   responseCall <- dropRngSeed(responseCall)
   ## each argument is named once for each reason, though both fits dropped it

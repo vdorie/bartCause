@@ -768,20 +768,31 @@ responseMethodArguments <- function()
 ## call as they are, a symbol or call among them quoted so that the fit
 ## receives it rather than evaluating it. 'args' is that value, 'argsExpr' the
 ## expression it came from.
+## Whether there is a list to add. A list() call written out is empty or not by
+## its call alone, so it is not evaluated here; 'args' is a promise, forced only
+## for any other expression.
+hasArgsList <- function(argsExpr, args)
+{
+  if (is.call(argsExpr) && identical(argsExpr[[1L]], quote(list)))
+    return(length(argsExpr) > 1L)
+  !is.null(args) && length(args) > 0L
+}
+
 addArgsList <- function(call, argsExpr, args, argName)
 {
-  if (is.call(argsExpr) && identical(argsExpr[[1L]], quote(list))) {
-    call <- dropOverriddenSpellings(call, names(argsExpr)[-1L], argName)
-    call[names(argsExpr)[-1L]] <- argsExpr[-1L]
-    return(call)
-  }
-  
-  if (!is.list(args))
+  written <- is.call(argsExpr) && identical(argsExpr[[1L]], quote(list))
+  if (!written && !is.list(args))
     stop("'", argName, "' must be a list of arguments, each element named for the argument it gives", call. = FALSE)
-  argNames <- names(args)
+  argNames <- if (written) names(argsExpr)[-1L] else names(args)
   if (is.null(argNames) || anyNA(argNames) || any(argNames == ""))
     stop("every element of '", argName, "' must be named for the argument it gives", call. = FALSE)
-  
+
+  if (written) {
+    call <- dropOverriddenSpellings(call, argNames, argName)
+    call[argNames] <- argsExpr[-1L]
+    return(call)
+  }
+
   call <- dropOverriddenSpellings(call, argNames, argName)
   for (i in seq_along(args)) {
     value <- args[i]

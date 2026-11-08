@@ -188,6 +188,12 @@
             evaluated it again; it now reaches the \pkg{dbarts} or
             \pkg{stan4bart} fit as written. \code{k} given with another
             argument of an equal value, such as \code{n.trees}, also failed.
+            The same prior written in a list written out for
+            \code{args.rsp} or \code{args.trt}, such as
+            \code{args.rsp = list(k = chi(1.25, Inf))}, failed in the same
+            way, and each entry of the list was evaluated twice; each now
+            reaches the fit as written, and once. A list written out with an
+            entry that is not named is refused, as one held in a variable is.
       \item \code{subset} written as an expression of the columns of
             \code{data}, such as \code{subset = x1 > 0}, is read within
             \code{data}, as a model frame reads it. It failed with an error
