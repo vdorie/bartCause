@@ -58,7 +58,9 @@
   \code{weights.type = "frequency"}); an observation with a missing response adds its term once more
   to the SATE. Observations are treated as independent. The printed summary gives the Kish effective
   sample size of the population weights \eqn{v_i}, \eqn{(\sum_i v_i)^2 / \sum_i v_i^2} over the
-  observations averaged.
+  observations averaged. In a grouped summary the table of estimates has an \code{n.eff} column beside
+  \code{n}, each group's own figure over its observations averaged and the total row's the whole
+  figure; a group of no weight is \code{NA}.
 
   \strong{Grouped Data}
   
@@ -67,7 +69,8 @@
   group estimates for resposne methods such as \code{"tmle"} cannot easily be extrapolated to the
   population at large - the means will combine based on the sample sizes, or on the shares of the
   population weights, but the uncertainty estimates
-  will lack correlations.
+  will lack correlations. A group's \code{n} counts the observations its estimate averages over, those
+  of the estimand that a common support rule kept.
 }
 \value{
   An object of class \code{bartcFit.summary} equivalent to a list with named items:
@@ -89,8 +92,13 @@
                           of the response),
                           \code{"ci.lower"} - lower bound of credible region,
                           \code{"ci.upper"} - upper bound of credible region,
-                          and optionally \code{"n.cut"} - how many observations were dropped using 
-                          common support rule}
+                          and, in a grouped summary, \code{"n"} - the number of observations averaged and,
+                          with population weights, \code{"n.eff"} - their Kish effective sample size}
+  \item{\code{n.cut}}{under a common support rule, a \code{data.frame} of the treated and control
+                          observations it cut, for each group of a grouped summary; with population
+                          weights, a grouped summary adds the column \code{weight.cut}, each group's
+                          share of the population weight of the observations its estimand averages
+                          over that the rule removed, \code{NA} for a group of no weight}
   \item{\code{weight.cut}}{with population weights and a common support rule, the share of the
                             population weight of the observations the estimand averages over that the
                             rule removed}

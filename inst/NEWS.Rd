@@ -21,7 +21,10 @@
             (precisions or counts of identical rows).
       \item With \code{weights}, \code{summary} prints the effective sample
             size of the weights (Kish) over the rows averaged and, under a
-            common support rule, the share of the weight the rule cut.
+            common support rule, the share of the weight the rule cut. A
+            grouped summary gives each group its own effective sample size, as
+            an \code{n.eff} column beside \code{n}, and its own share of the
+            weight cut, in the table of rows cut.
     }
   }
   \subsection{USER-VISIBLE CHANGES}{
@@ -142,6 +145,10 @@
   \subsection{BUG-FIXES}{
     \itemize{
       \item \code{bartc(weights = NULL)} failed; it now fits without weights.
+      \item The summary of a grouped fit under a common support rule printed
+            a negative \code{n} for some groups, with a warning about
+            recycling, as it took the rows cut from the count a second time.
+            It now counts the rows its estimate averages. This held in 1.0-10.
       \item \code{summary(target = "cate")} with \code{weights} reported the
             unweighted average.
       \item Weighted \code{"att"} and \code{"atc"} estimates from \code{extract}

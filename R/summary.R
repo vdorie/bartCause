@@ -311,8 +311,9 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
       ## a group of no population weight is no part of the population: NA,
       ## the other groups estimated
       if (!is.null(pop) && !(sum(pop[levelObs]) > 0))
-        return(c(estimate = NA_real_, sd = NA_real_, ci.lower = NA_real_, ci.upper = NA_real_, n = sum(levelObs)))
-      c(estimateOver(levelObs), n = sum(levelObs))
+        return(c(estimate = NA_real_, sd = NA_real_, ci.lower = NA_real_, ci.upper = NA_real_, n = sum(levelObs),
+                 n.eff = NA_real_))
+      c(estimateOver(levelObs), n = sum(levelObs), if (!is.null(pop)) c(n.eff = kishSampleSize(pop[levelObs])))
     })))
     row.names(estimates) <- levels(object$group.by)
     
@@ -335,12 +336,15 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
       totalName <- "total"
       while (totalName %in% rownames(estimates))
         totalName <- paste0(totalName, ".")
-      estimates[totalName,] <- c(estimateOver(allObs), sum(allObs))
+      estimates[totalName,] <- c(estimateOver(allObs), sum(allObs), if (!is.null(pop)) kishSampleSize(pop[allObs]))
     }
   }
   
   estimates
 }
+
+## Kish's effective sample size of a set of weights.
+kishSampleSize <- function(weights) sum(weights)^2 / sum(weights^2)
 
 ## Kish's effective sample size of the population weights over the rows the
 ## estimate averages, NULL for an unweighted fit.
@@ -352,7 +356,7 @@ getEffectiveSampleSize <- function(object)
                  ate = rep(TRUE, length(object$trt)),
                  att = object$trt >  0,
                  atc = object$trt <= 0) & object$commonSup.sub
-  sum(pop[rows])^2 / sum(pop[rows]^2)
+  kishSampleSize(pop[rows])
 }
 
 summary.bartcFit <- function(object,
@@ -420,9 +424,7 @@ summary.bartcFit <- function(object,
           ctl = sum(!object$trt[levelObs] & !object$commonSup.sub[levelObs]))
       })))
       row.names(n.cut) <- levels(object$group.by)
-      result$estimates$n <- result$estimates$n - rowSums(n.cut)
     }
-    result$n.cut <- n.cut
 
     ## the share of the population weight that the cut removes from the rows
     ## the estimand averages over, since the cut changes the population
@@ -436,7 +438,14 @@ summary.bartcFit <- function(object,
       total <- sum(pop[estimandRows])
       if (total > 0)
         result$weight.cut <- sum(pop[estimandRows & !object$commonSup.sub]) / total
+      ## and for each group of a grouped fit, in the table of rows cut
+      if (groupEstimates)
+        n.cut$weight.cut <- vapply(levels(object$group.by), function(level) {
+          rows <- estimandRows & object$group.by == level
+          if (sum(pop[rows]) > 0) sum(pop[rows & !object$commonSup.sub]) / sum(pop[rows]) else NA_real_
+        }, 0)
     }
+    result$n.cut <- n.cut
   }
   class(result) <- "bartcFit.summary"
   
@@ -464,8 +473,8 @@ print.bartcFit.summary <- function(x, ...)
   print(x$estimates, digits = digits, ...)
   if (!is.null(x$estimates[["n"]]) && any(x$estimates[["n"]] <= 10L) && x$n.obs > 10L)
     cat("  if (n < 10) group-size estimates may be unstable\n", ...)
-  cat("Estimates fit from ", x$n.obs - if (x$commonSup.rule != "none") sum(x$n.cut) else 0, " total observations\n", sep = "")
-  if (!is.null(x$n.eff))
+  cat("Estimates fit from ", x$n.obs - if (x$commonSup.rule != "none") sum(x$n.cut[c("trt", "ctl")]) else 0, " total observations\n", sep = "")
+  if (!is.null(x$n.eff) && is.null(x$estimates[["n.eff"]]))
     cat("Effective sample size of the population weights over the rows averaged (Kish): ",
         format(x$n.eff, digits = digits), "\n", sep = "")
   

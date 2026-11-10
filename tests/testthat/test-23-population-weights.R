@@ -560,3 +560,58 @@ test_that("a common support rule that leaves no weight refuses at the end of the
   expect_error(pwFit(weights = 0 * w, data = gdata, group.by = grp, group.effects = TRUE, use.ranef = FALSE),
                "'weights' must be positive for at least one of the rows modeled")
 })
+
+test_that("a grouped summary gives each group its own n, effective sample size and share of weight cut", {
+  grp <- factor(rep(c("a", "b", "c"), c(20L, 40L, 60L)))
+  gdata <- cbind(pwData, grp = grp)
+  kish <- function(v) sum(v)^2 / sum(v^2)
+  fit <- pwFit(weights = w, data = gdata, group.by = grp, group.effects = TRUE, use.ranef = FALSE)
+  est <- summary(fit)$estimates
+  for (level in levels(grp))
+    expect_equal(est[level, "n.eff"], kish(gdata$w[grp == level]), label = level)
+  expect_equal(est["total", "n.eff"], kish(gdata$w))
+  expect_equal(summary(fit)$n.eff, est["total", "n.eff"])
+  expect_equal(est$n, c(20, 40, 60, 120))
+  out <- capture.output(print(summary(fit)))
+  expect_true(any(grepl("n.eff", out)))
+  expect_false(any(grepl("Effective sample size", out)))
+  ## an unweighted fit has no column
+  expect_null(summary(pwFit(data = gdata, group.by = grp, group.effects = TRUE, use.ranef = FALSE))$estimates$n.eff)
+  ## a group of no weight is NA
+  gdata$w0 <- ifelse(grp == "a", 0, gdata$w)
+  fit <- pwFit(weights = w0, data = gdata, group.by = grp, group.effects = TRUE, use.ranef = FALSE)
+  expect_true(is.na(summary(fit)$estimates["a", "n.eff"]))
+  expect_equal(summary(fit)$estimates["b", "n.eff"], kish(gdata$w[grp == "b"]))
+
+  ## under a common support rule: n counts the rows averaged and is never negative, and the table of rows
+  ## cut carries each group's share of its weight cut
+  anyCut <- FALSE
+  for (estimand in c("ate", "att", "atc")) {
+    fit <- pwFit(weights = w, data = gdata, estimand = estimand, group.by = grp, group.effects = TRUE,
+                 use.ranef = FALSE, commonSup.rule = "sd", commonSup.cut = -1)
+    expect_warning(s <- summary(fit), NA, label = estimand)
+    rows <- switch(estimand, ate = rep(TRUE, nrow(gdata)), att = gdata$z == 1, atc = gdata$z == 0)
+    kept <- rows & fit$commonSup.sub
+    anyCut <- anyCut || any(rows & !fit$commonSup.sub)
+    for (level in levels(grp)) {
+      expect_equal(s$estimates[level, "n"], sum(kept & grp == level), label = paste(estimand, level))
+      expect_equal(s$estimates[level, "n.eff"], kish(gdata$w[kept & grp == level]), label = paste(estimand, level))
+      expect_equal(s$n.cut[level, "weight.cut"],
+                   sum(gdata$w[rows & !fit$commonSup.sub & grp == level]) / sum(gdata$w[rows & grp == level]),
+                   label = paste(estimand, level))
+    }
+    expect_equal(s$estimates["total", "n"], sum(kept))
+    expect_equal(s$estimates["total", "n.eff"], kish(gdata$w[kept]))
+    expect_equal(s$n.eff, kish(gdata$w[kept]))
+    expect_true(all(s$estimates$n >= 0))
+    expect_equal(s$weight.cut, sum(gdata$w[rows & !fit$commonSup.sub]) / sum(gdata$w[rows]))
+    expect_output(print(s), "Estimates fit from")
+  }
+  expect_true(anyCut)
+  ## unweighted: n also counts the rows averaged
+  fit <- pwFit(data = gdata, estimand = "att", group.by = grp, group.effects = TRUE, use.ranef = FALSE,
+               commonSup.rule = "sd", commonSup.cut = -1)
+  expect_warning(s <- summary(fit), NA)
+  expect_equal(unname(s$estimates$n),
+               c(unname(tapply(gdata$z == 1 & fit$commonSup.sub, grp, sum)), sum(gdata$z == 1 & fit$commonSup.sub)))
+})

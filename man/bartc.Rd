@@ -406,7 +406,8 @@ bartc(response, treatment, confounders, parametric, data, subset, weights, weigh
   \code{summary} prints their effective sample size, with \eqn{v_i} a row's
   population weight,
   \eqn{(\sum_i v_i)^2 / \sum_i v_i^2}{(sum_i v_i)^2 / sum_i v_i^2}, over the
-  rows averaged.
+  rows averaged; a grouped summary gives each group its own, and its own
+  share of the weight a common support rule cut.
   
   Rows that are counts of identical units are best written out,
   \code{d[rep(seq_len(nrow(d)), d$count), ]}, which is exact; or give
