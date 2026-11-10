@@ -320,7 +320,7 @@ test_that("fitted, extract, refit, summary and the plots read the same from a fi
   }
 })
 
-test_that("each read-out of the draws is made once for each call", {
+test_that("summary reads the draws once, and a call of extract() once for each type it is asked", {
   counter <- new.env()
   counter$n <- 0L
   readOut <- bartCause:::bartResponseDraws
@@ -338,10 +338,11 @@ test_that("each read-out of the draws is made once for each call", {
   counter$n <- 0L; summary(fit); expect_identical(counter$n, 1L)
   counter$n <- 0L; refit(fit, commonSup.rule = "sd", commonSup.cut = 0.5); expect_identical(counter$n, 1L)
   
+  ## refit reads through extract(), with no cache: once for one surface, twice for two
   fit <- fitDraws(method.rsp = "p.weight")
-  counter$n <- 0L; suppressWarnings(refit(fit, commonSup.rule = "sd", commonSup.cut = 0.5)); expect_identical(counter$n, 1L)
+  counter$n <- 0L; suppressWarnings(refit(fit, commonSup.rule = "sd", commonSup.cut = 0.5)); expect_lte(counter$n, 2L)
   
-  ## a held sigma reads the draws' shape from the draws at hand
+  ## a held sigma is repeated for the sample count of the draws at hand
   fit <- fitDraws(args.rsp = list(family = dbarts::dbartsFamilies$gaussian(sigma = dbarts::dbartsPriors$fixed(0.5))))
   counter$n <- 0L; extract(fit, "y.1"); expect_identical(counter$n, 1L)
 })
@@ -364,4 +365,16 @@ test_that("a fit saves smaller than one that holds the arrays too", {
   read <- readRDS(pathNew)
   expect_identical(read$mu.hat.obs, fit$mu.hat.obs)
   expect_identical(read$samples.p.score, fit$samples.p.score)
+})
+
+test_that("the internal extractor takes no draws, and a fixed sigma is repeated for the sample count it is given", {
+  expect_false("draws" %in% names(formals(bartCause:::extractBartcFit)))
+  fit <- fitDraws(args.rsp = list(family = dbarts::dbartsFamilies$gaussian(sigma = dbarts::dbartsPriors$fixed(0.5))))
+  held <- bartCause:::heldSigma(fit)
+  expect_true(is.numeric(held) && length(held) == 1L)
+  expect_identical(bartCause:::sigmaDraws(fit, 8L), matrix(held, 2L, 8L))
+  expect_identical(extract(fit, "sigma", combineChains = FALSE), matrix(held, 2L, 8L))
+  fit <- fitDraws(n.chains = 1L)
+  expect_error(bartCause:::sigmaDraws(fitDraws(response = yb), 8L), "does not have a residual standard deviation")
+  expect_identical(bartCause:::sigmaDraws(fit, 8L), fit$fit.rsp$sigma)
 })

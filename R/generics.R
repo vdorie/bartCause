@@ -376,41 +376,47 @@ extract.bartcFit <-
   else addSingleChainDim(result, oldRank)
 }
 
+## The response fit's residual standard deviation draws, in the layout
+## [n.chains, n.samples] with the chain margin dropped at one chain; a held
+## sigma is one number, repeated 'n.samples' times.
+sigmaDraws <- function(object, n.samples)
+{
+  if (responseIsBinary(object))
+    stop("binary response model does not have a residual standard deviation parameter (sigma)")
+  n.chains <- object$n.chains
+  held <- heldSigma(object)
+  if (!is.null(held)) {
+    if (n.chains > 1L) matrix(held, n.chains, n.samples) else rep(held, n.samples)
+  } else if (inherits(object$fit.rsp, "stan4bartFit")) {
+    t(extract(object$fit.rsp, "sigma", combine_chains = FALSE))
+  } else {
+    ## dbarts returns sigma pre-combined as a length n.chains*n.samples,
+    ## chain-major vector (chain 1's whole run, then chain 2's, ...);
+    ## reshape to [n.chains, n.samples] by filling column-major with
+    ## n.samples rows (each column is one chain's contiguous block) and
+    ## transposing, so combineChains = FALSE yields per-chain draws and
+    ## = TRUE recombines to the original chain-major order
+    s <- object$fit.rsp$sigma
+    if (is.null(dim(s)) && n.chains > 1L) t(matrix(s, ncol = n.chains)) else s
+  }
+}
+
 ## Works in the stored layout, where a one-chain result has no chain margin;
 ## extract.bartcFit() adds the margin on the way out. Internal callers use this.
 extractBartcFit <-
-  function(object, type, sample = "inferential", combineChains = TRUE, draws = NULL)
+  function(object, type, sample = "inferential", combineChains = TRUE)
 {
-  ## 'draws' is what bartcDraws() gave, for a caller that has it already: the
-  ## draws are read out of the fits once for each call, not once for each use
-  
   if (type == "p.weights" && is.null(object$p.score))
     stop("p.score cannot be NULL to extract p.weights")
 
   n.chains <- object$n.chains
   if (type == "sigma") {
-    if (responseIsBinary(object))
-      stop("binary response model does not have a residual standard deviation parameter (sigma)")
-    held <- heldSigma(object)
-    sigma <-
-      if (!is.null(held)) {
-        ## a held sigma is one number; repeat it in the drawn layout, which is
-        ## [n.chains, n.samples] with the chain margin dropped at one chain
-        if (is.null(draws)) draws <- bartcDraws(object, "mu")
-        n.samples <- dim(draws$mu.hat.obs)[length(dim(draws$mu.hat.obs)) - 1L]
-        if (n.chains > 1L) matrix(held, n.chains, n.samples) else rep(held, n.samples)
-      } else if (inherits(object$fit.rsp, "stan4bartFit")) {
-        t(extract(object$fit.rsp, "sigma", combine_chains = FALSE))
-      } else {
-        ## dbarts returns sigma pre-combined as a length n.chains*n.samples,
-        ## chain-major vector (chain 1's whole run, then chain 2's, ...);
-        ## reshape to [n.chains, n.samples] by filling column-major with
-        ## n.samples rows (each column is one chain's contiguous block) and
-        ## transposing, so combineChains = FALSE yields per-chain draws and
-        ## = TRUE recombines to the original chain-major order
-        s <- object$fit.rsp$sigma
-        if (is.null(dim(s)) && n.chains > 1L) t(matrix(s, ncol = n.chains)) else s
-      }
+    ## a held sigma is repeated for each sample, whose count the draws give
+    n.samples <- if (!is.null(heldSigma(object))) {
+      dims <- dim(bartcDraws(object, "mu")$mu.hat.obs)
+      dims[length(dims) - 1L]
+    }
+    sigma <- sigmaDraws(object, n.samples)
     ## combined is a plain vector at every chain count
     return(if (combineChains) as.vector(t(sigma)) else sigma)
   }
@@ -451,7 +457,7 @@ extractBartcFit <-
   needs <- c(if (type %in% c("p.score", "p.weights")) "p.score",
              if (type %in% c("pate", "sate", "cate", "y.cf", "y.0", "y.1", "ite",
                              "mu.obs", "mu.cf", "mu.0", "mu.1", "icate")) "mu")
-  if (is.null(draws)) draws <- bartcDraws(object, needs)
+  draws <- bartcDraws(object, needs)
   mu.hat.obs <- draws$mu.hat.obs
   mu.hat.cf  <- draws$mu.hat.cf
   samples.p.score <- draws$samples.p.score
@@ -558,7 +564,7 @@ sampleFromPPD <- function(object, ev, scale = NULL)
     }
   } else {
     n.obs <- dim(ev)[length(dim(ev))]
-    sigma <- extractBartcFit(object, "sigma", combineChains = FALSE, draws = list(mu.hat.obs = ev))
+    sigma <- sigmaDraws(object, dim(ev)[length(dim(ev)) - 1L])
     n.draws <- length(sigma)
     sigma <- rep_len(sigma, n.obs * n.draws)
     ## rnorm(n, 0, s) is s times standard normal draws, so an unscaled draw is
@@ -632,10 +638,8 @@ refit.bartcFit <- function(object, newresp = NULL,
    
   
   } else if (object$method.rsp == "p.weight") {
-    ## read out of the fits once, for both surfaces and the scores
-    draws <- bartcDraws(object)
-    mu.hat.0 <- extractBartcFit(object, "mu.0", sample = "all", combineChains = FALSE, draws = draws)
-    mu.hat.1 <- extractBartcFit(object, "mu.1", sample = "all", combineChains = FALSE, draws = draws)
+    mu.hat.0 <- extractBartcFit(object, "mu.0", sample = "all", combineChains = FALSE)
+    mu.hat.1 <- extractBartcFit(object, "mu.1", sample = "all", combineChains = FALSE)
     if (length(dim(mu.hat.0)) > 2L) {
       mu.hat.0 <- aperm(mu.hat.0, c(3L, 1L, 2L))
       mu.hat.1 <- aperm(mu.hat.1, c(3L, 1L, 2L))
@@ -648,7 +652,8 @@ refit.bartcFit <- function(object, newresp = NULL,
     ## exists (the flat, posterior-averaged score), and with(object, ...) below
     ## would have this local shadowed by that field, silently reusing the
     ## averaged score for every posterior draw instead of the per-draw samples
-    p.score.samples <- if (!is.null(draws$samples.p.score)) draws$samples.p.score else object$p.score
+    samples.p.score <- object[["samples.p.score"]]
+    p.score.samples <- if (!is.null(samples.p.score)) samples.p.score else object$p.score
     if (!is.null(dim(p.score.samples)) && length(dim(p.score.samples)) < length(dim(mu.hat.0))) {
       # chains were collapsed. The chain count is the fit's own record, as in
       # bartc(); mu.hat.0's second extent agrees with it only while the
@@ -693,10 +698,8 @@ refit.bartcFit <- function(object, newresp = NULL,
       names(object$est) <- levels(object$group.by)
     }
   } else if (object$method.rsp == "tmle") {
-    ## read out of the fits once, for both surfaces and the scores
-    draws <- bartcDraws(object)
-    mu.hat.0 <- extractBartcFit(object, "mu.0", sample = "all", combineChains = FALSE, draws = draws)
-    mu.hat.1 <- extractBartcFit(object, "mu.1", sample = "all", combineChains = FALSE, draws = draws)
+    mu.hat.0 <- extractBartcFit(object, "mu.0", sample = "all", combineChains = FALSE)
+    mu.hat.1 <- extractBartcFit(object, "mu.1", sample = "all", combineChains = FALSE)
     if (length(dim(mu.hat.0)) > 2L) {
       mu.hat.0 <- aperm(mu.hat.0, c(3L, 1L, 2L))
       mu.hat.1 <- aperm(mu.hat.1, c(3L, 1L, 2L))
@@ -707,7 +710,8 @@ refit.bartcFit <- function(object, newresp = NULL,
     
     ## see the p.weight branch above: keep this off the name 'p.score' so it
     ## isn't shadowed by object$p.score inside with(object, ...) below
-    p.score.samples <- if (!is.null(draws$samples.p.score)) draws$samples.p.score else object$p.score
+    samples.p.score <- object[["samples.p.score"]]
+    p.score.samples <- if (!is.null(samples.p.score)) samples.p.score else object$p.score
     if (!is.null(dim(p.score.samples)) && length(dim(p.score.samples)) < length(dim(mu.hat.0))) {
       # chains were collapsed. The chain count is the fit's own record, as in
       # bartc(); mu.hat.0's second extent agrees with it only while the
