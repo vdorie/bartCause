@@ -156,6 +156,14 @@ test_that("population weights are refused by name", {
 test_that("a row out of a continuous response fit cannot be in the average", {
   out <- rep(c(0, 1, 1), length.out = n)
   expect_error(pwFit(weights.rsp = out), "have weights.rsp 0 but a positive population weight")
+  ## refused before any model is fit, in the singular for one row
+  local({
+    local_mocked_bindings(getBartTreatmentFit = function(...) stop("the treatment model was fit"),
+                          getBartResponseFit  = function(...) stop("the response model was fit"), .package = "bartCause")
+    expect_error(pwFit(weights.rsp = ifelse(seq_len(n) == 7L, 0, cnt)),
+                 "^row 7 has weights.rsp 0 but a positive population weight")
+    expect_error(pwFit(weights = w, weights.rsp = out), "rows 1, 4, 7, 10, 13 and 35 more have weights.rsp 0")
+  })
   expect_error(pwFit(weights = w, weights.rsp = out), "rows 1, 4, 7, 10, 13 and 35 more have weights.rsp 0")
   ## with a population weight of 0 the row informs nothing and is drawn as NA
   fit <- pwFit(weights = w * out, weights.rsp = out)
@@ -263,6 +271,30 @@ test_that("group estimates read the weights, and their total each group's share 
   est <- summary(fit, target = "cate", ci.style = "quant")$estimates
   expect_equal(unlist(est["total", c("ci.lower", "ci.upper")]),
                setNames(quantile(weightedCATE(fit, gdata$w), c(0.025, 0.975)), c("ci.lower", "ci.upper")))
+})
+
+test_that("a group of no population weight is NA, the others and the total estimated", {
+  grp <- factor(rep(c("a", "b", "c"), c(20L, 40L, 60L)))
+  gdata <- cbind(pwData, grp = grp)
+  gdata$w0 <- ifelse(grp == "a", 0, gdata$w)
+  fit <- pwFit(weights = w0, data = gdata, group.by = grp, group.effects = TRUE, use.ranef = FALSE)
+  expect_true(all(is.na(extract(fit, "cate")[["a"]])))
+  expect_true(is.na(fitted(fit, "cate")[["a"]]))
+  for (target in c("pate", "sate", "cate")) {
+    est <- summary(fit, target = target)$estimates
+    expect_true(all(is.na(est["a", c("estimate", "sd", "ci.lower", "ci.upper")])), label = target)
+    expect_equal(est["a", "n"], 20)
+    expect_true(all(is.finite(unlist(est[c("b", "c", "total"), ]))), label = target)
+  }
+  est <- summary(fit, target = "cate", ci.style = "quant")$estimates
+  expect_equal(est["b", "estimate"], mean(weightedCATE(fit, gdata$w0, grp == "b")))
+  expect_equal(est["total", "estimate"], mean(weightedCATE(fit, gdata$w0)))
+  expect_equal(unlist(est["total", c("ci.lower", "ci.upper")]),
+               setNames(quantile(weightedCATE(fit, gdata$w0), c(0.025, 0.975)), c("ci.lower", "ci.upper")))
+  ## the estimand's whole weight 0 stays an error
+  gdata$wt <- ifelse(gdata$z == 1, 0, gdata$w)
+  fit <- pwFit(weights = wt, data = gdata, estimand = "att", group.by = grp, group.effects = TRUE, use.ranef = FALSE)
+  expect_error(summary(fit), "the population weights are 0 on every row the estimate averages over")
 })
 
 test_that("a glm treatment model is fit at the weights' mean of 1", {
@@ -374,6 +406,11 @@ test_that("a counterfactual is drawn with its noise as the response fit has it",
 test_that("summary prints the weights' effective sample size", {
   fit <- pwFit(weights = w)
   expect_equal(summary(fit)$n.eff, sum(pwData$w)^2 / sum(pwData$w^2))
+  ## over the rows the estimand averages, those a common support rule cut out
+  fit <- pwFit(weights = w, estimand = "att", commonSup.rule = "sd", commonSup.cut = -1)
+  rows <- pwData$z == 1 & fit$commonSup.sub
+  expect_true(any(pwData$z == 1 & !fit$commonSup.sub))
+  expect_equal(summary(fit)$n.eff, sum(pwData$w[rows])^2 / sum(pwData$w[rows]^2))
   expect_output(print(summary(fit)), "Effective sample size of the population weights over the rows averaged")
   expect_failure(expect_output(print(summary(pwFit())), "Effective sample size"))
 })

@@ -33,7 +33,10 @@ subtractArrayFromVec <- function(v, x) {
 ## support, per draw. Population weights are shares of those rows alone, so a
 ## weighted ATT is the weighted mean over the treated; rows of no weight are
 ## left out, their draws being NA where the response fit has no noise scale.
-averageDifferences <- function(samples.indiv.diff, treatmentRows, weights, estimand, commonSup.sub)
+## Rows of no weight in all are an error, or NA draws where 'emptyIsNA' (a
+## group of a grouped fit, which leaves the other groups to be estimated).
+averageDifferences <- function(samples.indiv.diff, treatmentRows, weights, estimand, commonSup.sub,
+                               emptyIsNA = FALSE)
 {
   if (!is.character(estimand) || estimand[1L] %not_in% c("ate", "att", "atc"))
     stop("estimand must be one of 'ate', 'att', or 'atc'")
@@ -58,6 +61,8 @@ averageDifferences <- function(samples.indiv.diff, treatmentRows, weights, estim
       })
   }
   
+  if (emptyIsNA && !(sum(weights[rows]) > 0))
+    return(if (length(origDims) > 2L) matrix(NA_real_, origDims[1L], origDims[2L]) else rep(NA_real_, origDims[1L]))
   shares <- weightShares(weights, rows)
   rows <- which(rows)[shares > 0]
   shares <- shares[shares > 0]
@@ -80,7 +85,7 @@ getEstimateSamples <- function(samples.indiv.diff, treatmentRows, weights, estim
       if (!is.null(weights)) weights <- weights[levelRows]
       
       averageDifferences(if (length(dim(samples.indiv.diff)) > 2L) samples.indiv.diff[,,levelRows, drop = FALSE] else samples.indiv.diff[,levelRows],
-                         treatmentRows[levelRows], weights, estimand, commonSup.sub[levelRows])
+                         treatmentRows[levelRows], weights, estimand, commonSup.sub[levelRows], emptyIsNA = TRUE)
     })
     names(samples.est) <- levels(group.by)
   }

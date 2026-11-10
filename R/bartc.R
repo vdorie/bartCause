@@ -104,6 +104,12 @@ bartc <- function(
          "form; population weights go in 'weights', which weight the average of the unit effects, with the ",
          "variables they were built from among the confounders", call. = FALSE)
   
+  ## without a family, a response fit is binary exactly when its response is
+  ## 0/1, so a row it leaves out of a continuous fit is refused before any fit
+  if (!is.null(rspWeights) && is.null(matchedCall[["family"]]) && "family" %not_in% argsRspNames &&
+      !responseIsZeroOne(matchedCall, callingEnv))
+    refuseRowsOutOfResponseFit(rspWeights, popWeights)
+  
   ## the response fit's weights come by weights.rsp alone, and their reading
   ## says how it reads them; both refused before anything is fit
   if ("weights" %in% argsRspNames)
@@ -283,18 +289,10 @@ bartc <- function(
                       call = givenCall)
   
   ## a row out of a continuous response fit has no noise scale for its
-  ## counterfactual, so it cannot be in an average
-  if (!is.null(rspWeights) && !responseIsBinary(result)) {
-    outOfFit <- rspWeights$value <= 0 & (if (is.null(popWeights)) TRUE else popWeights$value > 0)
-    if (any(outOfFit)) {
-      bad <- rspWeights$rows[outOfFit]
-      stop(if (length(bad) > 1L) "rows " else "row ", paste0(head(bad, 5L), collapse = ", "),
-           if (length(bad) > 5L) paste0(" and ", length(bad) - 5L, " more") else "",
-           " have weights.rsp 0 but a positive population weight: a row out of the response fit has no ",
-           "noise scale for its counterfactual; give it a positive weights.rsp, or a population weight of 0",
-           call. = FALSE)
-    }
-  }
+  ## counterfactual, so it cannot be in an average; with a family given, the
+  ## fit says whether it is binary
+  if (!is.null(rspWeights) && !responseIsBinary(result))
+    refuseRowsOutOfResponseFit(rspWeights, popWeights)
   if (!is.null(matchedCall[["group.by"]])) {
     result[["group.by"]] <- group.by
     if (use.ranef) result[["use.ranef"]] <- use.ranef
@@ -341,3 +339,19 @@ heldSigma <- function(object) {
   fit[["fixed"]][["sigma"]]
 }
 
+
+## A row with weights.rsp 0 is out of a continuous response fit, so it has no
+## noise scale for its counterfactual and cannot be in an average its
+## population weight is positive in.
+refuseRowsOutOfResponseFit <- function(rspWeights, popWeights)
+{
+  outOfFit <- rspWeights$value <= 0 & (if (is.null(popWeights)) TRUE else popWeights$value > 0)
+  if (!any(outOfFit)) return(invisible(NULL))
+  bad <- rspWeights$rows[outOfFit]
+  stop(if (length(bad) > 1L) "rows " else "row ", paste0(head(bad, 5L), collapse = ", "),
+       if (length(bad) > 5L) paste0(" and ", length(bad) - 5L, " more") else "",
+       if (length(bad) > 1L) " have" else " has",
+       " weights.rsp 0 but a positive population weight: a row out of the response fit has no ",
+       "noise scale for its counterfactual; give it a positive weights.rsp, or a population weight of 0",
+       call. = FALSE)
+}

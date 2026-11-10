@@ -308,6 +308,10 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
           assign(varName, get(varName)[[i]])
       environment(estimateOver) <- environment()
       
+      ## a group of no population weight is no part of the population: NA,
+      ## the other groups estimated
+      if (!is.null(pop) && !(sum(pop[levelObs]) > 0))
+        return(c(estimate = NA_real_, sd = NA_real_, ci.lower = NA_real_, ci.upper = NA_real_, n = sum(levelObs)))
       c(estimateOver(levelObs), n = sum(levelObs))
     })))
     row.names(estimates) <- levels(object$group.by)
@@ -320,9 +324,13 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
       levelObs <- lapply(levels(object$group.by), function(level) object$group.by == level & allObs)
       weights.g <- if (is.null(pop)) estimates$n / sum(allObs)
                    else vapply(levelObs, function(rows) sum(pop[rows]), 0) / sum(pop[allObs])
+      ## a group of no population weight adds nothing, its draws being NA;
+      ## the whole of no weight is an error
+      if (!is.null(pop)) weightShares(pop, allObs)
+      inTotal <- if (is.null(pop)) rep_len(TRUE, length(weights.g)) else weights.g > 0
       for (varName in c("samples.cate", "samples.pate", "samples.sate"))
         if (varName %in% estimateVariables || varName %in% intervalVariables)
-          assign(varName, colSums(t(sapply(get(varName), function(x) x)) * weights.g))
+          assign(varName, colSums(t(sapply(get(varName)[inTotal], function(x) x)) * weights.g[inTotal]))
       
       totalName <- "total"
       while (totalName %in% rownames(estimates))

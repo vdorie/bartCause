@@ -141,6 +141,10 @@
             recycled over the rows; they are now aligned with them.
       \item \code{summary} paired the responses of a fit with missing responses
             with the wrong rows in the SATE.
+      \item With missing responses, \code{extract} of \code{"sate"},
+            \code{"ite"}, \code{"y.0"} and \code{"y.1"} recycled the response
+            over the rows, with a warning, and gave wrong values; a missing
+            response is now drawn from its posterior predictive.
       \item A weighted \code{extract} of a one-chain fit failed.
       \item The total row of a grouped \code{summary} combined the groups by
             their row counts rather than by their share of the weights, and
