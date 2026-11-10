@@ -383,7 +383,10 @@ summary.bartcFit <- function(object,
     stop("target '", target, "' not supported for method '", object$method.rsp)
   
   
-  draw.dims <- dim(bartcDraws(object, "mu")$mu.hat.obs)
+  ## the summary reads the draws several ways; they are read out of the fits
+  ## once, into this call's copy of the fit, which then holds them as stored
+  object <- withDraws(object, "mu")
+  draw.dims <- dim(object$mu.hat.obs)
   n.samples <- if (length(draw.dims) > 2L) draw.dims[2L] else draw.dims[1L]
   n.obs     <- draw.dims[length(draw.dims)]
   

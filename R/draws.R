@@ -134,6 +134,17 @@ bartcDraws <- function(object, which = c("mu", "p.score"))
   result
 }
 
+## A copy of the fit that holds what was asked for, as a fit saved by an
+## earlier version does, for a call that would otherwise read the draws out of
+## the fits at each use. The copy is the call's own and is not returned.
+withDraws <- function(object, which = c("mu", "p.score"))
+{
+  draws <- bartcDraws(object, which)
+  held <- unclass(object)
+  for (name in names(draws)) held[name] <- list(draws[[name]])
+  structure(held, class = oldClass(object))
+}
+
 ## One of the three elements, as a plain list would answer for a name it holds
 bartcElement <- function(x, name)
 {
