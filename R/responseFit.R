@@ -204,10 +204,16 @@ getBartResponseFit <- function(response, treatment, confounders, parametric, dat
     ## for use later, in a copy of the data: evalEnv can be the caller's frame
     missingEnv <- new.env(parent = evalEnv)
     missingFrame <- dataValue
-    missingFrame[[deparse(dbartsDataCall[[2L]][[2L]])]] <- ifelse(missingRowsOfData, 0, NA)
+    ## the response may be an expression of the columns, so the design is built
+    ## around a column of its own
+    missingName <- "missingResponse"
+    while (missingName %in% names(missingFrame)) missingName <- paste0(missingName, "_")
+    missingFrame[[missingName]] <- ifelse(missingRowsOfData, 0, NA)
     missingEnv[[deparse(dbartsDataCall$data)]] <- missingFrame
-    dbartsDataCall$subset <- callSubset[missingRows]
-    missingData <- eval(dbartsDataCall, envir = missingEnv)
+    missingCall <- dbartsDataCall
+    missingCall[[2L]][[2L]] <- as.symbol(missingName)
+    missingCall$subset <- callSubset[missingRows]
+    missingData <- eval(missingCall, envir = missingEnv)
     n.mis <- nrow(missingData@x)
   }
   

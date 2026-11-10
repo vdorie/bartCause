@@ -190,7 +190,7 @@ test_that("a group.by that is not one value for each row is refused in each buil
   x <- as.matrix(groupData["x1"]); parametric <- as.matrix(groupData["x2"])
   ## a length that does not divide the rows, which would otherwise be refused by the assignment alone
   short <- groupData$country[1:7]
-  pattern <- "one value for each observation (60), but its length is 7"
+  pattern <- "one value for each row (60), but its length is 7"
   
   fitBare <- function(...)
     bartc(y, z, x, group.by = short, n.samples = 10L, n.burn = 10L, n.chains = 1L, n.threads = 1L, n.trees = 10L,
@@ -246,12 +246,12 @@ test_that("a string given as group.by is refused with the column to pass", {
   expect_error(fitWith("country", method.trt = "glm"), "pass the column itself, group.by = country", fixed = TRUE)
 
   ## a string that names no column is a length error, as is any vector that is not one value per row
-  expect_error(fitWith("elsewhere"), "'group.by' must have one value for each observation (60), but its length is 1", fixed = TRUE)
-  expect_error(fitWith(quote(country[1:5])), "one value for each observation (60), but its length is 5", fixed = TRUE)
+  expect_error(fitWith("elsewhere"), "'group.by' must have one value for each row (60), but its length is 1", fixed = TRUE)
+  expect_error(fitWith(quote(country[1:5])), "one value for each row (60), but its length is 5", fixed = TRUE)
 
   ## and so is a bare vector, which has no data frame to name a column of
   x <- as.matrix(groupData[c("x1", "x2")])
   expect_error(bartc(groupData$y, groupData$z, x, group.by = "country", n.samples = 10L, n.burn = 10L, n.chains = 1L,
                      n.threads = 1L, n.trees = 10L, verbose = FALSE),
-               "one value for each observation (60), but its length is 1", fixed = TRUE)
+               "one value for each row (60), but its length is 1", fixed = TRUE)
 })

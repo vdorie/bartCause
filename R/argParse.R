@@ -59,7 +59,7 @@ checkGroupByLength <- function(group.by, n, data = NULL)
     stop("'group.by' is the string \"", group.by, "\", which names a column of data; pass the column itself, ",
          "group.by = ", deparse(as.name(group.by), backtick = TRUE), ", not its name", call. = FALSE)
   
-  stop("'group.by' must have one value for each observation (", n, "), but its length is ", length(group.by), call. = FALSE)
+  stop("'group.by' must have one value for each row (", n, "), but its length is ", length(group.by), call. = FALSE)
 }
 
 ## A modeled grouping factor (use.ranef = TRUE) rides the formula as
@@ -302,8 +302,9 @@ getResponseDataCall <- function(fn, response, treatment, confounders, parametric
   result <- redirectCall(matchedCall, fn)
   result <- addCallArgument(result, 1L, formula)
   
-  #responseVar <- as.vector(evalEnv[[deparse(result$data)]][[result[[2L]][[2L]]]])
-  responseVar <- as.vector(get(deparse(result$data), envir = evalEnv)[[result[[2L]][[2L]]]])
+  ## the response as the model frame reads it: an expression of the columns, as
+  ## well as a column
+  responseVar <- as.vector(eval(result[[2L]][[2L]], get(deparse(result$data), envir = evalEnv), evalEnv))
   ## the propensity score's column name is RETURNED rather than re-derived by a
   ## fitter: with a confounder named "psps" no ladder over colnames(data@x) can
   ## tell the score from the confounder, and the bcf fitter has to know which

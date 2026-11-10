@@ -162,6 +162,9 @@
   \subsection{BUG-FIXES}{
     \itemize{
       \item \code{bartc(weights = NULL)} failed; it now fits without weights.
+      \item \code{bartc} with a response written as an expression of the
+            columns, as \code{log(y)}, failed with \dQuote{invalid subscript
+            type 'language'}. This held in 1.0-10.
       \item \code{print} of a fit with \code{group.by} and
             \code{group.effects = TRUE} ran the groups' effects together in one
             number; it now prints each group's effect, named. This held in
