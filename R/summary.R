@@ -474,7 +474,8 @@ print.bartcFit.summary <- function(x, ...)
   if (!is.null(x$estimates[["n"]]) && any(x$estimates[["n"]] <= 10L) && x$n.obs > 10L)
     cat("  if (n < 10) group-size estimates may be unstable\n", ...)
   cat("Estimates fit from ", x$n.obs - if (x$commonSup.rule != "none") sum(x$n.cut[c("trt", "ctl")]) else 0, " total observations\n", sep = "")
-  if (!is.null(x$n.eff) && is.null(x$estimates[["n.eff"]]))
+  ## a grouped table with a total row carries the whole figure in its n.eff column
+  if (!is.null(x$n.eff) && !(!is.null(x$estimates[["n.eff"]]) && x$method.rsp %in% c("bart", "bcf")))
     cat("Effective sample size of the population weights over the rows averaged (Kish): ",
         format(x$n.eff, digits = digits), "\n", sep = "")
   

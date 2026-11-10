@@ -684,3 +684,16 @@ test_that("an args.rsp weights of NULL gives nothing, and any other is refused",
   expect_equal(fit$data.rsp@weights, pwData$w)
   expect_error(pwFit(weights = w, args.rsp = list(weights = w)), "args.rsp gives 'weights'")
 })
+
+test_that("a grouped weighted fit with no total row prints the whole-sample effective size", {
+  grp <- factor(rep(c("a", "b", "c"), c(20L, 40L, 60L)))
+  gdata <- cbind(pwData, grp = grp)
+  fit <- pwFit(weights = w, data = gdata, method.rsp = "p.weight", group.by = grp, group.effects = TRUE,
+               use.ranef = FALSE, n.chains = 1L)
+  s <- summary(fit)
+  expect_false("total" %in% rownames(s$estimates))
+  expect_output(print(s), "Effective sample size of the population weights over the rows averaged")
+  fit <- pwFit(weights = w, data = gdata, group.by = grp, group.effects = TRUE, use.ranef = FALSE)
+  expect_true("total" %in% rownames(summary(fit)$estimates))
+  expect_failure(expect_output(print(summary(fit)), "Effective sample size"))
+})

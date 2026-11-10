@@ -434,8 +434,9 @@ bartc(response, treatment, confounders, parametric, data, subset, weights, weigh
   outcomes predicted by the model; where the weights already adjust for the
   missing outcomes, give those rows a weight of 0 or leave them out with
   \code{subset}; to use rows only in the treatment model, give them an
-  \code{NA} response and a population weight of 0. A common support rule that cuts rows changes the population
-  the estimate describes; \code{summary} reports the share of the weight cut.
+  \code{NA} response and a population weight of 0. A common support rule that
+  cuts rows changes the population the estimate describes; \code{summary} reports the share
+  of the weight cut.
 
   \strong{Missing Data}
   
