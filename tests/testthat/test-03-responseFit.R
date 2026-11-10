@@ -31,7 +31,7 @@ test_that("bcf fit matches manual call", {
   # (z, V1, V2, V3) and both forests are masked out of the treatment column
   df <- with(testData, data.frame(y = y, z = z, V1 = x[,1], V2 = x[,2], V3 = x[,3]))
   data <- dbarts::dbartsData(y ~ z + V1 + V2 + V3, data = df, subset = seq_len(n),
-                             bases = list(NULL, factor(df$z, levels = c(0, 1))))
+                             keep.data = FALSE)
   control <- dbarts::dbartsControl(n.chains = 1L, n.threads = 1L, n.burn = 3L,
                                    n.samples = 13L, verbose = FALSE, updateState = FALSE,
                                    seed = 5L)
@@ -41,7 +41,8 @@ test_that("bcf fit matches manual call", {
                             forests = list(forest(vars = c("V1", "V2", "V3"), n.trees = 7L,
                                                   amplitude = student(1), sd = 2 * sd(data@y)),
                                            forest(vars = c("V1", "V2", "V3"), n.trees = 50L,
-                                                  base = 0.25, power = 3)))
+                                                  base = 0.25, power = 3,
+                                                  basis = factor(df$z, levels = c(0, 1)))))
   sampler$sampleTreesFromPrior(updateState = FALSE)
   burn    <- sampler$run(0L, 3L, updateState = FALSE)
   samples <- sampler$run(0L, 13L, updateState = FALSE)

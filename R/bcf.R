@@ -136,19 +136,18 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
          "; a treatment arm with no observations is an all-zero basis column, which fits ",
          "with an amplitude nothing identifies")
 
-  ## the basis is built from the FULL-LENGTH treatment and handed over at that
-  ## length: both interfaces check a forest basis against the data before
-  ## 'subset' and restrict it to the kept rows themselves, and one arriving
-  ## already at the kept-row count is refused. The basis is a factor of levels 0
-  ## and 1, in that order, which dbarts reads as the two indicator columns
-  ## (1 - z, z): the order the run's glue channel stacks (a, b.0, b.1) in
+  ## the basis is built from the FULL-LENGTH treatment and handed to the
+  ## treatment forest at that length: dbarts cuts it by the data object's rows,
+  ## and one arriving already at the kept-row count is refused. It is a factor
+  ## of levels 0 and 1, in that order, which dbarts reads as the two indicator
+  ## columns (1 - z, z): the order the run's glue channel stacks (a, b.0, b.1)
+  ## in
   basis <- factor(z, levels = c(0, 1))
 
   fitEnv <- new.env(parent = evalEnv)
-  fitEnv[["bcf.bases"]] <- list(NULL, basis)
   fitEnv[["bcf.subset"]] <- subset
-  dbartsDataCall$bases  <- quote(bcf.bases)
   dbartsDataCall$subset <- quote(bcf.subset)
+  dbartsDataCall$keep.data <- FALSE
   ## model.frame re-evaluates 'subset' in the data and then in the formula's own
   ## environment, so the formula has to see the bindings installed just above
   if (usesFormula) {
@@ -221,6 +220,7 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
   samplerEnv <- new.env(parent = fitEnv)
   samplerEnv[["responseData"]] <- responseData
   samplerEnv[["control"]] <- control
+  samplerEnv[["bcf.basis"]] <- basis
 
   ## interactions/blocks are dbarts's forest vocabulary, unexported: bcf()
   ## passed the unevaluated expression on (matchedCall$mu.interactions etc.,
@@ -290,7 +290,8 @@ fitBCF <- function(dbartsDataCall, evalEnv, z, treatmentName,
                        sd = sd.moderate,
                        amplitude = if (update.b) NULL else quote(fixed()),
                        interactions = tau.interactions,
-                       blocks = tau.blocks)
+                       blocks = tau.blocks,
+                       basis = quote(bcf.basis))
 
   samplerCall <- quote(dbarts::dbarts(responseData, control = control, forests = forests))
   samplerCall[["forests"]] <- call("list", muForestCall, tauForestCall)

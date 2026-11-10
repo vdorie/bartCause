@@ -187,6 +187,7 @@ getBartResponseFit <- function(response, treatment, confounders, parametric, dat
     if (any(missingRows))
       dbartsDataCall$subset <- callSubset[!missingRows]
   }
+  dbartsDataCall$keep.data <- FALSE
   responseData <- eval(dbartsDataCall, envir = evalEnv)
   n.obs <- nrow(responseData@x)
 
