@@ -156,14 +156,29 @@ bartcElement <- function(x, name)
   }
 }
 
-`$.bartcFit` <- function(x, name)
+## The element a name stands for as a list's $ matches it: an exact name, else
+## a unique prefix, over the names held and the three that are computed; NA for
+## none or an ambiguous prefix.
+bartcMatch <- function(x, name)
 {
-  if (name %in% computedElements) bartcElement(x, name)
-  else .subset2(x, name, exact = FALSE)
+  candidates <- unique(c(names(unclass(x)), computedElements))
+  candidates[pmatch(name, candidates)]
 }
 
-`[[.bartcFit` <- function(x, i, ...)
+`$.bartcFit` <- function(x, name)
 {
-  if (is.character(i) && length(i) == 1L && i %in% computedElements) bartcElement(x, i)
-  else NextMethod()
+  name <- bartcMatch(x, name)
+  if (is.na(name)) NULL else bartcElement(x, name)
+}
+
+`[[.bartcFit` <- function(x, i, exact = TRUE, ...)
+{
+  if (is.character(i) && length(i) == 1L) {
+    if (!isTRUE(exact)) {
+      i <- bartcMatch(x, i)
+      return(if (is.na(i)) NULL else bartcElement(x, i))
+    }
+    if (i %in% computedElements) return(bartcElement(x, i))
+  }
+  NextMethod()
 }

@@ -77,6 +77,48 @@ test_that("the three arrays are not held, and read as the response fit's own dra
   expect_identical(unname(dbarts::extract(fit$fit.rsp, sample = "train", combineChains = FALSE)), unname(fit$mu.hat.obs))
 })
 
+test_that("a name matches as a list's does, over the held names and the computed ones", {
+  fit <- fitDraws()
+  plain <- unclass(fit)
+  ## a unique prefix of a computed name
+  expect_identical(fit$mu.hat.o, fit$mu.hat.obs)
+  expect_identical(fit$mu.hat.c, fit$mu.hat.cf)
+  expect_identical(fit$samples, fit$samples.p.score)
+  ## a unique prefix of a held name
+  expect_identical(fit$n.chain, plain$n.chains)
+  expect_identical(fit$method.r, plain$method.rsp)
+  ## an ambiguous prefix, as on a list
+  expect_null(fit$mu.hat)
+  expect_null(fit$mu)
+  expect_null(fit$method)
+  expect_null(fit$fit)
+  expect_identical(fit$mu.hat.obs, fit[["mu.hat.obs"]])
+  ## [[ is exact unless asked otherwise
+  expect_null(fit[["mu.hat.o"]])
+  expect_null(fit[["n.chain"]])
+  expect_identical(fit[["mu.hat.o", exact = FALSE]], fit$mu.hat.obs)
+  expect_identical(fit[["n.chain", exact = FALSE]], plain$n.chains)
+  expect_null(fit[["mu.hat", exact = FALSE]])
+  expect_identical(fit[["n.chains", exact = FALSE]], plain$n.chains)
+  ## a fit that holds the arrays: the same matching
+  held <- unclass(fit)
+  for (name in drawNames) held[name] <- list(fit[[name]])
+  held <- structure(held, class = "bartcFit")
+  expect_identical(held$mu.hat.o, fit$mu.hat.obs)
+  expect_null(held$mu.hat)
+})
+
+test_that("the dollar and double bracket methods are found from a user's frame", {
+  fit <- fitDraws()
+  frame <- new.env(parent = globalenv())
+  frame$fit <- fit
+  expect_false(is.null(eval(quote(fit$mu.hat.obs), frame)))
+  expect_false(is.null(eval(quote(fit[["mu.hat.cf"]]), frame)))
+  expect_false(is.null(eval(quote(fit$samples.p.score), frame)))
+  expect_identical(eval(quote(fit$mu.hat.obs), frame), fit$mu.hat.obs)
+  expect_identical(eval(quote(fit[["mu.hat.cf"]]), frame), fit$mu.hat.cf)
+})
+
 test_that("every other name reads as a plain list reads it", {
   fit <- fitDraws()
   plain <- unclass(fit)
@@ -180,6 +222,10 @@ test_that("a propensity matrix that was given is held, as no fit has it", {
   expect_false(any(c("mu.hat.obs", "mu.hat.cf") %in% names(fit)))
   ref <- referenceDraws(fit$fit.rsp, FALSE)
   expect_identical(fit$mu.hat.obs, ref$obs)
+  ## the readers use the matrix as given
+  expect_identical(extract(fit, "p.score", combineChains = FALSE, sample = "all"), scores)
+  weights <- extract(fit, "p.weights", combineChains = FALSE, sample = "all")
+  expect_identical(dim(weights), dim(scores))
   ## a propensity vector has no draws
   fit <- fitDraws(method.trt = seq(0.2, 0.8, length.out = n))
   expect_null(fit$samples.p.score)
