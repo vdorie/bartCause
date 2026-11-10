@@ -218,7 +218,9 @@ getBartResponseFit <- function(response, treatment, confounders, parametric, dat
     responseData@x.test[which( missingRows),] <- missingX
     responseData@x.test[seq.int(n + 1L, n + n.mis),] <- missingX
 
-    cfRows <- rep_len(TRUE, n)
+    ## only the first n rows are the counterfactual block; the rows after it keep
+    ## the treatment the row got, and a logical index of length n would recycle
+    cfRows <- c(rep_len(TRUE, n), rep_len(FALSE, n.mis))
     responseData@x.test[cfRows,treatmentName] <- 1 - responseData@x.test[cfRows,treatmentName]
   }
   
