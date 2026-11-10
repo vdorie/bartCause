@@ -162,6 +162,13 @@
   \subsection{BUG-FIXES}{
     \itemize{
       \item \code{bartc(weights = NULL)} failed; it now fits without weights.
+      \item An argument of the fitter written \code{NULL} in \code{bartc}'s
+            \code{...} or in \code{args.rsp} or \code{args.trt}, as
+            \code{sigest = NULL}, failed with \dQuote{subscript out of
+            bounds}; it now reaches the fitter as \code{NULL}, so a fit with
+            \code{method.rsp = "bart"} with such an argument runs, and a flat
+            prior can be asked of \pkg{stan4bart} with \code{prior = NULL}.
+            This held in 1.0-10.
       \item \code{bartc} with a response written as an expression of the
             columns, as \code{log(y)}, failed with \dQuote{invalid subscript
             type 'language'}. This held in 1.0-10.
