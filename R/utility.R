@@ -165,7 +165,9 @@ addCallArguments <- function(call, args, replace = TRUE)
     if (!is.null(names(args)) && names(args)[i] != "" && names(args)[i] %not_in% names(fnFormals))
       next
     
-    call[[length(call) + 1L]] <- args[[i]]
+    ## a written NULL is an argument: [[<- with NULL would delete, and the name
+    ## below would land on the argument before it
+    call[length(call) + 1L] <- list(args[[i]])
     if (!is.null(names(args)) && names(args)[i] != "")
       names(call)[length(call)] <- names(args)[i]
   }
