@@ -92,6 +92,9 @@ bartc <- function(
   ## from its expression as written, and the averages read the population's
   popWeights <- resolveRowWeights(matchedCall, "weights", callingEnv)
   rspWeights <- resolveRowWeights(matchedCall, "weights.rsp", callingEnv)
+  ## NULL weights are absent, and the fits' calls do not carry them
+  if (is.null(popWeights) && "weights" %in% names(matchedCall)) matchedCall[["weights"]] <- NULL
+  if (is.null(rspWeights) && "weights.rsp" %in% names(matchedCall)) matchedCall[["weights.rsp"]] <- NULL
   argsRspNames <- if (hasArgsList(matchedCall[["args.rsp"]], args.rsp)) argsListNames(matchedCall[["args.rsp"]], args.rsp) else character()
   if (!is.null(rspWeights) && length(rspWeights$value) > 0L && !all(rspWeights$value %in% c(0, 1)) &&
       is.null(matchedCall[["family"]]) &&

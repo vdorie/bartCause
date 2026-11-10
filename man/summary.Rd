@@ -54,10 +54,11 @@
   observation counts by its share of the weights over the observations averaged, so results do not
   depend on the weights' scale. The SATE and PATE uncertainty includes the response noise of that
   weighted average, \eqn{\sigma^2 \sum_i a_i^2 / w_i}, with \eqn{a_i} an observation's share and
-  \eqn{w_i} its weight in the response fit (1 for an unweighted fit or for counts given by
-  \code{weights.type = "frequency"}). Observations are treated as independent. The printed summary
-  gives the Kish effective sample size of the population weights,
-  \eqn{(\sum_i w_i)^2 / \sum_i w_i^2} over the observations averaged.
+  \eqn{w_i} its weight in the response fit (1 for an unweighted fit, a count under
+  \code{weights.type = "frequency"}); an observation with a missing response adds its term once more
+  to the SATE. Observations are treated as independent. The printed summary gives the Kish effective
+  sample size of the population weights \eqn{v_i}, \eqn{(\sum_i v_i)^2 / \sum_i v_i^2} over the
+  observations averaged.
 
   \strong{Grouped Data}
   

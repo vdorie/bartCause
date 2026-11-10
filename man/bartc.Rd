@@ -399,8 +399,9 @@ bartc(response, treatment, confounders, parametric, data, subset, weights, weigh
   \eqn{a_i} a row's share of the population weights and \eqn{w_i} its
   response-model weight (1 when unweighted; a count under
   \code{"frequency"}). No interval depends on the population weights' scale.
-  \code{summary} prints their effective sample size,
-  \eqn{(\sum_i w_i)^2 / \sum_i w_i^2}{(sum_i w_i)^2 / sum_i w_i^2}, over the
+  \code{summary} prints their effective sample size, with \eqn{v_i} a row's
+  population weight,
+  \eqn{(\sum_i v_i)^2 / \sum_i v_i^2}{(sum_i v_i)^2 / sum_i v_i^2}, over the
   rows averaged.
   
   Rows that are counts of identical units are best written out,

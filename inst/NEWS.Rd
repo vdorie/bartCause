@@ -66,7 +66,8 @@
       \item The intervals of the PATE and SATE include the response noise of
             the weighted average, \eqn{\sigma^2 \sum_i a_i^2 / w_i}, with
             \eqn{a_i} a row's share of the population weights and \eqn{w_i} its
-            response-model weight, where they used \eqn{\sigma^2 / n}. Each
+            response-model weight, where they used \eqn{\sigma^2 / n}; the
+            SATE adds a row's term once more where its response is missing. Each
             drawn counterfactual has the noise the response model gives its
             row, \eqn{\sigma / \sqrt{w_i}} for precision weights.
       \item A \code{"glm"} treatment model is fit with \code{weights} rescaled
@@ -126,6 +127,7 @@
   }
   \subsection{BUG-FIXES}{
     \itemize{
+      \item \code{bartc(weights = NULL)} failed; it now fits without weights.
       \item \code{summary(target = "cate")} with \code{weights} reported the
             unweighted average.
       \item Weighted \code{"att"} and \code{"atc"} estimates from \code{extract}

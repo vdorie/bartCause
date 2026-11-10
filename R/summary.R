@@ -119,9 +119,11 @@ getPATEIntervalFunction.bart = function(ci.style)
          hpd   = function(ci.level, samples.pate) getHPDInterval(samples.pate, ci.level))
 },
 
-## As getPATEEstimate.bart.ppd, a row with a missing response ('missing.obs')
-## adding the noise of its observed draw as well; 'noise.var' already counts it.
-getSATEEstimate.bart = function(samples.iscate, weights, sigma, samples.obs, samples.cf, noise.var, missing.obs)
+## As getPATEEstimate.bart.ppd, with one draw per row; a row with a missing
+## response ('missing.obs') adds the noise of its observed draw as well, in
+## units of sigma^2 'missing.noise.var'.
+getSATEEstimate.bart = function(samples.iscate, weights, sigma, samples.obs, samples.cf, noise.var, missing.obs,
+                                missing.noise.var)
 {
   if (!is.null(weights)) {
     samples.scate <- as.vector(samples.iscate %*% weights)
@@ -132,7 +134,7 @@ getSATEEstimate.bart = function(samples.iscate, weights, sigma, samples.obs, sam
   
   sd <- sqrt(var(samples.scate) +
     if (!is.null(sigma)) {
-      mean(sigma^2) * noise.var
+      mean(sigma^2) * (noise.var + missing.noise.var)
     } else {
       samples.var <- samples.cf * (1 - samples.cf)
       if (any(missing.obs))
@@ -251,7 +253,8 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
            samples.cf    = extract(object, "mu.cf", "all"),
            weights       = NULL,
            noise.var     = NULL,
-           missing.obs   = NULL
+           missing.obs   = NULL,
+           missing.noise.var = NULL
     ))
     estimateCall[[i + 1L]] <- str2lang(varName)
   }
@@ -276,9 +279,10 @@ getATEEstimates <- function(object, target, ci.style, ci.level, pate.style)
     shares <- if (is.null(pop)) rep_len(1 / sum(rows), sum(rows)) else weightShares(pop, rows)
     fitRows <- if (is.null(fitw)) NULL else fitw[rows]
     noise.var <- if (is.null(pop) && is.null(fitw)) 1 / sum(rows) else averageNoiseVariance(shares, fitRows)
+    ## the PATE's draws of a row with a missing response are both predictive
+    ## already, so only the SATE adds the noise of its observed draw
     missing.obs <- missingObs[rows]
-    if (any(missing.obs))
-      noise.var <- noise.var + averageNoiseVariance(shares * missing.obs, fitRows)
+    missing.noise.var <- if (any(missing.obs)) averageNoiseVariance(shares * missing.obs, fitRows) else 0
     weights <- if (is.null(pop)) NULL else shares
     for (varName in rowVariables)
       assign(varName, get(varName)[,rows,drop = FALSE])

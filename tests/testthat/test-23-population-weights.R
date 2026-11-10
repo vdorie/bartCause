@@ -109,6 +109,18 @@ test_that("a fit saved before the weights were stored reads them from its respon
   expect_equal(extract(old, "y.cf"), extract(pre, "y.cf"))
 })
 
+test_that("NULL weights are absent, as written or as a variable's value", {
+  unweighted <- pwFit()
+  noWeights <- NULL
+  for (fit in list(pwFit(weights = NULL), pwFit(weights = noWeights), pwFit(weights = NULL, weights.rsp = NULL),
+                   pwFit(weights = NULL, method.trt = "glm"))) {
+    expect_null(fit$weights)
+    expect_null(fit$weights.rsp)
+    expect_equal(length(fit$data.rsp@weights), 0L)
+  }
+  expect_equal(extract(pwFit(weights = NULL), "pate"), extract(unweighted, "pate"))
+})
+
 test_that("population weights are refused by name", {
   ## nothing is fit before the refusal
   local_mocked_bindings(getBartTreatmentFit = function(...) stop("the treatment model was fit"), .package = "bartCause")
@@ -304,6 +316,36 @@ test_that("interval noise terms follow the population weights and the response f
   p.cf  <- extract(fit, "mu.cf", "all")
   noise <- mean((p.obs * (1 - p.obs) + p.cf * (1 - p.cf)) %*% a^2)
   expect_equal(summary(fit, target = "pate")$estimates$sd, sqrt(var(weightedCATE(fit, pwData$w)) + noise))
+})
+
+test_that("under missing responses only the SATE adds the noise of the observed draw", {
+  sigma2 <- function(fit) mean(extract(fit, "sigma")^2)
+  mdata <- pwData
+  miss <- c(3L, 18L, 50L, 77L, 101L)
+  mdata$y[miss] <- NA
+  missing <- is.na(mdata$y)
+  sgn <- ifelse(mdata$z == 1, 1, -1)
+  sateDraws <- function(fit, a) {
+    mu.cf <- extract(fit, "mu.cf", "all")
+    iscate <- (rep(mdata$y, each = nrow(mu.cf)) - mu.cf) * rep(sgn, each = nrow(mu.cf))
+    iscate[, missing] <- extract(fit, "icate", "all")[, missing]
+    as.vector(iscate %*% a)
+  }
+  ## no weights: the PATE's term is 1 / n, as in 1.0-10, and the SATE's adds
+  ## m / n^2 for the m missing rows
+  fit <- pwFit(data = mdata)
+  a <- rep(1 / n, n)
+  expect_equal(summary(fit, target = "pate")$estimates$sd,
+               sqrt(var(weightedCATE(fit, NULL)) + 2 * sigma2(fit) / n))
+  expect_equal(summary(fit, target = "sate")$estimates$sd,
+               sqrt(var(sateDraws(fit, a)) + sigma2(fit) * (1 / n + sum(missing) / n^2)))
+  ## population weights and precision weights.rsp
+  fit <- pwFit(weights = w, weights.rsp = cnt, data = mdata)
+  a <- mdata$w / sum(mdata$w)
+  expect_equal(summary(fit, target = "pate")$estimates$sd,
+               sqrt(var(weightedCATE(fit, mdata$w)) + 2 * sigma2(fit) * sum(a^2 / mdata$cnt)))
+  expect_equal(summary(fit, target = "sate")$estimates$sd,
+               sqrt(var(sateDraws(fit, a)) + sigma2(fit) * (sum(a^2 / mdata$cnt) + sum(a[missing]^2 / mdata$cnt[missing]))))
 })
 
 test_that("a counterfactual is drawn with its noise as the response fit has it", {
