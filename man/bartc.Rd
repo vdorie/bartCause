@@ -470,13 +470,14 @@ bartc(response, treatment, confounders, parametric, data, subset, weights, weigh
   \item{\code{p.score}}{the vector of propensity scores used as a covariate in
                         the response model, when applicable}
   \item{\code{samples.p.score}}{matrix or array of posterior samples of the
-                                propensity score, when applicable}
+                                propensity score, when applicable; computed
+                                when read, see below}
   \item{\code{mu.hat.obs}}{samples from the posterior of the expected value for
                            individual responses under the observed treatment
-                           regime}
+                           regime; computed when read, see below}
   \item{\code{mu.hat.cf}}{samples from the posterior of the expected value for
                           individual responses under the counterfactual
-                          treatment}
+                          treatment; computed when read, see below}
   \item{\code{name.trt}}{character string giving the name of the treatment
                          variable in the data of \code{fit.rsp}}
   \item{\code{name.p.score}}{character string giving the name of the propensity
@@ -507,6 +508,26 @@ bartc(response, treatment, confounders, parametric, data, subset, weights, weigh
                         a missing response included, or \code{NULL}}
   \item{\code{weights.rsp}}{the response model's weights over the same rows, or
                             \code{NULL}}
+  \item{\code{combineChains}}{named logical, \code{rsp} and \code{trt}, for
+                              whether the chains of each model's draws were
+                              combined into one margin, which is how the
+                              computed items below are laid out}
+
+  A fit keeps its posterior draws once, in \code{fit.rsp} and \code{fit.trt}.
+  \code{mu.hat.obs}, \code{mu.hat.cf} and \code{samples.p.score} are not
+  stored in the fit: reading one of them, with \code{fit$mu.hat.obs} or
+  \code{fit[["mu.hat.obs"]]}, computes it from the draws of \code{fit.rsp} (or,
+  for \code{samples.p.score}, \code{fit.trt}) as \code{bartc} always has, at a
+  cost of a fraction of a second for a fit of ordinary size, and gives the same
+  array. They do not appear in \code{names(fit)}, \code{str(fit)} or
+  \code{with(fit, ...)}, and \code{fit[c("mu.hat.obs", "trt")]} does not
+  return them; every other name and form of indexing reads as it does on a
+  list. The one exception is a matrix of propensity draws given as
+  \code{method.trt}, which no fit holds: \code{samples.p.score} is then stored.
+  A \code{bartcFit} saved by an earlier version holds all three, and reads them
+  as stored. With \code{method.rsp = "bcf"}, \code{mu.hat.obs} and
+  \code{mu.hat.cf} are those of \code{fit.rsp}. A fit saves at about half the
+  size it had when it also held the three.
 }
 \references{
 Chipman, H., George, E. and McCulloch R. (2010)

@@ -26,6 +26,15 @@
   }
   \subsection{USER-VISIBLE CHANGES}{
     \itemize{
+      \item A \code{bartc} fit stores its posterior draws once, in
+            \code{fit.rsp} and \code{fit.trt}, rather than again as
+            \code{mu.hat.obs}, \code{mu.hat.cf} and \code{samples.p.score}, so
+            it saves at about half the size. Those three are computed when
+            read, by \code{fit$mu.hat.obs} and \code{fit[["mu.hat.obs"]]}, and
+            give the same arrays; they no longer appear in \code{names(fit)},
+            \code{str(fit)} or \code{with(fit, ...)}. A fit saved by an earlier
+            version reads them as stored. A matrix of propensity draws given as
+            \code{method.trt} is still stored.
       \item Requires \pkg{dbarts} >= 1.0-0. Its sampler differs from earlier
             versions, so fits, and results that depend on them, will not
             match those from 1.0-10 for the same seed.
