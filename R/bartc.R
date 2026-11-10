@@ -95,6 +95,12 @@ bartc <- function(
   ## NULL weights are absent, and the fits' calls do not carry them
   if (is.null(popWeights) && "weights" %in% names(matchedCall)) matchedCall[["weights"]] <- NULL
   if (is.null(rspWeights) && "weights.rsp" %in% names(matchedCall)) matchedCall[["weights.rsp"]] <- NULL
+  ## an estimand that the weights and the treatment leave no weight is refused
+  ## before anything is fit; a common support rule that leaves none, after
+  if (!is.null(popWeights)) {
+    z <- treatmentBeforeFit(matchedCall, callingEnv, length(popWeights$full), popWeights$rows)
+    if (!is.null(z)) stopIfNoWeight(popWeights$value, z, estimand)
+  }
   argsRspNames <- if (hasArgsList(matchedCall[["args.rsp"]], args.rsp)) argsListNames(matchedCall[["args.rsp"]], args.rsp) else character()
   if (!is.null(rspWeights) && length(rspWeights$value) > 0L && !all(rspWeights$value %in% c(0, 1)) &&
       is.null(matchedCall[["family"]]) &&
@@ -283,6 +289,8 @@ bartc <- function(
   ## mu.hat.cf and samples.p.score are read out of them when asked for (see
   ## R/draws.R). The exception is a matrix of propensity draws that was given,
   ## which no fit holds. combineChains records how the fits' draws were laid out.
+  if (!is.null(popWeights))
+    stopIfNoWeight(popWeights$value[commonSup.sub], trt[commonSup.sub], estimand)
   combineChains <- combineChainsRecord(mu.hat.obs, samples.p.score)
   result <- namedList(fit.rsp = fit, data.rsp = data, fit.trt, p.score,
                       method.rsp, method.trt, estimand,

@@ -150,6 +150,19 @@ groupHasNoWeight <- function(weights, trt, estimand)
   !(sum(weights[rows]) > 0)
 }
 
+## The treatment on the rows modeled, read from its expression as written
+## before any fit, or NULL where it cannot be read as a 0/1 vector one value for
+## each row of data; the fits then find any problem with it.
+treatmentBeforeFit <- function(matchedCall, env, n, rows)
+{
+  tryCatch({
+    data <- if (!is.null(matchedCall[["data"]])) eval(matchedCall[["data"]], env) else NULL
+    z <- eval(matchedCall[["treatment"]], data, env)
+    if (is.logical(z)) z <- as.numeric(z)
+    if (!is.numeric(z) || !is.null(dim(z)) || length(z) != n || anyNA(z)) NULL else as.vector(z)[rows]
+  }, error = function(e) NULL)
+}
+
 ## An estimand of no population weight over the rows it averages is an error.
 stopIfNoWeight <- function(weights, trt, estimand)
 {

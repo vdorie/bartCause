@@ -53,7 +53,11 @@ bartc(response, treatment, confounders, parametric, data, subset, weights, weigh
     target-population weights - giving each row's share of the population the
     effects are averaged over. Can refer to \code{data} if provided, and is cut
     to \code{subset}; values must be finite and non-negative, with at least one
-    positive. They weight every average of the individual effects: the ATE, ATT
+    positive, and the estimand must have weight: \code{bartc} refuses, before it
+    fits anything, an effect on the treated whose treated rows all have weight 0,
+    and likewise for the controls, and a common support rule that leaves none
+    refuses at the end of the fit. A group of a grouped fit with no weight gets
+    \code{NA}. They weight every average of the individual effects: the ATE, ATT
     and ATC, as \code{"pate"}, \code{"sate"} and \code{"cate"} in
     \code{fitted}, \code{extract} and \code{summary}, within groups and in
     their total, and in the \code{"p.weight"} and \code{"tmle"} estimators.

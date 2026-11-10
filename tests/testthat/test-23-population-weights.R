@@ -291,10 +291,10 @@ test_that("a group of no population weight is NA, the others and the total estim
   expect_equal(est["total", "estimate"], mean(weightedCATE(fit, gdata$w0)))
   expect_equal(unlist(est["total", c("ci.lower", "ci.upper")]),
                setNames(quantile(weightedCATE(fit, gdata$w0), c(0.025, 0.975)), c("ci.lower", "ci.upper")))
-  ## the estimand's whole weight 0 stays an error
+  ## the estimand's whole weight 0 is refused, before the fit
   gdata$wt <- ifelse(gdata$z == 1, 0, gdata$w)
-  fit <- pwFit(weights = wt, data = gdata, estimand = "att", group.by = grp, group.effects = TRUE, use.ranef = FALSE)
-  expect_error(summary(fit), "the population weights are 0 on every row the estimate averages over")
+  expect_error(pwFit(weights = wt, data = gdata, estimand = "att", group.by = grp, group.effects = TRUE, use.ranef = FALSE),
+               "the population weights are 0 on every row the estimate averages over")
 })
 
 test_that("p.weight and tmle give a group of no population weight NA, as summary does", {
@@ -502,4 +502,61 @@ test_that("bcf takes weights.rsp and averages with the population weights", {
                                 method.rsp = "bcf", verbose = FALSE, seed = 7, n.samples = 10L, n.burn = 5L,
                                 n.trees = 5L, n.chains = 1L, n.threads = 1L))
   expect_identical(fit$fit.rsp$weights.type, "frequency")
+})
+
+## nothing is fit before a refusal: a fit that is reached stops the test
+noFit <- function(code) {
+  local_mocked_bindings(getBartTreatmentFit = function(...) stop("the treatment model was fit"),
+                        getBartResponseFit  = function(...) stop("the response model was fit"),
+                        getBCFResponseFit   = function(...) stop("the response model was fit"),
+                        getPWeightResponseFit = function(...) stop("the response model was fit"),
+                        getTMLEResponseFit  = function(...) stop("the response model was fit"),
+                        getGLMTreatmentFit  = function(...) stop("the treatment model was fit"),
+                        .package = "bartCause", .env = parent.frame())
+  code
+}
+
+test_that("an estimate that the weights and treatment leave no weight is refused before any fit, for every method", {
+  noWeightOnTreated <- ifelse(pwData$z == 1, 0, pwData$w)
+  noWeightOnControls <- ifelse(pwData$z == 1, pwData$w, 0)
+  message <- "the population weights are 0 on every row the estimate averages over"
+  methods <- c("bart", "bcf", "p.weight", if (requireNamespace("tmle", quietly = TRUE)) "tmle")
+  for (method in methods) {
+    local({
+      noFit(NULL)
+      expect_error(pwFit(weights = noWeightOnTreated, estimand = "att", method.rsp = method), message, label = method)
+      expect_error(pwFit(weights = noWeightOnControls, estimand = "atc", method.rsp = method), message, label = method)
+      expect_error(pwFit(weights = noWeightOnTreated, estimand = "att", method.rsp = method, method.trt = "glm"),
+                   message, label = method)
+    })
+    ## the other estimand has weight
+    expect_is(pwFit(weights = noWeightOnTreated, estimand = "atc", method.rsp = method, n.chains = 1L), "bartcFit")
+  }
+  ## the rows modeled are those of the subset
+  expect_error(pwFit(weights = noWeightOnTreated, estimand = "att", subset = x1 > -1, method.rsp = "bart"), message)
+  ## a treatment given as logical
+  tdata <- pwData
+  tdata$zl <- tdata$z == 1
+  expect_error(bartc(y, zl, x1 + x2, data = tdata, weights = noWeightOnTreated, estimand = "att", verbose = FALSE), message)
+})
+
+test_that("a common support rule that leaves no weight refuses at the end of the fit, before returning", {
+  message <- "the population weights are 0 on every row the estimate averages over"
+  for (method in c("bart", "bcf", "p.weight")) {
+    base <- pwFit(estimand = "att", commonSup.rule = "sd", commonSup.cut = -1, method.rsp = method)
+    cutTreated <- pwData$z == 1 & !base$commonSup.sub
+    expect_true(any(cutTreated), label = method)
+    onlyCut <- ifelse(cutTreated | pwData$z == 0, 1, 0)
+    expect_error(pwFit(weights = onlyCut, estimand = "att", commonSup.rule = "sd", commonSup.cut = -1, method.rsp = method),
+                 message, label = method)
+  }
+  ## a group of no weight is NA, the others and the total reported
+  grp <- factor(rep(c("a", "b", "c"), c(20L, 40L, 60L)))
+  gdata <- cbind(pwData, grp = grp)
+  gdata$w0 <- ifelse(grp == "a", 0, gdata$w)
+  fit <- pwFit(weights = w0, data = gdata, group.by = grp, group.effects = TRUE, use.ranef = FALSE)
+  expect_true(is.na(summary(fit)$estimates["a", "estimate"]))
+  ## every group at 0 is refused
+  expect_error(pwFit(weights = 0 * w, data = gdata, group.by = grp, group.effects = TRUE, use.ranef = FALSE),
+               "'weights' must be positive for at least one of the rows modeled")
 })

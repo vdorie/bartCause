@@ -88,6 +88,11 @@
             positive sum and one value for each row of \code{data}; they are
             taken for the rows of \code{subset}, missing-response rows
             included. Each refusal names the rows at fault.
+      \item \code{bartc} refuses, before it fits anything, a weighted
+            estimand that has no weight: an effect on the treated whose
+            treated rows all have weight 0, and likewise for the controls;
+            a common support rule that leaves no weight refuses at the end of
+            the fit. A group of a grouped fit with no weight is \code{NA}.
       \item \code{bartc} warns, once for each model it fits, naming any
             argument that did not reach the sampler and why, where it used to
             drop the argument unseen: one that \pkg{dbarts} or
