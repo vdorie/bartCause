@@ -517,7 +517,14 @@ print.bartcFit <- function(x, digits = max(3L, getOption("digits") - 3L), ...)
     target <- "cate"
     target_str <- "conditional average"
   }
-  cat("Treatment effect (", x$estimand, ", ", target_str, "): ", format(fitted(x, target), digits = digits), "\n", sep = "", ...)
+  effect <- fitted(x, target)
+  if (length(effect) > 1L) {
+    ## a grouped fit has one effect for each group
+    cat("Treatment effect (", x$estimand, ", ", target_str, "), by group:\n", sep = "", ...)
+    print(effect, digits = digits)
+  } else {
+    cat("Treatment effect (", x$estimand, ", ", target_str, "): ", format(effect, digits = digits), "\n", sep = "", ...)
+  }
   
   invisible(x)
 }

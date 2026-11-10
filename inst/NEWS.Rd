@@ -162,6 +162,10 @@
   \subsection{BUG-FIXES}{
     \itemize{
       \item \code{bartc(weights = NULL)} failed; it now fits without weights.
+      \item \code{print} of a fit with \code{group.by} and
+            \code{group.effects = TRUE} ran the groups' effects together in one
+            number; it now prints each group's effect, named. This held in
+            1.0-10.
       \item The summary of a grouped fit under a common support rule printed
             a negative \code{n} for some groups, with a warning about
             recycling, as it took the rows cut from the count a second time.

@@ -91,3 +91,24 @@ test_that("print.bartcFit.summary warns about unstable small-group estimates", {
   out <- capture.output(print(sum))
   expect_true(any(grepl("group-size estimates may be unstable", out)))
 })
+
+test_that("print.bartcFit of a grouped fit gives each group's effect, named", {
+  set.seed(22)
+  nn <- 90L
+  gg <- factor(rep(c("a", "b", "c"), each = 30L))
+  xx <- matrix(rnorm(nn * 2L), nn)
+  zz <- rbinom(nn, 1L, 0.5)
+  yy <- xx[, 1L] + zz + rnorm(nn)
+  fit <- bartc(yy, zz, xx, group.by = gg, group.effects = TRUE, use.ranef = FALSE, method.trt = "glm",
+               verbose = FALSE, n.burn = 3L, n.samples = 10L, n.trees = 5L, n.chains = 1L, n.threads = 1L)
+  out <- capture.output(print(fit))
+  digits <- max(3L, getOption("digits") - 3L)
+  expect_true(any(grepl("Treatment effect \\(ate, conditional average\\), by group:", out)))
+  effects <- fitted(fit, "cate")
+  expect_length(effects, 3L)
+  header <- grep("by group:", out)
+  expect_identical(out[header + 0:2], c(out[header], capture.output(print(effects, digits = digits))))
+  expect_true(all(names(effects) %in% strsplit(trimws(out[header + 1L]), " +")[[1L]]))
+  ## the values are not run together on one line
+  expect_false(any(grepl(paste0("average\\): ", format(effects[[1L]], digits = digits), format(effects[[2L]], digits = digits)), out)))
+})
