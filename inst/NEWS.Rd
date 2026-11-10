@@ -154,6 +154,18 @@
             \code{"ite"}, \code{"y.0"} and \code{"y.1"} recycled the response
             over the rows, with a warning, and gave wrong values; a missing
             response is now drawn from its posterior predictive.
+      \item A row with a missing response was predicted twice at the
+            treatment it did not get and never at the treatment it got, so its
+            individual effect was exactly 0 in every draw. This held in 1.0-10
+            and earlier. Such a row is now predicted at both treatments. With
+            \code{method.rsp = "bart"} or \code{"p.weight"}, the population,
+            sample and conditional effects change, roughly by the share of
+            missing responses times those rows' effect. With \code{"tmle"},
+            whose estimate leaves such rows out, only the individual quantities
+            from \code{extract} and the plots change. Fits made with missing
+            responses in 1.0-10 or earlier should be refit; a saved fit cannot
+            be corrected, as the prediction at the treatment the row got was
+            never made.
       \item A weighted \code{extract} of a one-chain fit failed.
       \item The total row of a grouped \code{summary} combined the groups by
             their row counts rather than by their share of the weights, and
