@@ -671,10 +671,12 @@ refit.bartcFit <- function(object, newresp = NULL,
         addDimsToSubset(p.score.samples  <- p.score.samples[levelRows, drop = FALSE])
 
         if (!is.null(pop)) pop <- pop[levelRows]
+        if (groupHasNoWeight(pop, object$trt[levelRows], object$estimand)) return(NULL)
 
         with(object, getPWeightEstimates(y.rsp[levelRows], trt[levelRows], pop, estimand, mu.hat.0, mu.hat.1, p.score.samples,
                                          fitPars$yBounds, fitPars$p.scoreBounds))
       })
+      object$est <- fillEmptyGroups(object$est)
       names(object$est) <- levels(object$group.by)
     }
   } else if (object$method.rsp == "tmle") {
@@ -730,11 +732,13 @@ refit.bartcFit <- function(object, newresp = NULL,
         addDimsToSubset(p.score.samples <- p.score.samples[levelRows, drop = FALSE])
 
         if (!is.null(pop)) pop <- pop[levelRows]
+        if (groupHasNoWeight(pop, object$trt[levelRows], object$estimand)) return(NULL)
 
         with(object, getTMLEEstimates(y.rsp[levelRows], trt[levelRows], pop, estimand, mu.hat.0, mu.hat.1, p.score.samples,
                                       fitPars$yBounds, fitPars$p.scoreBounds, fitPars$depsilon, fitPars$maxIter,
                                       n.threads = 1L))
       })
+      object$est <- fillEmptyGroups(object$est)
       names(object$est) <- levels(object$group.by)
     }
 

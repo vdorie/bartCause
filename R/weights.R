@@ -140,6 +140,30 @@ averageNoiseVariance <- function(shares, fitWeights)
   sum(shares[rows]^2 / fitWeights[rows])
 }
 
+## Whether a group of a grouped fit has no population weight over the rows
+## its estimand averages ('weights' and 'trt' on the group's rows), so that
+## its estimate is NA, the other groups estimated.
+groupHasNoWeight <- function(weights, trt, estimand)
+{
+  if (is.null(weights)) return(FALSE)
+  rows <- switch(estimand[1L], ate = rep_len(TRUE, length(trt)), att = trt > 0, atc = trt <= 0)
+  !(sum(weights[rows]) > 0)
+}
+
+## The estimates of a grouped propensity-weighted fit, NULL for the groups of
+## no weight, given NA draws in the shape of the others; every group of no
+## weight is an estimand of no weight, an error.
+fillEmptyGroups <- function(est)
+{
+  empty <- vapply(est, is.null, NA)
+  if (all(empty))
+    stop("the population weights are 0 on every row the estimate averages over", call. = FALSE)
+  template <- est[[which(!empty)[1L]]]
+  template[] <- NA_real_
+  est[empty] <- list(template)
+  est
+}
+
 ## The shares of the population weights over 'rows', a logical vector over
 ## every row; NULL weights are equal.
 weightShares <- function(weights, rows)

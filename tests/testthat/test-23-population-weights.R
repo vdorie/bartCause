@@ -297,6 +297,40 @@ test_that("a group of no population weight is NA, the others and the total estim
   expect_error(summary(fit), "the population weights are 0 on every row the estimate averages over")
 })
 
+test_that("p.weight and tmle give a group of no population weight NA, as summary does", {
+  grp <- factor(rep(c("a", "b", "c"), c(20L, 40L, 60L)))
+  gdata <- cbind(pwData, grp = grp)
+  gdata$w0 <- ifelse(grp == "a", 0, gdata$w)
+  gdata$wt <- ifelse(gdata$z == 1, 0, gdata$w)
+  handed <- list()
+  stub <- function(Y, A, W, Q, g1W, obsWeights = NULL, ...) {
+    handed[[length(handed) + 1L]] <<- obsWeights
+    est <- list(psi = mean(Y), var.psi = 1)
+    list(estimates = list(ATE = est, ATT = est, ATC = est))
+  }
+  local_mocked_bindings(getTMLEFunction = function(...) stub, .package = "bartCause")
+  for (method in c("p.weight", "tmle")) {
+    fit <- pwFit(weights = w0, data = gdata, method.rsp = method, group.by = grp, group.effects = TRUE,
+                 use.ranef = FALSE, n.chains = 1L)
+    ## refit recomputes the estimates; it warns that mu.0 and mu.1 are not
+    ## these methods' estimates
+    for (f in list(fit, suppressWarnings(refit(fit, commonSup.rule = "sd", commonSup.cut = 10)))) {
+      draws <- extract(f, "pate")
+      expect_true(all(is.na(draws[["a"]])), label = method)
+      expect_true(all(is.finite(unlist(draws[c("b", "c")]))), label = method)
+      expect_true(is.na(fitted(f, "pate")[["a"]]), label = method)
+      est <- summary(f)$estimates
+      expect_true(all(is.na(est["a", c("estimate", "sd", "ci.lower", "ci.upper")])), label = method)
+      expect_equal(est[c("b", "c"), "estimate"], unname(fitted(f, "pate")[c("b", "c")]), label = method)
+    }
+    ## the estimand's whole weight 0 stays an error
+    expect_error(pwFit(weights = wt, data = gdata, method.rsp = method, estimand = "att", group.by = grp,
+                       group.effects = TRUE, use.ranef = FALSE, n.chains = 1L),
+                 "the population weights are 0 on every row the estimate averages over", label = method)
+  }
+  expect_false(any(vapply(handed, function(w) !(sum(w) > 0), NA)))
+})
+
 test_that("a glm treatment model is fit at the weights' mean of 1", {
   fit1 <- pwFit(weights = w, method.trt = "glm")
   expect_warning(fit2 <- pwFit(weights = w * 1e4, method.trt = "glm"), NA)

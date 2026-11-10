@@ -611,9 +611,11 @@ getPWeightResponseFit <-
       addDimsToSubset(p.score <- p.score[levelRows, drop = FALSE])
       
       if (!is.null(weights)) weights <- weights[levelRows]
+      if (groupHasNoWeight(weights, trt[levelRows], estimand)) return(NULL)
       
       getPWeightEstimates(y.all[levelRows], trt[levelRows], weights, estimand, mu.hat.0, mu.hat.1, p.score, yBounds, p.scoreBounds)
     })
+    est <- fillEmptyGroups(est)
     names(est) <- levels(group.by)
   }
   
@@ -949,6 +951,7 @@ getTMLEResponseFit <-
       addDimsToSubset(p.score <- p.score[levelRows, drop = FALSE])
       
       if (!is.null(weights)) weights <- weights[levelRows]
+      if (groupHasNoWeight(weights, trt[levelRows], estimand)) return(NULL)
       
       if (posteriorOfTMLE) {
         n.threads <- getDotsArgument(matchedCall, "n.threads", callingEnv, dbarts::guessNumCores())
@@ -963,6 +966,7 @@ getTMLEResponseFit <-
                                 yBounds, p.scoreBounds, depsilon, maxIter, n.threads = 1L)
       }
     })
+    est <- fillEmptyGroups(est)
     names(est) <- levels(group.by)
   }
 
