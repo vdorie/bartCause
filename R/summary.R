@@ -383,8 +383,9 @@ summary.bartcFit <- function(object,
     stop("target '", target, "' not supported for method '", object$method.rsp)
   
   
-  n.samples <- if (length(dim(object$mu.hat.obs)) > 2L) dim(object$mu.hat.obs)[2L] else dim(object$mu.hat.obs)[1L]
-  n.obs     <- dim(object$mu.hat.obs)[length(dim(object$mu.hat.obs))] 
+  draw.dims <- dim(bartcDraws(object, "mu")$mu.hat.obs)
+  n.samples <- if (length(draw.dims) > 2L) draw.dims[2L] else draw.dims[1L]
+  n.obs     <- draw.dims[length(draw.dims)]
   
   
   estimates <- getATEEstimates(object, target, ci.style, ci.level, pate.style)

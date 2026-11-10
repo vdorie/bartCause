@@ -219,18 +219,7 @@ getBartTreatmentFit <- function(response, treatment, confounders, parametric, da
   bartFit <- eval(bartCall, envir = evalEnv)
   combineChains <- getDotsArgument(matchedCall, "combineChains", callingEnv, FALSE)
   
-  if (bartMethod %in% "stan4bart") {
-    samples <- extract(bartFit, combine_chains = combineChains)
-    if (length(dim(samples)) == 3L) {
-      samples <- aperm(samples, c(3L, 2L, 1L))
-    } else {
-      samples <- t(samples)
-    }
-  } else {
-    samples <- extract(bartFit, combineChains = combineChains)
-    ## dbarts >= 1.0-0 keeps the one-chain margin extract() used to drop
-    if (!combineChains) samples <- dropSingleChainDim(samples, bartFit$n.chains, 2L)
-  }
+  samples <- treatmentDraws(bartFit, combineChains)
   
   result <- 
     list(fit = bartFit,

@@ -94,21 +94,9 @@ getStan4BartResponseFit <- function(response, treatment, confounders, parametric
   
   combineChains <- getDotsArgument(matchedCall, "combineChains", callingEnv, FALSE)
   
-  mu.hat.train <- extract(bartFit, sample = "train", combine_chains = combineChains)
-  mu.hat.test  <- extract(bartFit, sample = "test",  combine_chains = combineChains)
-  
-  # stan4bart has n.obs x n.samples x n.chains or n.obs x (n.samples * n.chains)
-  # bart has n.chains x n.samples x n.obs or (n.chains * n.samples) x n.obs
-  if (combineChains) {
-    mu.hat.train <- t(mu.hat.train)
-    mu.hat.test <- t(mu.hat.test)
-  } else {
-    mu.hat.train <- aperm(mu.hat.train, c(3L, 2L, 1L))
-    mu.hat.test <- aperm(mu.hat.test, c(3L, 2L, 1L))
-  }
-  
-  mu.hat.obs <- mu.hat.train
-  mu.hat.cf  <- mu.hat.test      
+  draws <- stan4bartResponseDraws(bartFit, combineChains)
+  mu.hat.obs <- draws$mu.hat.obs
+  mu.hat.cf  <- draws$mu.hat.cf
   
   sd.obs <- apply(mu.hat.obs, length(dim(mu.hat.obs)), sd)
   sd.cf  <- apply(mu.hat.cf,  length(dim(mu.hat.obs)), sd)
@@ -282,48 +270,9 @@ getBartResponseFit <- function(response, treatment, confounders, parametric, dat
   treatmentRows <- trt > 0
   
   combineChains <- getDotsArgument(matchedCall, "combineChains", callingEnv, FALSE)
-  mu.hat.train <- extract(bartFit, sample = "train", combineChains = combineChains)
-  mu.hat.test  <- extract(bartFit, sample = "test",  combineChains = combineChains)
-
-  if (!combineChains) {
-    ## dbarts >= 1.0-0 keeps the one-chain margin extract() used to drop
-    mu.hat.train <- dropSingleChainDim(mu.hat.train, bartFit$n.chains, 2L)
-    mu.hat.test  <- dropSingleChainDim(mu.hat.test,  bartFit$n.chains, 2L)
-  }
-
-  if (is.null(missingData)) {
-    mu.hat.obs <- mu.hat.train
-    mu.hat.cf  <- mu.hat.test
-    ## the counterfactual rows are the observed ones, so they share their names
-    dimnames(mu.hat.cf) <- dimnames(mu.hat.obs)
-  } else {
-    # input dims are n.chains x n.samples x n.obs
-    # perm to n.obs x n.chains x n.samples and then perm back
-    if (length(dim(mu.hat.train)) > 2L) {
-      mu.hat.train <- aperm(mu.hat.train, c(3L, 1L, 2L))
-      mu.hat.test  <- aperm(mu.hat.test, c(3L, 1L, 2L))
-    } else {
-      mu.hat.train <- t(mu.hat.train)
-      mu.hat.test  <- t(mu.hat.test)
-    }
-    mu.hat.obs <- array(0, c(n, dim(mu.hat.train)[-1L]))
-    addDimsToSubset(mu.hat.obs[!missingRows] <- mu.hat.train)
-    addDimsToSubset(mu.hat.obs[ missingRows] <- mu.hat.test[seq.int(n + 1L, n + n.mis), drop = FALSE])
-    
-    addDimsToSubset(mu.hat.cf <- mu.hat.test[seq_len(n)])
-    
-    if (length(dim(mu.hat.train)) > 2L) {
-      mu.hat.train <- aperm(mu.hat.train, c(2L, 3L, 1L))
-      mu.hat.test  <- aperm(mu.hat.test, c(2L, 3L, 1L))
-      mu.hat.obs   <- aperm(mu.hat.obs, c(2L, 3L, 1L))
-      mu.hat.cf    <- aperm(mu.hat.cf, c(2L, 3L, 1L))
-    } else {
-      mu.hat.train <- t(mu.hat.train)
-      mu.hat.test  <- t(mu.hat.test)
-      mu.hat.obs   <- t(mu.hat.obs)
-      mu.hat.cf    <- t(mu.hat.cf)
-    }
-  }
+  draws <- bartResponseDraws(bartFit, combineChains, missingRows)
+  mu.hat.obs <- draws$mu.hat.obs
+  mu.hat.cf  <- draws$mu.hat.cf
   
   sd.obs <- apply(mu.hat.obs, length(dim(mu.hat.obs)), sd)
   sd.cf  <- apply(mu.hat.cf,  length(dim(mu.hat.obs)), sd)

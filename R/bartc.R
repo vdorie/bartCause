@@ -279,14 +279,22 @@ bartc <- function(
   ## from a confounder whose own name starts with the score's stem
   ## both weight vectors are kept over every row an effect is estimated for,
   ## the missing-response rows included, NULL where not given
-  result <- namedList(fit.rsp = fit, data.rsp = data, fit.trt, mu.hat.obs, mu.hat.cf, p.score, samples.p.score,
+  ## the posterior draws are kept once, in fit.rsp and fit.trt: mu.hat.obs,
+  ## mu.hat.cf and samples.p.score are read out of them when asked for (see
+  ## R/draws.R). The exception is a matrix of propensity draws that was given,
+  ## which no fit holds. combineChains records how the fits' draws were laid out.
+  combineChains <- combineChainsRecord(mu.hat.obs, samples.p.score)
+  result <- namedList(fit.rsp = fit, data.rsp = data, fit.trt, p.score,
                       method.rsp, method.trt, estimand,
                       commonSup.rule, commonSup.cut,
                       name.trt, name.p.score, trt,
                       sd.obs, sd.cf, commonSup.sub, missingRows, est, fitPars,
                       weights = if (!is.null(popWeights)) popWeights$value else NULL,
                       weights.rsp = if (!is.null(rspWeights)) rspWeights$value else NULL,
+                      combineChains,
                       call = givenCall)
+  if (method.trt == "given" && !is.null(samples.p.score))
+    result[["samples.p.score"]] <- samples.p.score
   
   ## a row out of a continuous response fit has no noise scale for its
   ## counterfactual, so it cannot be in an average; with a family given, the
