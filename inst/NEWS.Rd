@@ -87,6 +87,11 @@
             weighted; they are fit without \code{weights}, with a message only
             for the \code{"p.weight"} and \code{"tmle"} response methods,
             whose estimators read the scores.
+      \item An \code{args.trt} list that gives \code{weights} to a BART
+            propensity model gets the message that the model is fit unweighted
+            because a probit has no weighted form; an \code{args.rsp} list that
+            gives \code{weights = NULL} gives nothing, where other
+            \code{weights} in it are refused.
       \item \code{weights} must be numeric, finite and non-negative, with a
             positive sum and one value for each row of \code{data}; they are
             taken for the rows of \code{subset}, missing-response rows
@@ -130,6 +135,10 @@
             \code{predict} says so and asks for a refit, where it used to stop
             on a missing column. \code{print}, \code{summary}, \code{extract},
             \code{fitted} and \code{refit} still read such a fit.
+      \item \code{weights.rsp} stands after \code{weights} among the
+            arguments of \code{bartc}, so \code{method.rsp} and the arguments
+            after it are one place further along than in 1.0-10; a call that
+            gives them by position must name them.
       \item \code{extract} and \code{predict} with \code{combineChains = FALSE}
             now keep a leading chain dimension of length one for a
             single-chain fit, as \pkg{dbarts} does: scalar quantities are a 1

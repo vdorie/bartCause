@@ -392,13 +392,13 @@ bartc(response, treatment, confounders, parametric, data, subset, weights, weigh
   for. This is sound when the variables the weights were built from are among
   the confounders (Gelman, 2007), so put them there: the strata, and the
   variables a nonresponse or target-population model used. Where only the
-  weights are at hand, \code{log(w)} can be added to the confounders when the
+  weights are at hand, \code{log(v)} can be added to the confounders when the
   weights were built from information collected before treatment, never when
   they were built from outcomes or from later waves, as attrition weights are:
   the model would then predict the outcome from the weights. Clusters of a
   sampling design go in \code{group.by}, with \code{use.ranef = TRUE}. A
   response model fit with the weights as precisions remains a call away,
-  \code{weights = w, weights.rsp = w}. Solon, Haider and Wooldridge (2013)
+  \code{weights = v, weights.rsp = v}. Solon, Haider and Wooldridge (2013)
   discuss when weighting a regression for causal effects is called for.
   
   Intervals treat the rows as sampled independently; they do not reflect a
@@ -419,9 +419,9 @@ bartc(response, treatment, confounders, parametric, data, subset, weights, weigh
   \code{d[rep(seq_len(nrow(d)), d$count), ]}, which is exact; or give
   \code{weights = count, weights.rsp = count} with
   \code{weights.type = "frequency"}. Survey weights are not counts: rows of
-  count \code{c} with survey weight \code{w} take
-  \code{weights = c * w, weights.rsp = c, weights.type = "frequency"}, or are
-  written out with \code{weights = w}.
+  count \code{c} with survey weight \code{v} take
+  \code{weights = c * v, weights.rsp = c, weights.type = "frequency"}, or are
+  written out with \code{weights = v}.
   
   To average over another sample - a target population with its own weights
   \code{tw} - fit with \code{keepTrees = TRUE}, then

@@ -121,12 +121,25 @@ bartc <- function(
   
   ## the response fit's weights come by weights.rsp alone, and their reading
   ## says how it reads them; both refused before anything is fit
-  if ("weights" %in% argsRspNames)
+  if ("weights" %in% argsRspNames && !argsListElementIsNull(matchedCall[["args.rsp"]], args.rsp, "weights"))
     stop("args.rsp gives 'weights': the response fit's own weights are bartc's weights.rsp, and the ",
          "population weights that every average reads are 'weights'", call. = FALSE)
   if (is.null(rspWeights) && (!is.null(matchedCall[["weights.type"]]) || "weights.type" %in% argsRspNames))
     stop("weights.type says how the response fit reads weights.rsp, and without weights.rsp the response ",
          "fit is unweighted; drop weights.type, or give weights.rsp", call. = FALSE)
+  
+  ## a response model fit by stan4bart cannot read weights as counts, which is
+  ## refused before the treatment model is fit
+  if (!is.null(rspWeights) && (!is.null(matchedCall[["parametric"]]) ||
+                               (!is.null(matchedCall[["group.by"]]) && use.ranef))) {
+    weightsType <- if (!is.null(matchedCall[["weights.type"]])) eval(matchedCall[["weights.type"]], callingEnv)
+                   else if ("weights.type" %in% argsRspNames) {
+                     if (is.call(matchedCall[["args.rsp"]])) eval(matchedCall[["args.rsp"]][["weights.type"]], callingEnv)
+                     else args.rsp[["weights.type"]]
+                   }
+    if (identical(weightsType, "frequency"))
+      refuseFrequencyWeightsForStan4Bart(!is.null(matchedCall[["parametric"]]))
+  }
   
   ## the grouping factor is resolved once, so the treatment fit, the response
   ## fit and the group-level estimands all see the same levels; the call keeps
@@ -260,6 +273,11 @@ bartc <- function(
   
   if (hasArgsList(matchedCall[["args.rsp"]], args.rsp))
     responseCall <- takeOverridden(addArgsList(responseCall, matchedCall[["args.rsp"]], args.rsp, "args.rsp"))
+  ## an args.rsp weights of NULL gives nothing: the response fit's weights are weights.rsp's
+  if ("weights" %in% argsRspNames) {
+    responseCall[["weights"]] <- NULL
+    if (!is.null(matchedCall[["weights.rsp"]])) responseCall[["weights"]] <- matchedCall[["weights.rsp"]]
+  }
   responseCall <- dropRngSeed(responseCall)
   ## each argument is named once for each reason, though both fits dropped it
   warnArgumentsNotUsed(overridden[!duplicated(paste(names(overridden), overridden))])

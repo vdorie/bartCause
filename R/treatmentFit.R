@@ -210,7 +210,7 @@ getBartTreatmentFit <- function(response, treatment, confounders, parametric, da
   ## information in the treatment-effect estimators (p.weights, tmle).
   if (bartMethod %in% c("bart", "stan4bart") && !is.null(bartCall[["weights"]])) {
     bartCall[["weights"]] <- NULL
-    message("propensity score model is fit unweighted; weights enter the treatment-effect estimators")
+    message("propensity score model is fit unweighted: BART's probit has no weighted form")
   }
 
   if (crossvalidate)

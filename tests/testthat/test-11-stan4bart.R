@@ -353,3 +353,23 @@ test_that("stan4bart reads its weights as precisions only, and refuses them as c
     NA)
   expect_equal(fit$fit.rsp$frame[["(weights)"]], weighted$wt)
 })
+
+test_that("frequency weights for a stan4bart response model are refused before the treatment model is fit, with advice that fits", {
+  skip_if_not_installed("stan4bart")
+  
+  weighted <- cbind(test.df, wt = rep(1:2, length.out = nrow(test.df)))
+  local_mocked_bindings(getBartTreatmentFit = function(...) stop("the treatment model was fit"), .package = "bartCause")
+  expect_error(
+    bartc(y, z, X1 + X2, data = weighted, group.by = g.1, weights.rsp = wt, weights.type = "frequency",
+          verbose = FALSE),
+    "use.ranef = FALSE")
+  expect_error(
+    bartc(y, z, X1 + X2, data = weighted, group.by = g.1, weights.rsp = wt, args.rsp = list(weights.type = "frequency"),
+          verbose = FALSE),
+    "stan4bart reads weights as precisions only")
+  ## a parametric part cannot be given up by use.ranef = FALSE
+  err <- tryCatch(bartc(y, z, X1, parametric = X2, data = weighted, weights.rsp = wt, weights.type = "frequency",
+                        verbose = FALSE), error = conditionMessage)
+  expect_match(err, "drop the parametric part")
+  expect_false(grepl("use.ranef", err))
+})

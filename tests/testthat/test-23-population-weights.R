@@ -661,3 +661,26 @@ test_that("a logical or two-level factor response is read as binary by the weigh
   expect_error(bartc(y > 1, z, x1 + x2, data = pwData, weights.rsp = half, verbose = FALSE),
                "family = \"logistic\"")
 })
+
+test_that("weights given to a BART propensity model through args.trt are named as unweighted for the probit", {
+  msgs <- character()
+  fit <- withCallingHandlers(
+    bartc(y, z, x1 + x2, data = pwData, args.trt = list(weights = w), verbose = FALSE, seed = 7, n.samples = 10L,
+          n.burn = 5L, n.trees = 5L, n.chains = 1L, n.threads = 1L),
+    message = function(m) { msgs <<- c(msgs, conditionMessage(m)); invokeRestart("muffleMessage") })
+  expect_is(fit, "bartcFit")
+  expect_true(any(grepl("probit has no weighted form", msgs)))
+  expect_false(any(grepl("treatment-effect estimators", msgs)))
+})
+
+test_that("an args.rsp weights of NULL gives nothing, and any other is refused", {
+  fit <- pwFit(weights.rsp = w, args.rsp = list(weights = NULL))
+  expect_equal(fit$data.rsp@weights, pwData$w)
+  expect_equal(fit$weights.rsp, pwData$w)
+  fit <- pwFit(weights = w, args.rsp = list(weights = NULL))
+  expect_length(fit$data.rsp@weights, 0L)
+  noWeights <- list(weights = NULL)
+  fit <- pwFit(weights.rsp = w, args.rsp = noWeights)
+  expect_equal(fit$data.rsp@weights, pwData$w)
+  expect_error(pwFit(weights = w, args.rsp = list(weights = w)), "args.rsp gives 'weights'")
+})

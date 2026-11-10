@@ -782,6 +782,14 @@ hasArgsList <- function(argsExpr, args)
 argsListNames <- function(argsExpr, args)
   if (is.call(argsExpr) && identical(argsExpr[[1L]], quote(list))) names(argsExpr)[-1L] else names(args)
 
+## Whether an element of an args list is NULL, which gives nothing.
+argsListElementIsNull <- function(argsExpr, args, name)
+{
+  if (is.call(argsExpr) && identical(argsExpr[[1L]], quote(list)))
+    return(is.null(argsExpr[[name]]))
+  is.null(args[[name]])
+}
+
 addArgsList <- function(call, argsExpr, args, argName)
 {
   written <- is.call(argsExpr) && identical(argsExpr[[1L]], quote(list))

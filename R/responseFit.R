@@ -1,3 +1,12 @@
+## stan4bart reads weights as precisions, so a response model it fits, one with
+## a parametric part or a varying intercept, cannot take them as counts. Only a
+## varying intercept can be given up for a fixed effect.
+refuseFrequencyWeightsForStan4Bart <- function(hasParametric)
+  stop("stan4bart reads weights as precisions only, so a response model with a varying intercept or a ",
+       "parametric part cannot take frequency weights; expand the rows",
+       if (hasParametric) ", or drop the parametric part" else
+         ", or fit the grouping factor as a fixed effect with use.ranef = FALSE", call. = FALSE)
+
 getStan4BartResponseFit <- function(response, treatment, confounders, parametric, data, subset, weights, estimand,
                                     group.by = NULL, use.ranef = TRUE,
                                     commonSup.rule, commonSup.cut, p.score, calculateEstimates = TRUE, ...)
@@ -37,9 +46,7 @@ getStan4BartResponseFit <- function(response, treatment, confounders, parametric
   ## counts
   weightsType <- getDotsArgument(matchedCall, "weights.type", callingEnv, NULL)
   if (identical(weightsType, "frequency"))
-    stop("stan4bart reads weights as precisions only, so a varying intercept or a parametric part ",
-         "(group.by with use.ranef = TRUE, parametric) cannot take frequency weights; expand the rows, ",
-         "or fit the grouping factor as a fixed effect with use.ranef = FALSE", call. = FALSE)
+    refuseFrequencyWeightsForStan4Bart(!is.null(matchedCall[["parametric"]]))
   if (!is.null(matchedCall[["weights.type"]])) matchedCall[["weights.type"]] <- NULL
   
   stan4bartCall <- NULL; treatmentName <- NULL; missingRows <- NULL; p.scoreName <- NULL
