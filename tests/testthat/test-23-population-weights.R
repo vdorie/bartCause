@@ -615,3 +615,49 @@ test_that("a grouped summary gives each group its own n, effective sample size a
   expect_equal(unname(s$estimates$n),
                c(unname(tapply(gdata$z == 1 & fit$commonSup.sub, grp, sum)), sum(gdata$z == 1 & fit$commonSup.sub)))
 })
+
+test_that("a weights.rsp of 0 on a row in the averages is refused before any fit when the family says gaussian", {
+  out <- rep(c(0, 1, 1), length.out = n)
+  message <- "have weights.rsp 0 but a positive population weight"
+  local({
+    noFit(NULL)
+    expect_error(pwFit(weights.rsp = out, family = "gaussian"), message)
+    expect_error(pwFit(weights.rsp = out, family = gaussian()), message)
+    expect_error(pwFit(weights.rsp = out, family = gaussian(sigma = 1)), message)
+    expect_error(pwFit(weights.rsp = out, family = stats::gaussian()), message)
+    fam <- gaussian()
+    expect_error(pwFit(weights.rsp = out, family = fam), message)
+    expect_error(pwFit(weights.rsp = out, args.rsp = list(family = "gaussian")), message)
+    expect_error(pwFit(weights.rsp = out), message)
+  })
+  ## a family not plainly gaussian keeps the after-fit check, and a binary one is allowed
+  binary <- pwData
+  binary$y <- as.numeric(binary$y > 1)
+  expect_is(pwFit(weights.rsp = out, data = binary, family = "probit"), "bartcFit")
+  spelled <- function() gaussian()
+  expect_error(pwFit(weights.rsp = out, family = spelled()), message)
+  ## a population weight of 0 on the row is fine
+  expect_is(pwFit(weights = w * out, weights.rsp = out, family = "gaussian"), "bartcFit")
+  expect_error(pwFit(weights.rsp = out), "an NA response and a population weight of 0")
+})
+
+test_that("a logical or two-level factor response is read as binary by the weights.rsp checks", {
+  out <- rep(c(0, 1, 1), length.out = n)
+  half <- ifelse(seq_len(n) == 7L, 0.5, 1)
+  for (kind in c("logical", "factor")) {
+    bdata <- pwData
+    bdata$y <- if (kind == "logical") pwData$y > 1 else factor(ifelse(pwData$y > 1, "hi", "lo"))
+    ## 0 and 1 weights.rsp are allowed, a fit that probit takes
+    expect_is(pwFit(weights.rsp = out, data = bdata), "bartcFit")
+    ## a weight between is refused as a 0/1 response's, before any fit
+    local({
+      noFit(NULL)
+      expect_error(pwFit(weights.rsp = half, data = bdata), "a 0/1 response is fit by probit BART", label = kind)
+    })
+  }
+  ## a response of two levels written as an expression
+  expect_error(bartc(y > 1, z, x1 + x2, data = pwData, weights.rsp = half, verbose = FALSE),
+               "a 0/1 response is fit by probit BART")
+  expect_error(bartc(y > 1, z, x1 + x2, data = pwData, weights.rsp = half, verbose = FALSE),
+               "family = \"logistic\"")
+})

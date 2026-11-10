@@ -55,8 +55,9 @@ resolveRowWeights <- function(matchedCall, argName, env)
   list(value = value, full = full, rows = rows)
 }
 
-## Whether the response, on the rows modeled, is 0/1 valued, which dbarts fits
-## by probit when no family is given.
+## Whether the response, on the rows modeled, is read as binary by dbarts when
+## no family is given: a numeric response of 0s and 1s, a logical one, or a
+## factor of two levels, which it fits by probit.
 responseIsZeroOne <- function(matchedCall, env)
 {
   data <- if (!is.null(matchedCall[["data"]])) eval(matchedCall[["data"]], env) else NULL
@@ -64,8 +65,42 @@ responseIsZeroOne <- function(matchedCall, env)
   if (!is.null(matchedCall[["subset"]]))
     y <- y[normalizeBCFSubset(eval(matchedCall[["subset"]], data, env), NROW(y),
                               if (is.data.frame(data)) rownames(data) else NULL)]
+  if (is.logical(y) || (is.factor(y) && nlevels(y) == 2L)) return(TRUE)
   y <- as.vector(y)
   is.numeric(y) && all(y[!is.na(y)] %in% c(0, 1))
+}
+
+## Whether a family, as written in a call or given in a list of arguments
+## (an expression or its value), plainly says gaussian: the string, a family
+## object, or a call of gaussian(). Any other spelling is not read here.
+familyIsPlainlyGaussian <- function(family, env)
+{
+  if (is.character(family)) return(identical(family, "gaussian"))
+  if (inherits(family, "family")) return(identical(family$family, "gaussian"))
+  if (is.call(family)) {
+    fn <- family[[1L]]
+    if (is.call(fn) && (identical(fn[[1L]], quote(`::`)) || identical(fn[[1L]], quote(`:::`)))) fn <- fn[[3L]]
+    return(identical(fn, quote(gaussian)))
+  }
+  if (is.symbol(family)) {
+    value <- tryCatch(eval(family, env), error = function(e) NULL)
+    return(!is.symbol(value) && !is.call(value) && familyIsPlainlyGaussian(value, env))
+  }
+  FALSE
+}
+
+## The family the response fit is given, as written, through 'family' or
+## args.rsp; NULL where it is not given.
+givenResponseFamily <- function(matchedCall, args.rsp)
+{
+  if (!is.null(matchedCall[["family"]])) return(matchedCall[["family"]])
+  argsExpr <- matchedCall[["args.rsp"]]
+  if (is.call(argsExpr) && identical(argsExpr[[1L]], quote(list))) {
+    if ("family" %in% names(argsExpr)) return(argsExpr[["family"]])
+    return(NULL)
+  }
+  if (is.list(args.rsp) && "family" %in% names(args.rsp)) return(args.rsp[["family"]])
+  NULL
 }
 
 ## A name for a variable that the fits read by name, taken by no column of data

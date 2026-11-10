@@ -102,18 +102,21 @@ bartc <- function(
     if (!is.null(z)) stopIfNoWeight(popWeights$value, z, estimand)
   }
   argsRspNames <- if (hasArgsList(matchedCall[["args.rsp"]], args.rsp)) argsListNames(matchedCall[["args.rsp"]], args.rsp) else character()
+  familyGiven <- !is.null(matchedCall[["family"]]) || "family" %in% argsRspNames
   if (!is.null(rspWeights) && length(rspWeights$value) > 0L && !all(rspWeights$value %in% c(0, 1)) &&
-      is.null(matchedCall[["family"]]) &&
-      "family" %not_in% argsRspNames &&
-      responseIsZeroOne(matchedCall, callingEnv))
+      !familyGiven && responseIsZeroOne(matchedCall, callingEnv))
     stop("a 0/1 response is fit by probit BART, which takes weights.rsp of 0 or 1 only, having no weighted ",
-         "form; population weights go in 'weights', which weight the average of the unit effects, with the ",
-         "variables they were built from among the confounders", call. = FALSE)
+         "form; counts of identical rows are written out as repeated rows, or fit with family = \"logistic\" ",
+         "and weights.type = \"frequency\"; population weights go in 'weights', which weight the average of ",
+         "the unit effects, with the variables they were built from among the confounders", call. = FALSE)
   
-  ## without a family, a response fit is binary exactly when its response is
-  ## 0/1, so a row it leaves out of a continuous fit is refused before any fit
-  if (!is.null(rspWeights) && is.null(matchedCall[["family"]]) && "family" %not_in% argsRspNames &&
-      !responseIsZeroOne(matchedCall, callingEnv))
+  ## a row out of a continuous fit is refused before any fit where the response
+  ## plainly is one: without a family, a response fit is binary exactly when its
+  ## response is 0/1 valued, and a family that says gaussian is continuous; any
+  ## other family is read after the fit
+  if (!is.null(rspWeights) &&
+      (if (!familyGiven) !responseIsZeroOne(matchedCall, callingEnv)
+       else familyIsPlainlyGaussian(givenResponseFamily(matchedCall, args.rsp), callingEnv)))
     refuseRowsOutOfResponseFit(rspWeights, popWeights)
   
   ## the response fit's weights come by weights.rsp alone, and their reading
@@ -368,6 +371,7 @@ refuseRowsOutOfResponseFit <- function(rspWeights, popWeights)
        if (length(bad) > 5L) paste0(" and ", length(bad) - 5L, " more") else "",
        if (length(bad) > 1L) " have" else " has",
        " weights.rsp 0 but a positive population weight: a row out of the response fit has no ",
-       "noise scale for its counterfactual; give it a positive weights.rsp, or a population weight of 0",
+       "noise scale for its counterfactual; give it a positive weights.rsp, or a population weight of 0; a row ",
+       "that is to be in the treatment model only is given an NA response and a population weight of 0",
        call. = FALSE)
 }

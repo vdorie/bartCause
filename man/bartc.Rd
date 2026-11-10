@@ -80,10 +80,16 @@ bartc(response, treatment, confounders, parametric, data, subset, weights, weigh
     \code{\dots} or \code{args.rsp} and is refused without
     \code{weights.rsp}; \code{"frequency"} is refused for models fit by
     \code{\link[stan4bart]{stan4bart}}, which reads weights as precisions only.
-    A 0/1 response takes weights of 0 or 1 only. A row of weight 0 is out of
+    A 0/1 response (numeric, logical, or a factor of two levels) takes
+    weights of 0 or 1 only; counts of identical rows are written out as
+    repeated rows, or fit with \code{family = "logistic"} and
+    \code{weights.type = "frequency"}. A row of weight 0 is out of
     the response fit, which gives a continuous response no noise scale for it,
-    so it must have a population weight of 0. Can refer to \code{data} if
-    provided.
+    so it must have a population weight of 0; \code{bartc} refuses it before
+    fitting when no \code{family} is given and the response is not 0/1, or
+    when \code{family} plainly says gaussian (the string, a family object, or
+    a call of \code{gaussian}), and after the fits for any other family. Can
+    refer to \code{data} if provided.
   }
   \item{method.rsp}{
     A character string specifying which method to use when fitting the response
@@ -427,7 +433,8 @@ bartc(response, treatment, confounders, parametric, data, subset, weights, weigh
   A row with a missing response stays in the average with its weight, its
   outcomes predicted by the model; where the weights already adjust for the
   missing outcomes, give those rows a weight of 0 or leave them out with
-  \code{subset}. A common support rule that cuts rows changes the population
+  \code{subset}; to use rows only in the treatment model, give them an
+  \code{NA} response and a population weight of 0. A common support rule that cuts rows changes the population
   the estimate describes; \code{summary} reports the share of the weight cut.
 
   \strong{Missing Data}

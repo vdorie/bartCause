@@ -117,6 +117,14 @@
             \code{base} or \code{split.probs} now cross-validates under
             them, where the development builds dropped them from the
             cross-validation; its chosen \code{k} and draws change.
+      \item A \code{weights.rsp} of 0 on a row in the averages is refused
+            before any fit when the response is plainly continuous: no
+            \code{family} and a response that is not 0/1, or a \code{family}
+            that says gaussian. The refusal names the route for a row that is
+            for the treatment model only, an \code{NA} response and a
+            population weight of 0. A logical response, or a factor of two
+            levels, is a 0/1 response in these checks, as it is to
+            \pkg{dbarts}.
       \item A fit saved by 1.0-10 or earlier cannot be used by \code{predict}
             in this version, whose \pkg{dbarts} cannot replay its saved trees;
             \code{predict} says so and asks for a refit, where it used to stop
