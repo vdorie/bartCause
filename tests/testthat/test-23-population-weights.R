@@ -316,9 +316,10 @@ test_that("p.weight and tmle give a group of no population weight NA, as summary
     ## these methods' estimates
     for (f in list(fit, suppressWarnings(refit(fit, commonSup.rule = "sd", commonSup.cut = 10)))) {
       draws <- extract(f, "pate")
-      expect_true(all(is.na(draws[["a"]])), label = method)
+      ## NA, not the NaN of a sum of no weight
+      expect_true(all(is.na(draws[["a"]]) & !is.nan(draws[["a"]])), label = method)
       expect_true(all(is.finite(unlist(draws[c("b", "c")]))), label = method)
-      expect_true(is.na(fitted(f, "pate")[["a"]]), label = method)
+      expect_identical(unname(fitted(f, "pate")[["a"]]), NA_real_, label = method)
       est <- summary(f)$estimates
       expect_true(all(is.na(est["a", c("estimate", "sd", "ci.lower", "ci.upper")])), label = method)
       expect_equal(est[c("b", "c"), "estimate"], unname(fitted(f, "pate")[c("b", "c")]), label = method)
@@ -326,6 +327,13 @@ test_that("p.weight and tmle give a group of no population weight NA, as summary
     ## the estimand's whole weight 0 stays an error
     expect_error(pwFit(weights = wt, data = gdata, method.rsp = method, estimand = "att", group.by = grp,
                        group.effects = TRUE, use.ranef = FALSE, n.chains = 1L),
+                 "the population weights are 0 on every row the estimate averages over", label = method)
+    expect_error(pwFit(weights = wt, data = gdata, method.rsp = method, estimand = "att", n.chains = 1L),
+                 "the population weights are 0 on every row the estimate averages over", label = method)
+    ## and in refit, which reads the weights the fit stored
+    fit <- pwFit(weights = w, data = gdata, method.rsp = method, estimand = "att", n.chains = 1L)
+    fit$weights <- gdata$wt
+    expect_error(suppressWarnings(refit(fit, commonSup.rule = "sd", commonSup.cut = 10)),
                  "the population weights are 0 on every row the estimate averages over", label = method)
   }
   expect_false(any(vapply(handed, function(w) !(sum(w) > 0), NA)))

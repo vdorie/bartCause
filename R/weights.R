@@ -150,6 +150,13 @@ groupHasNoWeight <- function(weights, trt, estimand)
   !(sum(weights[rows]) > 0)
 }
 
+## An estimand of no population weight over the rows it averages is an error.
+stopIfNoWeight <- function(weights, trt, estimand)
+{
+  if (groupHasNoWeight(weights, trt, estimand))
+    stop("the population weights are 0 on every row the estimate averages over", call. = FALSE)
+}
+
 ## The estimates of a grouped propensity-weighted fit, NULL for the groups of
 ## no weight, given NA draws in the shape of the others; every group of no
 ## weight is an estimand of no weight, an error.

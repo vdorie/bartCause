@@ -596,6 +596,7 @@ getPWeightResponseFit <-
       
       if (!is.null(weights)) weights <- weights[commonSup.sub]
     }
+    stopIfNoWeight(weights, trt[commonSup.sub], estimand)
       
     est <- getPWeightEstimates(y.all[commonSup.sub], trt[commonSup.sub], weights, estimand, mu.hat.0, mu.hat.1, p.score, yBounds, p.scoreBounds)
   } else {
@@ -926,6 +927,7 @@ getTMLEResponseFit <-
       
       if (!is.null(weights)) weights <- weights[commonSup.sub]
     }
+    stopIfNoWeight(weights, trt[commonSup.sub], estimand)
     
     if (posteriorOfTMLE) {
       n.threads <- getDotsArgument(matchedCall, "n.threads", callingEnv, dbarts::guessNumCores())

@@ -660,6 +660,7 @@ refit.bartcFit <- function(object, newresp = NULL,
 
         if (!is.null(pop)) pop <- pop[commonSup.sub]
       }
+      stopIfNoWeight(pop, object$trt[object$commonSup.sub], object$estimand)
 
       object$est <- with(object, getPWeightEstimates(y.rsp[commonSup.sub], trt[commonSup.sub], pop, estimand, mu.hat.0, mu.hat.1, p.score.samples, fitPars$yBounds, fitPars$p.scoreBounds))
     } else {
@@ -716,6 +717,7 @@ refit.bartcFit <- function(object, newresp = NULL,
 
         if (!is.null(pop)) pop <- pop[commonSup.sub]
       }
+      stopIfNoWeight(pop, object$trt[object$commonSup.sub], object$estimand)
 
       ## fitPars doesn't carry the n.threads originally used to fit; re-derive
       ## single-threaded rather than spawn a fresh parallel cluster as a side
