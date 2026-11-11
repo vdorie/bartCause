@@ -188,14 +188,28 @@ groupHasNoWeight <- function(weights, trt, estimand)
   !(sum(weights[rows]) > 0)
 }
 
+## Whether a treatment is binary as dbarts reads a binary response: 0s and 1s
+## or a logical vector, a factor of two levels (the second is treated), or a
+## character vector of two values (the one that sorts last is treated).
+## Nothing read is vacuously binary.
+treatmentIsBinary <- function(z)
+{
+  if (is.factor(z)) return(nlevels(z) == 2L)
+  if (is.character(z)) return(length(unique(z[!is.na(z)])) == 2L)
+  all(z %in% c(0, 1))
+}
+
 ## The treatment on the rows modeled, read from its expression as written
-## before any fit, or NULL where it cannot be read as a 0/1 vector one value for
+## before any fit as 0/1 (a factor or character treatment as treatmentIsBinary
+## reads it), or NULL where it cannot be read as a vector with one value for
 ## each row of data; the fits then find any problem with it.
 treatmentBeforeFit <- function(matchedCall, env, n, rows)
 {
   tryCatch({
     data <- if (!is.null(matchedCall[["data"]])) eval(matchedCall[["data"]], env) else NULL
     z <- eval(matchedCall[["treatment"]], data, env)
+    if (is.character(z) && !anyNA(z) && treatmentIsBinary(z)) z <- factor(z)
+    if (is.factor(z) && nlevels(z) == 2L) z <- as.integer(z) - 1L
     if (is.logical(z)) z <- as.numeric(z)
     if (!is.numeric(z) || !is.null(dim(z)) || length(z) != n || anyNA(z)) NULL else as.vector(z)[rows]
   }, error = function(e) NULL)

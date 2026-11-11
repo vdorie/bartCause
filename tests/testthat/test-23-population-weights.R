@@ -728,3 +728,43 @@ test_that("a two-value character response is read as binary by the weights.rsp c
   bdata$y[1:2] <- c("maybe", "maybe")
   expect_error(pwFit(weights.rsp = out, data = bdata), "have weights.rsp 0 but a positive population weight")
 })
+
+test_that("a two-level factor or two-value character treatment is binary on every route", {
+  tdata <- pwData
+  tdata$zf <- factor(ifelse(tdata$z == 1, "treat", "ctl"), levels = c("ctl", "treat"))
+  tdata$zc <- as.character(tdata$zf)
+  tdata$zl <- tdata$z == 1
+  small <- list(verbose = FALSE, seed = 7, n.samples = 20L, n.burn = 10L, n.trees = 10L, n.chains = 1L, n.threads = 1L)
+  fitWith <- function(treatment, ...)
+    suppressMessages(eval(as.call(c(list(quote(bartCause::bartc), quote(y), treatment, quote(x1 + x2), data = quote(tdata)),
+                                    small, list(...)))))
+  wrapper <- function(...) bartc(y, zf, x1 + x2, data = tdata, verbose = FALSE, seed = 7, n.samples = 20L, n.burn = 10L,
+                                 n.trees = 10L, n.chains = 1L, n.threads = 1L, ...)
+  for (method in c("bart", "glm", "none")) {
+    for (kind in c("zf", "zc", "zl")) {
+      fit <- fitWith(as.name(kind), method.trt = method)
+      expect_is(fit, "bartcFit")
+      expect_equal(unname(as.vector(fit$trt)), tdata$z, label = paste(kind, method))
+    }
+    expect_is(wrapper(method.trt = method), "bartcFit")
+  }
+  ## the literal-vector route
+  expect_is(suppressMessages(bartc(tdata$y, tdata$zf, tdata[, c("x1", "x2")], verbose = FALSE, seed = 7, n.samples = 20L,
+                                   n.burn = 10L, n.trees = 10L, n.chains = 1L, n.threads = 1L)), "bartcFit")
+  expect_is(suppressMessages(bartc(tdata$y, tdata$zc, tdata[, c("x1", "x2")], method.trt = "glm", verbose = FALSE, seed = 7,
+                                   n.samples = 20L, n.burn = 10L, n.trees = 10L, n.chains = 1L, n.threads = 1L)), "bartcFit")
+  ## three values are refused on each route, through a wrapper as direct
+  tdata$z3 <- factor(rep(c("a", "b", "c"), length.out = n))
+  for (method in c("bart", "glm"))
+    expect_error(fitWith(quote(z3), method.trt = method), "treatment must be binary", label = method)
+  expect_error(suppressMessages(bartc(y, z3, x1 + x2, data = tdata, verbose = FALSE, n.chains = 1L, n.threads = 1L)),
+               "treatment must be binary")
+  ## the weights check before any fit reads them as it reads 0/1
+  noWeightOnTreated <- ifelse(pwData$z == 1, 0, pwData$w)
+  message <- "the population weights are 0 on every row the estimate averages over"
+  local({
+    noFit(NULL)
+    for (kind in c("zf", "zc"))
+      expect_error(fitWith(as.name(kind), weights = noWeightOnTreated, estimand = "att"), message, label = kind)
+  })
+})

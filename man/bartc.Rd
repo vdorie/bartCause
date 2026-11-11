@@ -27,6 +27,9 @@ bartc(response, treatment, confounders, parametric, data, subset, weights, weigh
   }
   \item{treatment}{
     A vector of the binary treatment variable, or a reference to \code{data}.
+    It is 0 and 1, or logical, or a factor of two levels or a character vector
+    of two values, as \code{\link[dbarts]{bart}} reads a binary response: the
+    second level, or the value that sorts last, is the treated group.
   }
   \item{confounders}{
     A matrix or data frame of covariates to be used in estimating the treatment

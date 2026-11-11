@@ -51,10 +51,17 @@ getGLMTreatmentFit <- function(response, treatment, confounders, parametric, dat
     if (!identical(grouped$env, callingEnv)) evalEnv <- grouped$env
     else if (!is.null(dataEnv)) evalEnv <- dataEnv
 
-    df <- evalEnv[[as.character(dataCall$data)]]
-    treatment <- df[[matchedCall$treatment]]
-    if (!all(treatment %in% c(0, 1)))
-      stop("response must be in {0, 1}")
+    df <- eval(dataCall$data, evalEnv)
+    treatment <- tryCatch(eval(matchedCall$treatment, df, callingEnv), error = function(e) NULL)
+    if (!treatmentIsBinary(treatment))
+      stop("treatment must be binary: 0/1 or logical, or a factor or character with two values")
+    ## glm reads a character response as no response, so it is given the factor
+    if (is.character(treatment) && is.symbol(matchedCall$treatment)) {
+      df[[as.character(matchedCall$treatment)]] <- factor(treatment)
+      evalEnv <- new.env(parent = evalEnv)
+      evalEnv[[".treatmentData"]] <- df
+      glmCall[["data"]] <- quote(.treatmentData)
+    }
   } else {
     df <- NULL
     literalCall <- addCallArgument(redirectCall(matchedCall, quoteInNamespace(getTreatmentLiteralCall)), "fn", fn)
@@ -66,8 +73,9 @@ getGLMTreatmentFit <- function(response, treatment, confounders, parametric, dat
     massign[glmCall, df] <- eval(literalCall, envir = dataEnv)
 
     treatment <- df[[deparse(glmCall[[2L]][[2L]])]]
-    if (!all(treatment %in% c(0, 1)))
-      stop("response must be in {0, 1}")
+    if (!treatmentIsBinary(treatment))
+      stop("treatment must be binary: 0/1 or logical, or a factor or character with two values")
+    if (is.character(treatment)) df[[deparse(glmCall[[2L]][[2L]])]] <- factor(treatment)
     
     evalEnv <- new.env(parent = callingEnv)
     evalEnv[["df"]] <- df
@@ -146,10 +154,10 @@ getBartTreatmentFit <- function(response, treatment, confounders, parametric, da
     if (!identical(grouped$env, callingEnv)) evalEnv <- grouped$env
     else if (!is.null(dataEnv)) evalEnv <- dataEnv
 
-    df <- evalEnv[[as.character(dataCall$data)]]
-    treatment <- df[[matchedCall$treatment]]
-    if (!all(treatment %in% c(0, 1)))
-      stop("response must be in {0, 1}")
+    df <- eval(dataCall$data, evalEnv)
+    treatment <- tryCatch(eval(matchedCall$treatment, df, callingEnv), error = function(e) NULL)
+    if (!treatmentIsBinary(treatment))
+      stop("treatment must be binary: 0/1 or logical, or a factor or character with two values")
   } else {
     df <- NULL
     literalCall <- addCallArgument(redirectCall(matchedCall, quoteInNamespace(getTreatmentLiteralCall)), "fn", fn)
@@ -161,8 +169,8 @@ getBartTreatmentFit <- function(response, treatment, confounders, parametric, da
     massign[bartCall, df] <- eval(literalCall, envir = dataEnv)
 
     treatment <- df[[deparse(bartCall[[2L]][[2L]])]]
-    if (!all(treatment %in% c(0, 1)))
-      stop("response must be in {0, 1}")
+    if (!treatmentIsBinary(treatment))
+      stop("treatment must be binary: 0/1 or logical, or a factor or character with two values")
     
     evalEnv <- new.env(parent = callingEnv)
     evalEnv[["df"]] <- df

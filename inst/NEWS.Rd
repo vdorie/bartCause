@@ -29,6 +29,11 @@
   }
   \subsection{USER-VISIBLE CHANGES}{
     \itemize{
+      \item A treatment that is a factor of two levels or a character vector
+            of two values is read as binary by every route (\code{method.trt}
+            \code{"bart"}, \code{"glm"} and \code{"none"}), the second level,
+            or the value that sorts last, being treated; \code{bartc} had
+            refused it, or fit it, according to how it was called.
       \item A \code{bartc} fit stores its posterior draws once, in
             \code{fit.rsp} and \code{fit.trt}, rather than again as
             \code{mu.hat.obs}, \code{mu.hat.cf} and \code{samples.p.score}, so
