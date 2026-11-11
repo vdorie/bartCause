@@ -14,6 +14,8 @@ s4bResponse <- function(...) {
 
 test_that("a NULL prior reaches stan4bart's response fit as a flat prior", {
   skip_if_not_installed("stan4bart")
+  ## stan4bart takes prior as an argument from 0.0-14 (stan_args before)
+  skip_if_not("prior" %in% names(formals(stan4bart::stan4bart)))
   
   set.seed(22)
   res <- bartCause:::getBartResponseFit(y, z, x, data = testData, estimand = "ate", group.by = g,
@@ -45,6 +47,8 @@ test_that("a NULL prior reaches stan4bart's response fit as a flat prior", {
 
 test_that("a NULL prior reaches stan4bart's treatment fit", {
   skip_if_not_installed("stan4bart")
+  ## stan4bart takes prior as an argument from 0.0-14 (stan_args before)
+  skip_if_not("prior" %in% names(formals(stan4bart::stan4bart)))
   
   s4bTreatment <- function(...) {
     set.seed(22)
@@ -62,6 +66,8 @@ test_that("a NULL prior reaches stan4bart's treatment fit", {
 
 test_that("bartc passes a NULL prior from its dots and from args.rsp and args.trt", {
   skip_if_not_installed("stan4bart")
+  ## stan4bart takes prior as an argument from 0.0-14 (stan_args before)
+  skip_if_not("prior" %in% names(formals(stan4bart::stan4bart)))
   
   ## do.call, so that a written prior is the expression the fit resolves
   fitBartc <- function(...)
