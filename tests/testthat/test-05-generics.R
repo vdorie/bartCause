@@ -175,7 +175,7 @@ test_that("summary object contains correct information", {
   expect_equal(head(sum$estimates$estimate, -1L), unname(fitted(fit, "cate")))
 })
 
-test_that("generics work for p.weights", {
+testQuietMixing("generics work for p.weights", {
   skip_if_not_installed("stan4bart")
   pfit <- bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "p.weight", estimand = "att",
                 group.by = g, group.effects = TRUE,
@@ -411,7 +411,7 @@ test_that("summary works with att/atc", {
   expect_is(summary(fit, "cate"), "bartcFit.summary")
 })
 
-test_that("summary gives consistent answers with grouped data", {
+testQuietMixing("summary gives consistent answers with grouped data", {
   skip_if_not_installed("stan4bart")
   inGroupFit <- bartc(y, z, x, data = testData, estimand = "ate",
                       group.by = g, group.effects = TRUE,
@@ -544,7 +544,7 @@ test_that("refit recomputes bart estimates under a new common support rule", {
   expect_equal(refitted$est, manualEst)
 })
 
-test_that("refit recomputes grouped bart estimates under a new common support rule", {
+testQuietMixing("refit recomputes grouped bart estimates under a new common support rule", {
   skip_if_not_installed("stan4bart")
   set.seed(22)
   fit <- bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "bart", verbose = FALSE,

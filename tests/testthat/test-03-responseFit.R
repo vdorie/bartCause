@@ -137,7 +137,7 @@ test_that("p.weight fits", {
 
 source(system.file("common", "groupedData.R", package = "bartCause"))
 
-test_that("varying intercept fit matches manual call", {
+testQuietMixing("varying intercept fit matches manual call", {
   skip_if_not_installed("stan4bart")
   df <- with(testData, data.frame(y = y, z = z, V1 = x[,1L], V2 = x[,2L], V3 = x[,3L], g = g))
   

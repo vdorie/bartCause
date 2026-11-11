@@ -27,7 +27,7 @@ test_that("plot methods run against a dbartsMixedMatrix design matrix", {
   expect_error(plot_support(fit, xvar = "tree.1", yvar = "css", legend.x = NULL), NA)
 })
 
-test_that("plot methods run against a semiparametric fit's assembled design", {
+testQuietMixing("plot methods run against a semiparametric fit's assembled design", {
   skip_if_not_installed("stan4bart")
   ## a varying intercept keeps no dbartsData, so the design comes off the fit
   g <- rep_len(seq_len(4L), n)
@@ -114,7 +114,7 @@ test_that("plot_support validates its arguments", {
   expect_error(plot_support(fit, sample = "not-a-sample-arg"), "sample must be in")
 })
 
-test_that("plot_sigma works on a stan4bart fit that kept no warmup draws", {
+testQuietMixing("plot_sigma works on a stan4bart fit that kept no warmup draws", {
   skip_if_not_installed("stan4bart")
   source(system.file("common", "friedmanData.R", package = "bartCause"))
   td <- generateFriedmanData(60, ranef = TRUE, causal = TRUE)

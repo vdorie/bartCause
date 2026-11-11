@@ -77,7 +77,7 @@ test_that("semiparametric models are consistent with each other", {
   expect_in_range(summary3$estimates$sd, c(0.55, 1.4))
 })
 
-test_that("semiparametric model does not have constant treatment effect", {
+testQuietMixing("semiparametric model does not have constant treatment effect", {
   skip_if_not_installed("stan4bart")
   
   p.score <- fitted(glm(z ~ X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10, data = test.df, family = binomial))
@@ -94,7 +94,7 @@ test_that("semiparametric model does not have constant treatment effect", {
   expect_true(sd(colMeans(icate)) > 0.2)
 })
 
-test_that("semiparametric predict works", {
+testQuietMixing("semiparametric predict works", {
   skip_if_not_installed("stan4bart")
   
   fit <- bartc(y, z, X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10,
@@ -144,7 +144,7 @@ test_that("refit works with common support", {
 })
 
 
-test_that("dbarts sampling arguments reach stan4bart", {
+testQuietMixing("dbarts sampling arguments reach stan4bart", {
   skip_if_not_installed("stan4bart")
   
   fit <- bartc(y, z, X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10,
@@ -225,7 +225,7 @@ test_that("stan4bart runs chains in parallel only when the cluster is repaid", {
   expect_equal(own[["skip"]], 2L)
 })
 
-test_that("one-chain stan4bart readers keep a chain margin, as the bart path does", {
+testQuietMixing("one-chain stan4bart readers keep a chain margin, as the bart path does", {
   skip_if_not_installed("stan4bart")
 
   fit <- bartc(y, z, X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10,
@@ -241,7 +241,7 @@ test_that("one-chain stan4bart readers keep a chain margin, as the bart path doe
   expect_equal(dim(extract(fit, "icate", "all")), c(10L, n.obs))
 })
 
-test_that("n.thin keeps n.samples %/% n.thin draws on the stan4bart path, as on the dbarts path", {
+testQuietMixing("n.thin keeps n.samples %/% n.thin draws on the stan4bart path, as on the dbarts path", {
   skip_if_not_installed("stan4bart")
   
   withGroup <- bartc(y, z, X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10,
@@ -263,7 +263,7 @@ test_that("n.thin keeps n.samples %/% n.thin draws on the stan4bart path, as on 
   expect_equal(fit$fit.rsp$call$skip, 2L)
 })
 
-test_that("keepTrees reaches both stan4bart fits, so predict works with group.by", {
+testQuietMixing("keepTrees reaches both stan4bart fits, so predict works with group.by", {
   skip_if_not_installed("stan4bart")
   
   checkPredict <- function(fit) {
@@ -309,23 +309,23 @@ test_that("keepTrees reaches both stan4bart fits, so predict works with group.by
                "treatment model to be fit with keepTrees = TRUE; pass keepTrees = TRUE to bartc")
 })
 
-test_that("response weights with group.by raise no warning about the counterfactual rows", {
+testQuietMixing("response weights with group.by raise no warning about the counterfactual rows", {
   skip_if_not_installed("stan4bart")
   
   weighted <- cbind(test.df, wt = seq(0.5, 2, length.out = nrow(test.df)))
   
   expect_warning(
-    fit <- bartc(y, z, X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10,
+    fit <- quietMixing(bartc(y, z, X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10,
                  data = weighted, group.by = g.1, weights.rsp = wt, verbose = FALSE, seed = 0,
-                 n.chains = 1L, n.threads = 1L, n.samples = 10L, n.burn = 5L, n.trees = 5L),
+                 n.chains = 1L, n.threads = 1L, n.samples = 10L, n.burn = 5L, n.trees = 5L)),
     NA)
   expect_equal(fit$fit.rsp$test$frame[["(weights)"]], weighted$wt)
   
   # the same with the weights as a vector outside of any data
   expect_warning(
-    bartc(weighted$y, weighted$z, weighted[paste0("X", 1:10)], group.by = weighted$g.1,
+    quietMixing(bartc(weighted$y, weighted$z, weighted[paste0("X", 1:10)], group.by = weighted$g.1,
           weights.rsp = weighted$wt, verbose = FALSE, seed = 0, n.chains = 1L,
-          n.threads = 1L, n.samples = 10L, n.burn = 5L, n.trees = 5L),
+          n.threads = 1L, n.samples = 10L, n.burn = 5L, n.trees = 5L)),
     NA)
   
   # population weights alone leave the response fit unweighted and set the average
@@ -337,7 +337,7 @@ test_that("response weights with group.by raise no warning about the counterfact
   expect_equal(fitted(fit, "cate"), mean(icate %*% (weighted$wt / sum(weighted$wt))))
 })
 
-test_that("stan4bart reads its weights as precisions only, and refuses them as counts", {
+testQuietMixing("stan4bart reads its weights as precisions only, and refuses them as counts", {
   skip_if_not_installed("stan4bart")
   
   weighted <- cbind(test.df, wt = rep(1:2, length.out = nrow(test.df)))
@@ -347,9 +347,9 @@ test_that("stan4bart reads its weights as precisions only, and refuses them as c
     "stan4bart reads weights as precisions only")
   ## "precision" is what stan4bart does, and is taken without a word
   expect_warning(
-    fit <- bartc(y, z, X1 + X2, data = weighted, group.by = g.1, weights.rsp = wt, weights.type = "precision",
+    fit <- quietMixing(bartc(y, z, X1 + X2, data = weighted, group.by = g.1, weights.rsp = wt, weights.type = "precision",
                  method.trt = "none", verbose = FALSE, n.chains = 1L, n.threads = 1L, n.samples = 10L,
-                 n.burn = 5L, n.trees = 5L),
+                 n.burn = 5L, n.trees = 5L)),
     NA)
   expect_equal(fit$fit.rsp$frame[["(weights)"]], weighted$wt)
 })
@@ -372,4 +372,29 @@ test_that("frequency weights for a stan4bart response model are refused before t
                         verbose = FALSE), error = conditionMessage)
   expect_match(err, "drop the parametric part")
   expect_false(grepl("use.ranef", err))
+})
+
+test_that("a short stan4bart fit reaches the caller with stan4bart's one mixing warning, once per fit", {
+  skip_if_not_installed("stan4bart")
+  skip_if_not(stan4bartChecksMixing(), "stan4bart does not check mixing")
+  
+  warned <- character()
+  fit <- withCallingHandlers(
+    bartc(y, z, X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10,
+          parametric = (1 | g.1), seed = 0, data = test.df,
+          method.trt = fitted(glm(z ~ X1 + X2, data = test.df, family = binomial)),
+          iter = 10, warmup = 3, chains = 2, verbose = FALSE),
+    warning = function(w) {
+      warned <<- c(warned, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    })
+  
+  # only the response is fit by stan4bart here: one fit, one warning
+  expect_equal(sum(grepl(mixingWarning, warned)), 1L)
+  expect_equal(length(warned), 1L)
+  expect_true(!is.null(fit$fit.rsp$mixing))
+  
+  # the helper holds back that warning and no other
+  expect_warning(quietMixing(warning("chains disagree on sigma (R-hat 2.00); the fit is unreliable. See summary().")), NA)
+  expect_warning(quietMixing(warning("something else")), "something else")
 })

@@ -3,7 +3,7 @@ context("common support diagnostics")
 source(system.file("common", "linearData.R", package = "bartCause"))
 testData$g <- sample(3L, nrow(testData$x), replace = TRUE)
 
-test_that("sd common support diagnostic works", {
+testQuietMixing("sd common support diagnostic works", {
   expect_is(bartc(y, z, x, data = testData,
                   method.rsp = "p.weight", method.trt = "bart", estimand = "att", verbose = FALSE,
                   n.burn = 0L, n.samples = 3L, n.trees = 7L, n.chains = 1L, n.threads = 1L,
@@ -26,7 +26,7 @@ test_that("sd common support diagnostic works", {
   expect_is(summary(fit), "bartcFit.summary")
 })
 
-test_that("chisq common support diagnostic works", {
+testQuietMixing("chisq common support diagnostic works", {
   expect_is(bartc(y, z, x, data = testData,
                   method.rsp = "p.weight", method.trt = "bart", estimand = "att", verbose = FALSE,
                   n.burn = 0L, n.samples = 3L, n.trees = 7L, n.chains = 1L, n.threads = 1L,
@@ -48,7 +48,7 @@ test_that("getCommonSupportSubset validates its arguments", {
                "commonSup.cut must be in \\(0, 1\\)")
 })
 
-test_that("weighted p.weight estimates work for the atc estimand with grouped effects", {
+testQuietMixing("weighted p.weight estimates work for the atc estimand with grouped effects", {
   skip_if_not_installed("stan4bart")
   testData$w <- runif(length(testData$y), 0.5, 1.5)
 

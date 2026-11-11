@@ -196,7 +196,7 @@ test_that("an argument of dbartsControl is not reported as unused by the propens
   expect_warning(smallFit(method.rsp = "p.weight", foo = 1), "arguments not used: 'foo'")
 })
 
-test_that("sigdf and sigquant are named as unused where stan4bart fits the response", {
+testQuietMixing("sigdf and sigquant are named as unused where stan4bart fits the response", {
   skip_if_not_installed("stan4bart")
   
   test.df <- data.frame(y, z, x, g = factor(rep_len(letters[1:4], length(y))))
@@ -209,8 +209,8 @@ test_that("sigdf and sigquant are named as unused where stan4bart fits the respo
   expect_warning(fit(sigdf = 7, sigquant = 0.5),
                  "arguments not used: 'sigdf', 'sigquant' \\(the parametric component draws the residual standard deviation")
   expect_warning(fit(foo = 1), "'foo' \\(not an argument of stan4bart\\)")
-  expect_warning(fit(power = 1.5, base = 0.7, n.trees = 10L, k = 2), NA)
-  expect_warning(fit(), NA)
+  expect_warning(quietMixing(fit(power = 1.5, base = 0.7, n.trees = 10L, k = 2)), NA)
+  expect_warning(quietMixing(fit()), NA)
 })
 
 test_that("arguments for the response method are not reported by the propensity fit", {
@@ -225,8 +225,8 @@ test_that("arguments for the response method are not reported by the propensity 
   
   skip_if_not_installed("stan4bart")
   test.df <- data.frame(y, z, x, g = factor(rep_len(letters[1:4], length(y))))
-  expect_warning(bartc(y, z, X1 + X2 + X3, data = test.df, group.by = g, method.rsp = "p.weight",
-                       method.trt = "bart", maxIter = 2L, chains = 1L, iter = 8L, warmup = 4L,
-                       bart_args = list(n.trees = 7L), verbose = FALSE),
+  expect_warning(quietMixing(bartc(y, z, X1 + X2 + X3, data = test.df, group.by = g, method.rsp = "p.weight",
+                                   method.trt = "bart", maxIter = 2L, chains = 1L, iter = 8L, warmup = 4L,
+                                   bart_args = list(n.trees = 7L), verbose = FALSE)),
                  NA)
 })

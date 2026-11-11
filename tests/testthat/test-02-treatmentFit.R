@@ -37,7 +37,7 @@ test_that("bart fit with fixef matches manual call", {
   expect_equal(res$p.score, apply(pnorm(dbarts::bart(z ~ x + g, testData, n.chains = 1L, n.threads = 1L, n.burn = 3L, n.samples = 13L, n.trees = 7L, verbose = FALSE)$yhat.train), 2L, mean))
 })
 
-test_that("varying intercept fit matches manual call", {
+testQuietMixing("varying intercept fit matches manual call", {
   skip_if_not_installed("stan4bart")
   df <- with(testData, data.frame(z = z, V1 = x[,1L], V2 = x[,2L], V3 = x[,3L], g = g))
   
