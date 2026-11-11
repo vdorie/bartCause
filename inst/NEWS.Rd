@@ -34,6 +34,13 @@
             \code{"bart"}, \code{"glm"} and \code{"none"}), the second level,
             or the value that sorts last, being treated; \code{bartc} had
             refused it, or fit it, according to how it was called.
+      \item A treatment that is not binary, or has a missing value, is now
+            refused with an error on every route and call. \code{bartc} had
+            fit a treatment coded 1 and 2, or of three values, without a
+            message when called through a function with
+            \code{method.trt = "bart"}, and always with
+            \code{method.trt = "none"}, the effect then taking the wrong sign
+            or meaning; recode a 1/2 treatment to 0/1.
       \item A \code{bartc} fit stores its posterior draws once, in
             \code{fit.rsp} and \code{fit.trt}, rather than again as
             \code{mu.hat.obs}, \code{mu.hat.cf} and \code{samples.p.score}, so

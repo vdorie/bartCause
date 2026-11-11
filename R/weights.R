@@ -191,9 +191,11 @@ groupHasNoWeight <- function(weights, trt, estimand)
 ## Whether a treatment is binary as dbarts reads a binary response: 0s and 1s
 ## or a logical vector, a factor of two levels (the second is treated), or a
 ## character vector of two values (the one that sorts last is treated).
-## Nothing read is vacuously binary.
+## Nothing read is vacuously binary; a missing value is not binary.
+treatmentMessage <- "treatment must be binary and not missing: 0/1 or logical, or a factor or character with two values"
 treatmentIsBinary <- function(z)
 {
+  if (anyNA(z)) return(FALSE)
   if (is.factor(z)) return(nlevels(z) == 2L)
   if (is.character(z)) return(length(unique(z[!is.na(z)])) == 2L)
   all(z %in% c(0, 1))

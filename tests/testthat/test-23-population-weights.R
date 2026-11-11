@@ -768,3 +768,29 @@ test_that("a two-level factor or two-value character treatment is binary on ever
       expect_error(fitWith(as.name(kind), weights = noWeightOnTreated, estimand = "att"), message, label = kind)
   })
 })
+
+test_that("a treatment that is not binary, or has a missing value, is refused on every route and call", {
+  tdata <- pwData
+  tdata$z12 <- tdata$z + 1
+  tdata$z3 <- rep(0:2, length.out = n)
+  tdata$zna <- tdata$z
+  tdata$zna[5L] <- NA
+  tdata$zfna <- factor(ifelse(tdata$z == 1, "treat", "ctl"))
+  tdata$zfna[5L] <- NA
+  tdata$zc <- ifelse(tdata$z == 1, "treat", "ctl")
+  small <- list(verbose = FALSE, seed = 7, n.samples = 20L, n.burn = 10L, n.trees = 10L, n.chains = 1L, n.threads = 1L)
+  fitWith <- function(treatment, ...)
+    suppressMessages(eval(as.call(c(list(quote(bartCause::bartc), quote(y), treatment, quote(x1 + x2), data = quote(tdata)),
+                                    small, list(...)))))
+  wrapper <- function(treatment, ...) fitWith(treatment, ...)
+  for (kind in c("z12", "z3", "zna", "zfna")) for (method in c("bart", "glm", "none")) {
+    expect_error(fitWith(as.name(kind), method.trt = method), "treatment must be binary", label = paste(kind, method))
+    expect_error(wrapper(as.name(kind), method.trt = method), "treatment must be binary", label = paste(kind, method))
+  }
+  expect_error(bartc(y, z12, x1 + x2, data = tdata, method.trt = "none", verbose = FALSE), "treatment must be binary")
+  wrap <- function(...) bartc(y, z12, x1 + x2, data = tdata, method.trt = "none", verbose = FALSE, ...)
+  expect_error(wrap(n.chains = 1L), "treatment must be binary")
+  ## a character treatment written as an expression is read by glm as a factor
+  expect_is(fitWith(quote(paste0(zc)), method.trt = "glm"), "bartcFit")
+  expect_is(fitWith(quote(paste0(zc)), method.trt = "none"), "bartcFit")
+})

@@ -168,6 +168,14 @@ bartc <- function(
       bart      = redirectCall(matchedCall, quoteInNamespace(getBartTreatmentFit)),
       none      = NULL)
     
+    ## the treatment fits check the treatment, and with none the response fit
+    ## would read any numbers as a treatment
+    if (method.trt == "none") {
+      zNone <- tryCatch(eval(matchedCall[["treatment"]], if (!is.null(matchedCall[["data"]])) eval(matchedCall[["data"]], callingEnv),
+                             callingEnv), error = function(e) NULL)
+      if (!treatmentIsBinary(zNone)) stop(treatmentMessage, call. = FALSE)
+    }
+    
     trtEnv <- callingEnv
     if (!is.null(treatmentCall)) {
       ## weights.type says how the response fit reads its weights; the
