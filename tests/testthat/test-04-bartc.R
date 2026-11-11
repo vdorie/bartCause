@@ -205,7 +205,7 @@ test_that("bartc runs with all response settings and two chains for method tmle"
 
 source(system.file("common", "groupedData.R", package = "bartCause"))
 
-testQuietMixing("bartc runs with all response settings and group.by set", {
+test_that("bartc runs with all response settings and group.by set", {
   skip_if_not_installed("stan4bart")
   skip_if_not_installed("lme4")
   expect_is(bartc(y, z, x, data = testData, method.trt = "bart", method.rsp = "bart", verbose = FALSE,
@@ -248,7 +248,7 @@ test_that("bartc runs with all response settings and group.by set for method tml
   options(warn = oldWarn)
 })
 
-testQuietMixing("bartc runs with missing data", {
+test_that("bartc runs with missing data", {
   testData$y[seq_len(10L)] <- NA
   ## a varying intercept is fit by stan4bart, whose counterfactual test surface
   ## comes from the fitted rows, so the grouping factor enters as a fixed effect

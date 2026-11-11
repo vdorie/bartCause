@@ -12,7 +12,7 @@ s4bResponse <- function(...) {
   aperm(dbarts::extract(fit, sample = "train", combine_chains = FALSE), c(3L, 2L, 1L))
 }
 
-testQuietMixing("a NULL prior reaches stan4bart's response fit as a flat prior", {
+test_that("a NULL prior reaches stan4bart's response fit as a flat prior", {
   skip_if_not_installed("stan4bart")
   ## stan4bart takes prior as an argument from 0.0-14 (stan_args before)
   skip_if_not("prior" %in% names(formals(stan4bart::stan4bart)))
@@ -45,7 +45,7 @@ testQuietMixing("a NULL prior reaches stan4bart's response fit as a flat prior",
   expect_equal(res$mu.hat.obs, s4bResponse(prior_aux = NULL, QR = FALSE))
 })
 
-testQuietMixing("a NULL prior reaches stan4bart's treatment fit", {
+test_that("a NULL prior reaches stan4bart's treatment fit", {
   skip_if_not_installed("stan4bart")
   ## stan4bart takes prior as an argument from 0.0-14 (stan_args before)
   skip_if_not("prior" %in% names(formals(stan4bart::stan4bart)))
@@ -64,7 +64,7 @@ testQuietMixing("a NULL prior reaches stan4bart's treatment fit", {
   expect_equal(res$p.score, s4bTreatment(prior = NULL))
 })
 
-testQuietMixing("bartc passes a NULL prior from its dots and from args.rsp and args.trt", {
+test_that("bartc passes a NULL prior from its dots and from args.rsp and args.trt", {
   skip_if_not_installed("stan4bart")
   ## stan4bart takes prior as an argument from 0.0-14 (stan_args before)
   skip_if_not("prior" %in% names(formals(stan4bart::stan4bart)))

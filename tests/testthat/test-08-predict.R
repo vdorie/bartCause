@@ -114,7 +114,7 @@ test_that("predict works with grouped data, glmer trt model", {
   expect_equal(icate, icate.new)
 })
 
-testQuietMixing("predict works with grouped data, bart trt model", {
+test_that("predict works with grouped data, bart trt model", {
   skip_if_not_installed("stan4bart")
   fit <- bartc(y, z, x, method.trt = "bart", method.rsp = "bart", group.by = g,
                chains = 2L, iter = 14L, warmup = 7L,
