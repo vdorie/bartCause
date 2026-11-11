@@ -72,7 +72,8 @@ responseIsZeroOne <- function(matchedCall, env)
 
 ## Whether a family, as written in a call or given in a list of arguments
 ## (an expression or its value), plainly says gaussian: the string, a family
-## object, or a call of gaussian(). Any other spelling is not read here.
+## object, a call of gaussian(), or a name whose value is stats::gaussian, as
+## glm takes it. Any other spelling is not read here.
 familyIsPlainlyGaussian <- function(family, env)
 {
   if (is.character(family)) return(identical(family, "gaussian"))
@@ -84,6 +85,7 @@ familyIsPlainlyGaussian <- function(family, env)
   }
   if (is.symbol(family)) {
     value <- tryCatch(eval(family, env), error = function(e) NULL)
+    if (identical(value, stats::gaussian)) return(TRUE)
     return(!is.symbol(value) && !is.call(value) && familyIsPlainlyGaussian(value, env))
   }
   FALSE

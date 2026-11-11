@@ -697,3 +697,19 @@ test_that("a grouped weighted fit with no total row prints the whole-sample effe
   expect_true("total" %in% rownames(summary(fit)$estimates))
   expect_failure(expect_output(print(summary(fit)), "Effective sample size"))
 })
+
+test_that("a name whose value is stats::gaussian says gaussian, as glm reads it", {
+  out <- rep(c(0, 1, 1), length.out = n)
+  message <- "have weights.rsp 0 but a positive population weight"
+  local({
+    noFit(NULL)
+    expect_error(pwFit(weights.rsp = out, family = gaussian), message)
+    expect_error(pwFit(weights.rsp = out, args.rsp = list(family = gaussian)), message)
+    fn <- gaussian
+    expect_error(pwFit(weights.rsp = out, family = fn), message)
+  })
+  ## a function that is not stats::gaussian is not read, and the fit decides
+  gaussian <- function(...) stats::gaussian(...)
+  expect_error(pwFit(weights.rsp = out, family = gaussian), message)
+  expect_false(bartCause:::familyIsPlainlyGaussian(quote(gaussian), environment()))
+})
