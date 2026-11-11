@@ -713,3 +713,18 @@ test_that("a name whose value is stats::gaussian says gaussian, as glm reads it"
   expect_error(pwFit(weights.rsp = out, family = gaussian), message)
   expect_false(bartCause:::familyIsPlainlyGaussian(quote(gaussian), environment()))
 })
+
+test_that("a two-value character response is read as binary by the weights.rsp checks", {
+  out <- rep(c(0, 1, 1), length.out = n)
+  half <- ifelse(seq_len(n) == 7L, 0.5, 1)
+  bdata <- pwData
+  bdata$y <- ifelse(pwData$y > 1, "yes", "no")
+  expect_is(pwFit(weights.rsp = out, data = bdata), "bartcFit")
+  local({
+    noFit(NULL)
+    expect_error(pwFit(weights.rsp = half, data = bdata), "a 0/1 response is fit by probit BART")
+  })
+  ## three values are not binary
+  bdata$y[1:2] <- c("maybe", "maybe")
+  expect_error(pwFit(weights.rsp = out, data = bdata), "have weights.rsp 0 but a positive population weight")
+})

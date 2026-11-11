@@ -57,7 +57,7 @@ resolveRowWeights <- function(matchedCall, argName, env)
 
 ## Whether the response, on the rows modeled, is read as binary by dbarts when
 ## no family is given: a numeric response of 0s and 1s, a logical one, or a
-## factor of two levels, which it fits by probit.
+## factor of two levels or character of two values, which it fits by probit.
 responseIsZeroOne <- function(matchedCall, env)
 {
   data <- if (!is.null(matchedCall[["data"]])) eval(matchedCall[["data"]], env) else NULL
@@ -65,7 +65,8 @@ responseIsZeroOne <- function(matchedCall, env)
   if (!is.null(matchedCall[["subset"]]))
     y <- y[normalizeBCFSubset(eval(matchedCall[["subset"]], data, env), NROW(y),
                               if (is.data.frame(data)) rownames(data) else NULL)]
-  if (is.logical(y) || (is.factor(y) && nlevels(y) == 2L)) return(TRUE)
+  if (is.logical(y) || (is.factor(y) && nlevels(y) == 2L) ||
+      (is.character(y) && length(unique(y[!is.na(y)])) == 2L)) return(TRUE)
   y <- as.vector(y)
   is.numeric(y) && all(y[!is.na(y)] %in% c(0, 1))
 }
