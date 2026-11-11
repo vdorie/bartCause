@@ -16,6 +16,7 @@ bartc <- function(
   matchedCall <- match.call()
   sysCall     <- sys.call()
   callingEnv  <- parent.frame(1L)
+  matchedCall <- resolveForwardedDots(matchedCall, callingEnv)
   
   # some dots arg can get eaten by R's argument matching algorithm, like 'k' for keepCall
   mismatchedArgs.sys <- names(sysCall) %not_in% names(matchedCall) & names(sysCall) != "" &
@@ -149,6 +150,11 @@ bartc <- function(
   else
     NULL
   
+  ## the treatment is checked over the rows subset keeps, on every route: the
+  ## propensity fits would read it, and with none or given scores the response
+  ## fit would read any numbers as a treatment
+  stopIfTreatmentNotBinary(matchedCall, callingEnv)
+  
   fit.trt <- p.score <- samples.p.score <- NULL
   if (is.numeric(method.trt)) {
     if (!is.null(dim(method.trt))) {
@@ -167,14 +173,6 @@ bartc <- function(
       glm       = redirectCall(matchedCall, quoteInNamespace(getGLMTreatmentFit)),
       bart      = redirectCall(matchedCall, quoteInNamespace(getBartTreatmentFit)),
       none      = NULL)
-    
-    ## the treatment fits check the treatment, and with none the response fit
-    ## would read any numbers as a treatment
-    if (method.trt == "none") {
-      zNone <- tryCatch(eval(matchedCall[["treatment"]], if (!is.null(matchedCall[["data"]])) eval(matchedCall[["data"]], callingEnv),
-                             callingEnv), error = function(e) NULL)
-      if (!treatmentIsBinary(zNone)) stop(treatmentMessage, call. = FALSE)
-    }
     
     trtEnv <- callingEnv
     if (!is.null(treatmentCall)) {

@@ -27,9 +27,15 @@ bartc(response, treatment, confounders, parametric, data, subset, weights, weigh
   }
   \item{treatment}{
     A vector of the binary treatment variable, or a reference to \code{data}.
-    It is 0 and 1, or logical, or a factor of two levels or a character vector
-    of two values, as \code{\link[dbarts]{bart}} reads a binary response: the
-    second level, or the value that sorts last, is the treated group.
+    It is 0 and 1, or logical, or a factor of two levels, the second level
+    being the treated group, as \code{\link[stats]{glm}} reads a factor
+    response. A character vector is refused, since which of its values is
+    treated is not stated, and sorting would choose by locale; the error
+    writes the \code{factor} call from the values, e.g.
+    \code{factor(arm, levels = c("placebo", "drug"))} with the untreated value
+    first. A treatment that is not binary, or is missing for a row \code{subset}
+    keeps, is refused on every \code{method.trt}, including given propensity
+    scores.
   }
   \item{confounders}{
     A matrix or data frame of covariates to be used in estimating the treatment
@@ -443,7 +449,8 @@ bartc(response, treatment, confounders, parametric, data, subset, weights, weigh
 
   \strong{Missing Data}
   
-  Missingness is allowed only in the response. If some response values are
+  Missingness is allowed only in the response; a row with a missing treatment
+  is left out with \code{subset}. If some response values are
   \code{NA}, the BART models will be trained just for where data are available
   and those values will be used to make predictions for the missing
   observations. Missing observations are not used when calculating statistics

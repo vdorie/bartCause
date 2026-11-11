@@ -85,6 +85,33 @@ ifelse_n <- function(n, ...) {
   eval(mc[[2L * n - 1L]], env)
 }
 
+## A call matched inside a function that forwards its '...' names those
+## arguments ..1, ..2, and so on, which read only through the forwarding
+## function's dots: the columns of 'data' are not found by them. They are
+## replaced by the expressions the dots were given as, through as many
+## forwarding functions as there are.
+resolveForwardedDots <- function(call, env)
+{
+  isDots <- function(call) vapply(as.list(call)[-1L], function(a) is.name(a) && grepl("^\\.\\.[0-9]+$", as.character(a)), NA)
+  while (any(dotted <- isDots(call))) {
+    given <- tryCatch(as.list(eval(quote(substitute(list(...))), env))[-1L], error = function(e) NULL)
+    if (is.null(given)) break
+    for (i in which(dotted)) {
+      index <- as.integer(substring(as.character(call[[i + 1L]]), 3L))
+      if (index > length(given)) return(call)
+      call[i + 1L] <- list(given[[index]])
+    }
+    ## the dots of the next function out are where the expressions were written
+    frames <- sys.frames()
+    here <- which(vapply(frames, identical, NA, env))
+    if (length(here) == 0L) break
+    parent <- sys.parents()[here[1L]]
+    if (parent == 0L) break
+    env <- frames[[parent]]
+  }
+  call
+}
+
 redirectCall <- function(call, fn, ...)
 {
   matchedCall <- match.call()

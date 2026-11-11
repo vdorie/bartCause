@@ -729,7 +729,7 @@ test_that("a two-value character response is read as binary by the weights.rsp c
   expect_error(pwFit(weights.rsp = out, data = bdata), "have weights.rsp 0 but a positive population weight")
 })
 
-test_that("a two-level factor or two-value character treatment is binary on every route", {
+test_that("a two-level factor or logical treatment is binary on every route, a character one is refused", {
   tdata <- pwData
   tdata$zf <- factor(ifelse(tdata$z == 1, "treat", "ctl"), levels = c("ctl", "treat"))
   tdata$zc <- as.character(tdata$zf)
@@ -741,18 +741,23 @@ test_that("a two-level factor or two-value character treatment is binary on ever
   wrapper <- function(...) bartc(y, zf, x1 + x2, data = tdata, verbose = FALSE, seed = 7, n.samples = 20L, n.burn = 10L,
                                  n.trees = 10L, n.chains = 1L, n.threads = 1L, ...)
   for (method in c("bart", "glm", "none")) {
-    for (kind in c("zf", "zc", "zl")) {
+    for (kind in c("zf", "zl")) {
       fit <- fitWith(as.name(kind), method.trt = method)
       expect_is(fit, "bartcFit")
       expect_equal(unname(as.vector(fit$trt)), tdata$z, label = paste(kind, method))
     }
     expect_is(wrapper(method.trt = method), "bartcFit")
+    ## a character treatment is refused, with the factor() call written from its values
+    expect_error(fitWith(quote(zc), method.trt = method),
+                 "does not say which value is treated: give factor\\(zc, levels = c\\(\"ctl\", \"treat\"\\)\\)",
+                 label = method)
   }
   ## the literal-vector route
   expect_is(suppressMessages(bartc(tdata$y, tdata$zf, tdata[, c("x1", "x2")], verbose = FALSE, seed = 7, n.samples = 20L,
                                    n.burn = 10L, n.trees = 10L, n.chains = 1L, n.threads = 1L)), "bartcFit")
-  expect_is(suppressMessages(bartc(tdata$y, tdata$zc, tdata[, c("x1", "x2")], method.trt = "glm", verbose = FALSE, seed = 7,
-                                   n.samples = 20L, n.burn = 10L, n.trees = 10L, n.chains = 1L, n.threads = 1L)), "bartcFit")
+  expect_error(bartc(tdata$y, tdata$zc, tdata[, c("x1", "x2")], method.trt = "glm", verbose = FALSE, seed = 7,
+                     n.samples = 20L, n.burn = 10L, n.trees = 10L, n.chains = 1L, n.threads = 1L),
+               "give factor\\(tdata\\$zc, levels")
   ## three values are refused on each route, through a wrapper as direct
   tdata$z3 <- factor(rep(c("a", "b", "c"), length.out = n))
   for (method in c("bart", "glm"))
@@ -764,8 +769,7 @@ test_that("a two-level factor or two-value character treatment is binary on ever
   message <- "the population weights are 0 on every row the estimate averages over"
   local({
     noFit(NULL)
-    for (kind in c("zf", "zc"))
-      expect_error(fitWith(as.name(kind), weights = noWeightOnTreated, estimand = "att"), message, label = kind)
+    expect_error(fitWith(quote(zf), weights = noWeightOnTreated, estimand = "att"), message)
   })
 })
 
@@ -790,7 +794,57 @@ test_that("a treatment that is not binary, or has a missing value, is refused on
   expect_error(bartc(y, z12, x1 + x2, data = tdata, method.trt = "none", verbose = FALSE), "treatment must be binary")
   wrap <- function(...) bartc(y, z12, x1 + x2, data = tdata, method.trt = "none", verbose = FALSE, ...)
   expect_error(wrap(n.chains = 1L), "treatment must be binary")
-  ## a character treatment written as an expression is read by glm as a factor
-  expect_is(fitWith(quote(paste0(zc)), method.trt = "glm"), "bartcFit")
-  expect_is(fitWith(quote(paste0(zc)), method.trt = "none"), "bartcFit")
+  ## a character treatment is refused whether it is a column or an expression
+  for (method in c("bart", "glm", "none")) {
+    expect_error(fitWith(quote(paste0(zc)), method.trt = method), "does not say which value is treated", label = method)
+    expect_error(wrapper(quote(zc), method.trt = method), "does not say which value is treated", label = method)
+  }
+  ## three character values name no pair
+  tdata$zc3 <- rep(c("a", "b", "c"), length.out = n)
+  expect_error(fitWith(quote(zc3), method.trt = "none"), "a character treatment has 3 values")
+})
+
+test_that("the treatment check reads the rows subset keeps, on every route including given scores", {
+  tdata <- pwData
+  tdata$zna <- tdata$z
+  tdata$zna[5L] <- NA
+  tdata$z3 <- rep(0:2, length.out = n)
+  tdata$z12 <- tdata$z + 1
+  small <- list(verbose = FALSE, seed = 7, n.samples = 20L, n.burn = 10L, n.trees = 10L, n.chains = 1L, n.threads = 1L)
+  fitWith <- function(treatment, ...)
+    suppressMessages(eval(as.call(c(list(quote(bartCause::bartc), quote(y), treatment, quote(x1 + x2), data = quote(tdata)),
+                                    small, list(...)))))
+  for (method in c("bart", "glm", "none")) {
+    fit <- fitWith(quote(zna), subset = quote(!is.na(zna)), method.trt = method)
+    expect_is(fit, "bartcFit")
+    expect_equal(length(fit$trt), n - 1L, label = method)
+    ## rows with a third value, left out, do not refuse
+    expect_is(fitWith(quote(z3), subset = quote(z3 < 2), method.trt = method), "bartcFit")
+    expect_error(fitWith(quote(zna), method.trt = method), "leave such rows out with subset", label = method)
+    expect_error(fitWith(quote(z3), subset = quote(z3 < 3), method.trt = method), "treatment must be binary", label = method)
+  }
+  ## given propensity scores: the treatment is read as on the other routes
+  given <- rep(0.5, n)
+  expect_error(fitWith(quote(z12), method.trt = given), "treatment must be binary")
+  expect_error(fitWith(quote(zna), method.trt = given), "leave such rows out with subset")
+  expect_is(fitWith(quote(zna), subset = quote(!is.na(zna)), method.trt = given[-5L]), "bartcFit")
+  expect_error(fitWith(quote(z12), subset = quote(z12 < 3), method.trt = given), "treatment must be binary")
+})
+
+test_that("a function that forwards its dots to bartc keeps the call's data", {
+  tdata <- pwData
+  tdata$zf <- factor(ifelse(tdata$z == 1, "treat", "ctl"), levels = c("ctl", "treat"))
+  small <- list(verbose = FALSE, seed = 7, n.samples = 20L, n.burn = 10L, n.trees = 10L, n.chains = 1L, n.threads = 1L)
+  forward <- function(...) bartc(...)
+  forwardTwice <- function(...) forward(...)
+  for (method in c("bart", "glm", "none")) for (kind in c("z", "zf")) {
+    args <- c(list(quote(y), as.name(kind), quote(x1 + x2), data = quote(tdata), method.trt = method), small)
+    direct <- suppressMessages(do.call(bartc, args))
+    for (wrapper in list(forward, forwardTwice)) {
+      fit <- suppressMessages(do.call(wrapper, args))
+      expect_is(fit, "bartcFit")
+      expect_equal(fit$trt, direct$trt, label = paste(kind, method))
+      expect_equal(fit$est, direct$est, label = paste(kind, method))
+    }
+  }
 })

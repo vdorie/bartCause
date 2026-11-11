@@ -12,6 +12,7 @@ getGLMTreatmentFit <- function(response, treatment, confounders, parametric, dat
     stop("'treatment' variable must be specified")
   if (confoundersAreMissing)
     stop("'confounders' variable must be specified")
+  stopIfTreatmentNotBinary(matchedCall, callingEnv)
   
   useLmer <-
     (!is.null(matchedCall[["group.by"]]) && use.ranef) ||
@@ -51,13 +52,6 @@ getGLMTreatmentFit <- function(response, treatment, confounders, parametric, dat
     if (!identical(grouped$env, callingEnv)) evalEnv <- grouped$env
     else if (!is.null(dataEnv)) evalEnv <- dataEnv
 
-    df <- eval(dataCall$data, evalEnv)
-    treatment <- tryCatch(eval(matchedCall$treatment, df, callingEnv), error = function(e) NULL)
-    if (!treatmentIsBinary(treatment))
-      stop(treatmentMessage)
-    ## glm reads a character response as no response, so it is given the factor
-    if (is.character(treatment))
-      glmCall[[2L]][[2L]] <- call("factor", matchedCall$treatment)
   } else {
     df <- NULL
     literalCall <- addCallArgument(redirectCall(matchedCall, quoteInNamespace(getTreatmentLiteralCall)), "fn", fn)
@@ -67,11 +61,6 @@ getGLMTreatmentFit <- function(response, treatment, confounders, parametric, dat
     literalCall[["use.lmer"]] <- useLmer
     
     massign[glmCall, df] <- eval(literalCall, envir = dataEnv)
-
-    treatment <- df[[deparse(glmCall[[2L]][[2L]])]]
-    if (!treatmentIsBinary(treatment))
-      stop(treatmentMessage)
-    if (is.character(treatment)) df[[deparse(glmCall[[2L]][[2L]])]] <- factor(treatment)
     
     evalEnv <- new.env(parent = callingEnv)
     evalEnv[["df"]] <- df
@@ -106,6 +95,7 @@ getBartTreatmentFit <- function(response, treatment, confounders, parametric, da
     stop("'treatment' variable must be specified")
   if (confoundersAreMissing)
     stop("'confounders' variable must be specified")
+  stopIfTreatmentNotBinary(matchedCall, callingEnv)
   
   ## a parametric equation or a modeled group intercept both make the propensity
   ## model semiparametric, and stan4bart is the only sampler that fits one; its
@@ -149,11 +139,6 @@ getBartTreatmentFit <- function(response, treatment, confounders, parametric, da
     
     if (!identical(grouped$env, callingEnv)) evalEnv <- grouped$env
     else if (!is.null(dataEnv)) evalEnv <- dataEnv
-
-    df <- eval(dataCall$data, evalEnv)
-    treatment <- tryCatch(eval(matchedCall$treatment, df, callingEnv), error = function(e) NULL)
-    if (!treatmentIsBinary(treatment))
-      stop(treatmentMessage)
   } else {
     df <- NULL
     literalCall <- addCallArgument(redirectCall(matchedCall, quoteInNamespace(getTreatmentLiteralCall)), "fn", fn)
@@ -163,10 +148,6 @@ getBartTreatmentFit <- function(response, treatment, confounders, parametric, da
     dataEnv <- if (dataAreMissing) callingEnv else list2env(data, parent = callingEnv)
     
     massign[bartCall, df] <- eval(literalCall, envir = dataEnv)
-
-    treatment <- df[[deparse(bartCall[[2L]][[2L]])]]
-    if (!treatmentIsBinary(treatment))
-      stop(treatmentMessage)
     
     evalEnv <- new.env(parent = callingEnv)
     evalEnv[["df"]] <- df

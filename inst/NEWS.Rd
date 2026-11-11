@@ -29,18 +29,25 @@
   }
   \subsection{USER-VISIBLE CHANGES}{
     \itemize{
-      \item A treatment that is a factor of two levels or a character vector
-            of two values is read as binary by every route (\code{method.trt}
-            \code{"bart"}, \code{"glm"} and \code{"none"}), the second level,
-            or the value that sorts last, being treated; \code{bartc} had
-            refused it, or fit it, according to how it was called.
-      \item A treatment that is not binary, or has a missing value, is now
-            refused with an error on every route and call. \code{bartc} had
-            fit a treatment coded 1 and 2, or of three values, without a
-            message when called through a function with
-            \code{method.trt = "bart"}, and always with
-            \code{method.trt = "none"}, the effect then taking the wrong sign
-            or meaning; recode a 1/2 treatment to 0/1.
+      \item A treatment that is a factor of two levels, the second being
+            treated, or logical, is read as binary by every route
+            (\code{method.trt} \code{"bart"}, \code{"glm"}, \code{"none"} and
+            given propensity scores). A character treatment is refused, with
+            an error that writes the \code{factor(arm, levels = c("placebo",
+            "drug"))} call from its values, the untreated value first, or
+            0/1, as 1.0-10 refused it on every route.
+      \item A treatment that is not binary, or has a missing value in a row
+            \code{subset} keeps, is now refused with an error on every route
+            and call, including given propensity scores; a missing value is
+            refused with the advice to leave such rows out with
+            \code{subset}, which now works. \code{bartc} had fit a treatment
+            coded 1 and 2, or of three values, without a message when called
+            through a function with \code{method.trt = "bart"}, and always
+            with \code{method.trt = "none"} or given scores, the effect then
+            taking the wrong sign or meaning; recode a 1/2 treatment to 0/1.
+      \item \code{bartc} called through a function that forwards its
+            \code{...} (\code{function(...) bartc(...)}) with the columns in
+            \code{data} no longer fails with \code{object 'z' not found}.
       \item A \code{bartc} fit stores its posterior draws once, in
             \code{fit.rsp} and \code{fit.trt}, rather than again as
             \code{mu.hat.obs}, \code{mu.hat.cf} and \code{samples.p.score}, so

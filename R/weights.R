@@ -188,29 +188,72 @@ groupHasNoWeight <- function(weights, trt, estimand)
   !(sum(weights[rows]) > 0)
 }
 
-## Whether a treatment is binary as dbarts reads a binary response: 0s and 1s
-## or a logical vector, a factor of two levels (the second is treated), or a
-## character vector of two values (the one that sorts last is treated).
+## Whether a treatment is binary: 0s and 1s or a logical vector, or a factor of
+## two levels (the second is treated). A character vector is not: which of its
+## values is treated is not stated, and sorting would choose it by locale.
 ## Nothing read is vacuously binary; a missing value is not binary.
-treatmentMessage <- "treatment must be binary and not missing: 0/1 or logical, or a factor or character with two values"
 treatmentIsBinary <- function(z)
 {
   if (anyNA(z)) return(FALSE)
   if (is.factor(z)) return(nlevels(z) == 2L)
-  if (is.character(z)) return(length(unique(z[!is.na(z)])) == 2L)
+  if (is.character(z)) return(FALSE)
   all(z %in% c(0, 1))
 }
 
+## The refusal of a treatment that is not binary, written from its values: a
+## character treatment is shown the factor() call that states its treated
+## value, and a missing value the way to leave its rows out.
+treatmentMessage <- function(z, expr)
+{
+  base <- "treatment must be binary and not missing: 0/1 or logical, or a factor of two levels"
+  if (anyNA(z))
+    return(paste0(base, "; leave such rows out with subset"))
+  if (is.character(z)) {
+    values <- sort(unique(z))
+    if (length(values) == 2L)
+      return(paste0("treatment must be binary, and a character treatment does not say which value is treated: ",
+                    "give factor(", paste0(deparse(expr), collapse = ""), ", levels = c(\"", values[1L], "\", \"",
+                    values[2L], "\")), the untreated value first and the treated one last (reorder the levels ",
+                    "if \"", values[1L], "\" is the treated one), or 0/1"))
+    return(paste0("treatment must be binary: a character treatment has ", length(values),
+                  " values; give a factor of two levels, with the untreated value first, or 0/1"))
+  }
+  base
+}
+
+## The treatment on the rows 'subset' keeps, read from its expression as
+## written, or NULL where it cannot be read as one value for each row (the
+## fits then find any problem with it).
+treatmentOnRowsKept <- function(matchedCall, env)
+{
+  tryCatch({
+    data <- if (!is.null(matchedCall[["data"]])) eval(matchedCall[["data"]], env) else NULL
+    z <- eval(matchedCall[["treatment"]], data, env)
+    if (!is.null(dim(z))) return(NULL)
+    if (!is.null(matchedCall[["subset"]]))
+      z <- z[normalizeBCFSubset(eval(matchedCall[["subset"]], data, env), length(z),
+                                if (is.data.frame(data)) rownames(data) else NULL)]
+    z
+  }, error = function(e) NULL)
+}
+
+## Refuses a treatment that is not binary, over the rows 'subset' keeps, before
+## any propensity model is fit or given scores are used.
+stopIfTreatmentNotBinary <- function(matchedCall, env)
+{
+  z <- treatmentOnRowsKept(matchedCall, env)
+  if (!is.null(z) && !treatmentIsBinary(z))
+    stop(treatmentMessage(z, matchedCall[["treatment"]]), call. = FALSE)
+}
+
 ## The treatment on the rows modeled, read from its expression as written
-## before any fit as 0/1 (a factor or character treatment as treatmentIsBinary
-## reads it), or NULL where it cannot be read as a vector with one value for
+## before any fit as 0/1 (a factor treatment as treatmentIsBinary reads it), or NULL where it cannot be read as a vector with one value for
 ## each row of data; the fits then find any problem with it.
 treatmentBeforeFit <- function(matchedCall, env, n, rows)
 {
   tryCatch({
     data <- if (!is.null(matchedCall[["data"]])) eval(matchedCall[["data"]], env) else NULL
     z <- eval(matchedCall[["treatment"]], data, env)
-    if (is.character(z) && !anyNA(z) && treatmentIsBinary(z)) z <- factor(z)
     if (is.factor(z) && nlevels(z) == 2L) z <- as.integer(z) - 1L
     if (is.logical(z)) z <- as.numeric(z)
     if (!is.numeric(z) || !is.null(dim(z)) || length(z) != n || anyNA(z)) NULL else as.vector(z)[rows]
