@@ -848,3 +848,25 @@ test_that("a function that forwards its dots to bartc keeps the call's data", {
     }
   }
 })
+
+test_that("a function that forwards its dots without data reads the variables of the frame that wrote them", {
+  small <- list(verbose = FALSE, seed = 7, n.samples = 20L, n.burn = 10L, n.trees = 10L, n.chains = 1L, n.threads = 1L)
+  forward <- function(...) bartc(...)
+  ## variables of the same names, in the forwarding function's enclosure, that must not be read
+  yy <- rev(pwData$y); zz <- 1 - pwData$z; xx <- cbind(rev(pwData$x1), rev(pwData$x2))
+  caller <- function(wrapper, method) {
+    yy <- pwData$y; zz <- pwData$z; xx <- cbind(pwData$x1, pwData$x2)
+    do.call(wrapper, c(list(quote(yy), quote(zz), quote(xx), method.trt = method), small))
+  }
+  directCaller <- function(method) {
+    yy <- pwData$y; zz <- pwData$z; xx <- cbind(pwData$x1, pwData$x2)
+    do.call(bartc, c(list(quote(yy), quote(zz), quote(xx), method.trt = method), small))
+  }
+  for (method in c("bart", "glm", "none")) {
+    direct <- suppressMessages(directCaller(method))
+    fit <- suppressMessages(caller(forward, method))
+    expect_is(fit, "bartcFit")
+    expect_equal(fit$est, direct$est, label = method)
+    expect_equal(fit$trt, direct$trt, label = method)
+  }
+})

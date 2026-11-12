@@ -47,7 +47,9 @@
             taking the wrong sign or meaning; recode a 1/2 treatment to 0/1.
       \item \code{bartc} called through a function that forwards its
             \code{...} (\code{function(...) bartc(...)}) with the columns in
-            \code{data} no longer fails with \code{object 'z' not found}.
+            \code{data} no longer fails with \code{object 'z' not found}. A
+            call through such a function without \code{data} reads its
+            variables where they were written, as before.
       \item A \code{bartc} fit stores its posterior draws once, in
             \code{fit.rsp} and \code{fit.trt}, rather than again as
             \code{mu.hat.obs}, \code{mu.hat.cf} and \code{samples.p.score}, so

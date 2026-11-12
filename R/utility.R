@@ -87,12 +87,17 @@ ifelse_n <- function(n, ...) {
 
 ## A call matched inside a function that forwards its '...' names those
 ## arguments ..1, ..2, and so on, which read only through the forwarding
-## function's dots: the columns of 'data' are not found by them. They are
-## replaced by the expressions the dots were given as, through as many
-## forwarding functions as there are.
+## function's dots: the columns of 'data' are not found by them. Where 'data'
+## is given, it and the arguments read with it are replaced by the expressions the
+## dots were given as, through as many forwarding functions as there are. The
+## other arguments, and every argument of a call without 'data', stay as they
+## are and are read as promises in the frame they were written in.
 resolveForwardedDots <- function(call, env)
 {
-  isDots <- function(call) vapply(as.list(call)[-1L], function(a) is.name(a) && grepl("^\\.\\.[0-9]+$", as.character(a)), NA)
+  if (!"data" %in% names(call)) return(call)
+  readWithData <- c("data", "response", "treatment", "confounders", "parametric", "subset", "weights", "weights.rsp", "group.by")
+  isDots <- function(call) vapply(as.list(call)[-1L], function(a) is.name(a) && grepl("^\\.\\.[0-9]+$", as.character(a)), NA) &
+                           names(call)[-1L] %in% readWithData
   while (any(dotted <- isDots(call))) {
     given <- tryCatch(as.list(eval(quote(substitute(list(...))), env))[-1L], error = function(e) NULL)
     if (is.null(given)) break
